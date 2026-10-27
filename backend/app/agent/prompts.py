@@ -5,14 +5,19 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agent.dates import calendar_line
 from app.models import User, Venue
 from app.permissions import ROLES
 
 RULES = """\
 Rules:
 - Never guess whether a venue is free, what it has, or what happened in the past: call a tool.
-- Work out exact dates from today's date. Times are 24-hour HH:MM. Venues open 08:00-18:00
-  Monday to Friday and 08:00-17:00 on Saturday; they are closed on Sunday.
+- Never work out dates in your head. Take them from the calendar above, or call resolve_dates
+  for anything else (it understands "next Saturday", "Friday after next", "3 Nov").
+  "Next Saturday" means the first Saturday after today. When you answer, give the weekday with
+  the date (e.g. Saturday 31 Oct) so the person can catch a mistake.
+- Times are 24-hour HH:MM. Venues open 08:00-18:00 Monday to Friday and 08:00-17:00 on
+  Saturday; they are closed on Sunday.
 - You cannot change anything yourself. To book, call draft_booking: the user reviews and submits
   the form. To cancel, approve, reject or update equipment, call the propose_ tool: the user
   confirms the card in the app. Say so instead of claiming it is done.
@@ -31,6 +36,7 @@ def system_prompt(db: Session, user: User | None, *, short: bool = False) -> str
         "Technology (KIOT), Salem. You help people find and book labs, centres of excellence "
         "and seminar halls, using the tools you are given.",
         f"Today is {today:%A, %d %B %Y} ({today.isoformat()}).",
+        f"Calendar for the next two weeks: {calendar_line(today)}.",
     ]
     if user is None:
         lines.append(
@@ -56,6 +62,7 @@ def _short_rules() -> str:
     # Small local models follow a few direct rules better than a long list.
     return (
         "Rules: always use a tool to check availability or venue details; never guess. "
+        "Take dates from the calendar above or call resolve_dates; never calculate them. "
         "You cannot book or change anything: use draft_booking or a propose_ tool and the user "
         "confirms it. Ask if the date, time or headcount is missing. Answer briefly."
     )

@@ -1,4 +1,4 @@
-"""Live smoke test: ~15 real questions against Groq or Ollama, checking which tools get used.
+"""Live smoke test: ~16 real questions against Groq or Ollama, checking which tools get used.
 
     python -m app.agent.smoke                       # the default provider from Settings / .env
     python -m app.agent.smoke --provider ollama     # e.g. qwen3.5:4b on this computer
@@ -13,10 +13,12 @@ import argparse
 import asyncio
 import time
 from dataclasses import dataclass, field
+from datetime import date
 
 from sqlalchemy import select
 
 from app.agent import runtime
+from app.agent.dates import resolve
 from app.agent.llm import LLMError, make_llm
 from app.agent.settings import llm_settings
 from app.db import SessionLocal
@@ -31,10 +33,11 @@ class Case:
     email: str | None  # None = a student (not logged in)
     tools: set[str] = field(default_factory=set)  # one of these must be called
     card: str | None = None  # "draft" / "confirm" expected, or "none" for no card
+    day: str | None = None  # the tools must be called with the date this phrase means
 
 
 CASES = [
-    Case("Is CC5 free tomorrow from 10 to 12?", None, {"check_availability"}),
+    Case("Is CC5 free tomorrow from 10 to 12?", None, {"check_availability"}, day="tomorrow"),
     Case("Which labs have Docker installed?", None, {"list_venues", "get_venue"}),
     Case("Show me the lab timetable for CSE III-B.", None, {"get_timetable"}),
     Case("Book CC3 for me tomorrow 2 to 4 pm.", None, set(), card="none"),
@@ -48,6 +51,7 @@ CASES = [
         FACULTY,
         {"draft_booking"},
         card="draft",
+        day="next Tuesday",
     ),
     Case("Where were Gen-AI workshops held before?", FACULTY, {"search_past_events"}),
     Case("What are my bookings?", FACULTY, {"list_my_bookings"}),
@@ -70,6 +74,13 @@ CASES = [
         "Recommend a venue for a hackathon for 60 people next Saturday 9 am to 5 pm.",
         "dirim@kiot.ac.in",
         {"recommend_venues", "find_free_venues"},
+        day="next Saturday",
+    ),
+    Case(
+        "Is the D Block seminar hall free on Friday after next, 2 to 4 pm?",
+        None,
+        {"check_availability"},
+        day="Friday after next",
     ),
 ]
 
@@ -79,7 +90,8 @@ async def run_case(db, case: Case, provider: str | None, model: str | None) -> t
     llm = make_llm(llm_settings(db), provider, model)
     messages = runtime.build_messages(db, user, llm, [], case.question)
     used, cards, answer, error = [], [], "", ""
-    async for event in runtime.run(db, user, llm, messages):
+    outcome = runtime.Outcome()
+    async for event in runtime.run(db, user, llm, messages, outcome):
         if event["type"] == "step":
             used.append(event["tool"])
         elif event["type"] == "card":
@@ -97,6 +109,11 @@ async def run_case(db, case: Case, provider: str | None, model: str | None) -> t
         problems.append(f"unexpected {cards[0]} card")
     elif case.card and case.card != "none" and case.card not in cards:
         problems.append(f"no {case.card} card")
+    if case.day:
+        want = resolve(case.day, date.today())[0].isoformat()
+        sent = {s["args"].get("date") for s in outcome.steps if s["args"].get("date")}
+        if sent != {want}:
+            problems.append(f"{case.day} is {want}, but the tools got {sorted(sent) or 'no date'}")
     if not answer.strip() and not error:
         problems.append("empty answer")
     detail = f"tools={used or '-'}"
