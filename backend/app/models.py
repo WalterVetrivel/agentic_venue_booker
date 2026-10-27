@@ -1,6 +1,17 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    Time,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -143,3 +154,69 @@ class AuditLog(Base):
     after: Mapped[str | None] = mapped_column(Text)  # JSON
     via: Mapped[str] = mapped_column(String(10), default="ui")  # ui | agent
     at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class AcademicTerm(Base):
+    __tablename__ = "academic_terms"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(40), unique=True)  # e.g. "2026-27 ODD"
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_to: Mapped[date] = mapped_column(Date)
+
+
+class ClassSection(Base):
+    __tablename__ = "class_sections"
+    __table_args__ = (UniqueConstraint("dept", "year", "section"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dept: Mapped[str] = mapped_column(String(20))
+    year: Mapped[str] = mapped_column(String(5))
+    section: Mapped[str] = mapped_column(String(5))
+    advisor: Mapped[str | None] = mapped_column(String(120))
+    strength: Mapped[int] = mapped_column(Integer, default=60)
+
+    @property
+    def label(self) -> str:
+        return f"{self.dept} {self.year}-{self.section}"
+
+
+class TimetableUpload(Base):
+    __tablename__ = "timetable_uploads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    filename: Mapped[str] = mapped_column(String(200))
+    stored_path: Mapped[str] = mapped_column(String(400))
+    uploaded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    status: Mapped[str] = mapped_column(String(20), default="parsed")  # parsed | committed
+    parsed: Mapped[str] = mapped_column(Text)  # JSON: header, grid, slots as reviewed
+    section_id: Mapped[int | None] = mapped_column(
+        ForeignKey("class_sections.id", ondelete="SET NULL")
+    )
+    term_id: Mapped[int | None] = mapped_column(
+        ForeignKey("academic_terms.id", ondelete="SET NULL")
+    )
+
+
+class TimetableSlot(Base):
+    __tablename__ = "timetable_slots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    term_id: Mapped[int] = mapped_column(ForeignKey("academic_terms.id", ondelete="CASCADE"))
+    section_id: Mapped[int] = mapped_column(ForeignKey("class_sections.id", ondelete="CASCADE"))
+    venue_id: Mapped[int] = mapped_column(ForeignKey("venues.id", ondelete="CASCADE"), index=True)
+    upload_id: Mapped[int | None] = mapped_column(
+        ForeignKey("timetable_uploads.id", ondelete="SET NULL")
+    )
+    weekday: Mapped[int] = mapped_column(Integer)  # Mon=0
+    start: Mapped[time] = mapped_column(Time)
+    end: Mapped[time] = mapped_column(Time)
+    subject_code: Mapped[str] = mapped_column(String(30))
+    subject_name: Mapped[str] = mapped_column(String(160))
+    faculty_name: Mapped[str | None] = mapped_column(String(160))
+    batch: Mapped[str] = mapped_column(String(10), default="all")
+
+    term: Mapped[AcademicTerm] = relationship(lazy="joined")
+    section: Mapped[ClassSection] = relationship(lazy="joined")
+    venue: Mapped[Venue] = relationship(lazy="joined")

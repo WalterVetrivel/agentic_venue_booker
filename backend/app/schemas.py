@@ -217,5 +217,80 @@ class CheckOut(BaseModel):
     start: datetime
     end: datetime
     free: bool
+    needs_displacement: bool
     conflicts: list[BlockOut]
+    classes: list[BlockOut]
     warnings: list[NoticeOut]
+
+
+class TimetableSlotIn(BaseModel):
+    weekday: str
+    start: str
+    end: str
+    subject_code: str = Field(min_length=1)
+    subject_name: str = ""
+    faculty_name: str = ""
+    batch: str = "all"
+    venue: str = Field(min_length=1)
+
+
+class TimetableHeader(BaseModel):
+    dept: str | None = None
+    year: str | None = None
+    section: str | None = None
+    term_name: str | None = None
+    valid_from: str | None = None
+    valid_to: str | None = None
+    class_advisor: str | None = None
+
+
+class TimetableReviewIn(BaseModel):
+    header: TimetableHeader
+    slots: list[TimetableSlotIn]
+
+
+class TimetableUploadOut(BaseModel):
+    id: int
+    filename: str
+    status: str
+    uploaded_at: datetime
+    header: dict
+    periods: list[dict]
+    grid: dict
+    slots: list[dict]
+    problems: list[str]
+    can_commit: bool
+
+
+class TimetableUploadBrief(BaseModel):
+    id: int
+    filename: str
+    status: str
+    uploaded_at: datetime
+    section: str | None
+    slots: int
+    can_commit: bool
+
+
+class SectionOut(BaseModel):
+    id: int
+    label: str
+    dept: str
+    year: str
+    section: str
+    advisor: str | None
+    lab_slots: int
+
+
+class ClassSlotOut(BaseModel):
+    id: int
+    section: str
+    term: str
+    venue: str
+    weekday: str
+    start: time
+    end: time
+    subject_code: str
+    subject_name: str
+    faculty_name: str | None
+    batch: str

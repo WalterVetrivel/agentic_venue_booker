@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import auth, availability, users, venues
+from app.api import auth, availability, timetables, users, venues
 from app.config import get_settings
 
 
@@ -12,6 +12,7 @@ def create_app() -> FastAPI:
     app.include_router(venues.router)
     app.include_router(availability.router)
     app.include_router(users.router)
+    app.include_router(timetables.router)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:

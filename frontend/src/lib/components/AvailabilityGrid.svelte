@@ -22,9 +22,10 @@
 	function cellsFor(v: VenueDay): Cell[] {
 		return slots.map((s) => {
 			const e = s + data.slot_minutes;
-			const block = v.blocks.find(
-				(b) => b.hard && minutesOnDay(b.start, data.date) < e && s < minutesOnDay(b.end, data.date)
+			const here = v.blocks.filter(
+				(b) => minutesOnDay(b.start, data.date) < e && s < minutesOnDay(b.end, data.date)
 			);
+			const block = here.find((b) => b.hard) ?? here[0];
 			return block ? { state: block.kind, label: block.label } : { state: 'free', label: 'Free' };
 		});
 	}
@@ -101,7 +102,7 @@
 <!-- Mobile: one card per venue -->
 <ul class="space-y-3 md:hidden">
 	{#each data.venues as v (v.code)}
-		{@const hard = v.blocks.filter((b) => b.hard)}
+		{@const hard = v.blocks}
 		<li class="rounded-xl border border-border bg-surface p-4">
 			<div class="flex items-baseline justify-between">
 				<a href="/venues/{v.code}" class="font-semibold">{v.name}</a>
@@ -129,7 +130,7 @@
 </ul>
 
 <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
-	{#each [['free', 'Free'], ['class', 'Class (Phase 2)'], ['booking', 'Booked (Phase 3)'], ['status', 'Maintenance / closed'], ['seasonal', 'Reserved for the season'], ['closed', 'College closed']] as [k, label] (k)}
+	{#each [['free', 'Free'], ['class', 'Class'], ['booking', 'Booked (Phase 3)'], ['status', 'Maintenance / closed'], ['seasonal', 'Reserved for the season'], ['closed', 'College closed']] as [k, label] (k)}
 		<span class="flex items-center gap-2"
 			><span class="inline-block h-4 w-4 rounded {STATE_CLASS[k]}"></span>{label}</span
 		>

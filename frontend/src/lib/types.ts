@@ -113,3 +113,75 @@ export const MONTHS = [
 	'Nov',
 	'Dec'
 ];
+
+export type ClassSlot = {
+	id: number;
+	section: string;
+	term: string;
+	venue: string;
+	weekday: string;
+	start: string;
+	end: string;
+	subject_code: string;
+	subject_name: string;
+	faculty_name: string | null;
+	batch: string;
+};
+
+export type TimetableHeader = {
+	dept: string | null;
+	year: string | null;
+	section: string | null;
+	term_name: string | null;
+	valid_from: string | null;
+	valid_to: string | null;
+	class_advisor: string | null;
+};
+
+export type ParsedSlot = {
+	weekday: string;
+	start: string;
+	end: string;
+	subject_code: string;
+	subject_name: string;
+	faculty_name: string;
+	batch: string;
+	venue: string;
+	venue_code?: string | null;
+	issues?: string[];
+};
+
+export type TimetableUpload = {
+	id: number;
+	filename: string;
+	status: 'parsed' | 'committed';
+	uploaded_at: string;
+	header: TimetableHeader;
+	periods: { no: number; start: string; end: string }[];
+	grid: Record<string, (string | null)[]>;
+	slots: ParsedSlot[];
+	problems: string[];
+	can_commit: boolean;
+};
+
+export type UploadBrief = {
+	id: number;
+	filename: string;
+	status: 'parsed' | 'committed';
+	uploaded_at: string;
+	section: string | null;
+	slots: number;
+	can_commit: boolean;
+};
+
+export type Section = {
+	id: number;
+	label: string;
+	dept: string;
+	year: string;
+	section: string;
+	advisor: string | null;
+	lab_slots: number;
+};
+
+export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

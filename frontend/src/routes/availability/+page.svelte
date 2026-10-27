@@ -40,7 +40,7 @@
 		load();
 	});
 
-	// When a time window is chosen, keep only venues with no hard block inside it.
+	// With a time window, keep only venues with nothing (not even a class) inside it.
 	const shown = $derived.by(() => {
 		if (!data) return null;
 		if (!from || !to || minutesOf(to) <= minutesOf(from)) return data;
@@ -51,8 +51,7 @@
 			venues: data.venues.filter(
 				(v) =>
 					!v.blocks.some(
-						(b) =>
-							b.hard && minutesOnDay(b.start, data!.date) < e && s < minutesOnDay(b.end, data!.date)
+						(b) => minutesOnDay(b.start, data!.date) < e && s < minutesOnDay(b.end, data!.date)
 					)
 			)
 		};
