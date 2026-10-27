@@ -25,7 +25,8 @@
 						<div class="mt-2 flex flex-wrap gap-2 text-sm">
 							<span class="rounded-full bg-surface-2 px-2.5 py-0.5">{v.capacity} seats</span>
 							{#if v.byod}<span class="rounded-full bg-surface-2 px-2.5 py-0.5">BYOD</span>{/if}
-							{#if v.block}<span class="rounded-full bg-surface-2 px-2.5 py-0.5">{v.block}</span>{/if}
+							{#if v.block}<span class="rounded-full bg-surface-2 px-2.5 py-0.5">{v.block}</span
+								>{/if}
 						</div>
 					</a>
 				{/each}

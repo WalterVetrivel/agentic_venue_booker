@@ -1,11 +1,15 @@
 <script lang="ts">
-	let { name, size = 20, class: cls = '' }: { name: string; size?: number; class?: string } =
-		$props();
+	let {
+		name,
+		size = 20,
+		class: cls = ''
+	}: { name: string; size?: number; class?: string } = $props();
 
 	const paths: Record<string, string> = {
 		home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
 		calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
-		building: 'M4 21V5l8-3 8 3v16M9 21v-4h6v4M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01',
+		building:
+			'M4 21V5l8-3 8 3v16M9 21v-4h6v4M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01',
 		plus: 'M12 5v14M5 12h14',
 		list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
 		check: 'M20 6 9 17l-5-5',
@@ -21,7 +25,8 @@
 		send: 'M22 2 11 13M22 2l-7 20-4-9-9-4z',
 		chevron: 'm6 9 6 6 6-6',
 		logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
-		users: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
+		users:
+			'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
 		history: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 3'
 	};
 </script>

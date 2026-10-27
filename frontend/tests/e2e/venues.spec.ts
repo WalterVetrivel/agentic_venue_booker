@@ -9,7 +9,9 @@ test('availability shows the A Block admissions block and filters by software', 
 }) => {
 	await page.goto(`/availability?date=${APRIL_DAY}`);
 	await expect(page.getByRole('heading', { name: 'Monday, 5 April 2027' })).toBeVisible();
-	await expect(page.getByText(/Reserved for admission counselling/).locator('visible=true')).toHaveCount(1);
+	await expect(
+		page.getByText(/Reserved for admission counselling/).locator('visible=true')
+	).toHaveCount(1);
 
 	await page.getByLabel('Needs software or equipment').fill('Power BI');
 	await page.getByRole('button', { name: 'Apply filters' }).click();
@@ -38,8 +40,16 @@ test('in-charge puts their lab under maintenance and it shows as unavailable', a
 	await page.goto(`/availability?date=${day}&type=lab`);
 	await page.getByLabel('Free from').fill('10:00');
 	await page.getByLabel('Free until').fill('11:00');
-	await expect(page.getByRole('link', { name: 'CC9', exact: true }).or(page.getByRole('link', { name: 'Computer Centre 9' }))).toBeVisible();
-	await expect(page.getByRole('link', { name: 'CC10', exact: true }).or(page.getByRole('link', { name: 'Computer Centre 10' }))).toHaveCount(0);
+	await expect(
+		page
+			.getByRole('link', { name: 'CC9', exact: true })
+			.or(page.getByRole('link', { name: 'Computer Centre 9' }))
+	).toBeVisible();
+	await expect(
+		page
+			.getByRole('link', { name: 'CC10', exact: true })
+			.or(page.getByRole('link', { name: 'Computer Centre 10' }))
+	).toHaveCount(0);
 });
 
 test('in-charge cannot edit a venue they do not own', async ({ page }) => {

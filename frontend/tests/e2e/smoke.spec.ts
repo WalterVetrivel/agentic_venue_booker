@@ -10,16 +10,39 @@ test('students can browse venues without logging in', async ({ page }) => {
 });
 
 const MENUS: Record<string, string[]> = {
-	'swvcse@kiot.ac.in': ['Home', 'Availability', 'Venues', 'Book a venue', 'My bookings', 'Approvals', 'Reports'],
+	'swvcse@kiot.ac.in': [
+		'Home',
+		'Availability',
+		'Venues',
+		'Book a venue',
+		'My bookings',
+		'Approvals',
+		'Reports'
+	],
 	'prcse@kiot.ac.in': ['Home', 'Availability', 'Venues', 'Book a venue', 'My bookings'],
 	'cseoa@kiot.ac.in': ['Home', 'Availability', 'Venues', 'Timetables', 'Circulars & reports'],
 	'hod.cse@kiot.ac.in': [
-		'Home', 'Availability', 'Venues', 'Book a venue', 'My bookings', 'Approvals',
-		'Timetables', 'Circulars & reports', 'Reports'
+		'Home',
+		'Availability',
+		'Venues',
+		'Book a venue',
+		'My bookings',
+		'Approvals',
+		'Timetables',
+		'Circulars & reports',
+		'Reports'
 	],
 	'dirim@kiot.ac.in': [
-		'Home', 'Availability', 'Venues', 'Book a venue', 'My bookings', 'Approvals',
-		'Timetables', 'Circulars & reports', 'Reports', 'Settings'
+		'Home',
+		'Availability',
+		'Venues',
+		'Book a venue',
+		'My bookings',
+		'Approvals',
+		'Timetables',
+		'Circulars & reports',
+		'Reports',
+		'Settings'
 	]
 };
 

@@ -51,7 +51,8 @@
 			venues: data.venues.filter(
 				(v) =>
 					!v.blocks.some(
-						(b) => b.hard && minutesOnDay(b.start, data!.date) < e && s < minutesOnDay(b.end, data!.date)
+						(b) =>
+							b.hard && minutesOnDay(b.start, data!.date) < e && s < minutesOnDay(b.end, data!.date)
 					)
 			)
 		};
@@ -74,9 +75,19 @@
 	<div>
 		<label for="day" class="mb-1.5 block font-medium">Date</label>
 		<div class="flex gap-2">
-			<button type="button" class="rounded-lg border border-border px-3 hover:bg-surface-2" aria-label="Previous day" onclick={() => (day = addDays(day, -1))}>‹</button>
+			<button
+				type="button"
+				class="rounded-lg border border-border px-3 hover:bg-surface-2"
+				aria-label="Previous day"
+				onclick={() => (day = addDays(day, -1))}>‹</button
+			>
 			<input id="day" type="date" bind:value={day} class={field} />
-			<button type="button" class="rounded-lg border border-border px-3 hover:bg-surface-2" aria-label="Next day" onclick={() => (day = addDays(day, 1))}>›</button>
+			<button
+				type="button"
+				class="rounded-lg border border-border px-3 hover:bg-surface-2"
+				aria-label="Next day"
+				onclick={() => (day = addDays(day, 1))}>›</button
+			>
 		</div>
 	</div>
 	<div>
@@ -90,7 +101,14 @@
 	</div>
 	<div>
 		<label for="cap" class="mb-1.5 block font-medium">At least this many seats</label>
-		<input id="cap" type="number" min="1" bind:value={minCapacity} placeholder="Any" class={field} />
+		<input
+			id="cap"
+			type="number"
+			min="1"
+			bind:value={minCapacity}
+			placeholder="Any"
+			class={field}
+		/>
 	</div>
 	<div class="sm:col-span-2 lg:col-span-1">
 		<label for="needs" class="mb-1.5 block font-medium">Needs software or equipment</label>
@@ -105,7 +123,10 @@
 		<input id="to" type="time" step="1800" bind:value={to} class={field} />
 	</div>
 	<div class="flex items-end sm:col-span-2 lg:col-span-3">
-		<button type="submit" class="rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-fg hover:opacity-90">
+		<button
+			type="submit"
+			class="rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-fg hover:opacity-90"
+		>
 			Apply filters
 		</button>
 	</div>
@@ -129,11 +150,16 @@
 		<ul class="mt-4 space-y-2">
 			{#each warned as v (v.code)}
 				{#each v.warnings as w, i (i)}
-					<li class="rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5"><strong>{v.code}:</strong> {w.message}</li>
+					<li class="rounded-lg border border-warning/40 bg-warning/10 px-4 py-2.5">
+						<strong>{v.code}:</strong>
+						{w.message}
+					</li>
 				{/each}
 			{/each}
 		</ul>
 	{/if}
-	<p class="mt-2 text-sm text-muted">{shown.venues.length} venue{shown.venues.length === 1 ? '' : 's'}</p>
+	<p class="mt-2 text-sm text-muted">
+		{shown.venues.length} venue{shown.venues.length === 1 ? '' : 's'}
+	</p>
 	<div class="mt-3"><AvailabilityGrid data={shown} from={from || null} to={to || null} /></div>
 {/if}

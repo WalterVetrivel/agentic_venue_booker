@@ -49,6 +49,7 @@ jobs:
           cache-dependency-path: backend/requirements*.txt
       - run: pip install -r ../backend/requirements.txt
       - run: npm ci
+      - run: npm run lint
       - run: npm run check
       - run: npm run build
       - run: npx playwright install --with-deps chromium

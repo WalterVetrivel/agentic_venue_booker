@@ -65,7 +65,8 @@
 		{:else if session.loaded}
 			<a
 				href="/login"
-				class="rounded-lg bg-accent px-4 py-2 font-medium text-accent-fg hover:opacity-90">Staff login</a
+				class="rounded-lg bg-accent px-4 py-2 font-medium text-accent-fg hover:opacity-90"
+				>Staff login</a
 			>
 		{/if}
 	</div>

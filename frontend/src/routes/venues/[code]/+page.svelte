@@ -52,25 +52,42 @@
 
 	async function addItem(e: SubmitEvent) {
 		e.preventDefault();
-		if (await act(`/venues/${venue!.code}/equipment`, 'POST', { ...newItem, quantity: Number(newItem.quantity) }))
+		if (
+			await act(`/venues/${venue!.code}/equipment`, 'POST', {
+				...newItem,
+				quantity: Number(newItem.quantity)
+			})
+		)
 			newItem = { name: '', category: newItem.category, quantity: 1 };
 	}
 	async function addPeriod(e: SubmitEvent) {
 		e.preventDefault();
-		const body = { ...newPeriod, to_date: newPeriod.to_date || null, reason: newPeriod.reason || null };
+		const body = {
+			...newPeriod,
+			to_date: newPeriod.to_date || null,
+			reason: newPeriod.reason || null
+		};
 		if (await act(`/venues/${venue!.code}/status-periods`, 'POST', body))
 			newPeriod = { status: 'maintenance', from_date: '', to_date: '', reason: '' };
 	}
 	async function addRule(e: SubmitEvent) {
 		e.preventDefault();
-		const body = { ...newRule, start_month: Number(newRule.start_month), end_month: Number(newRule.end_month) };
+		const body = {
+			...newRule,
+			start_month: Number(newRule.start_month),
+			end_month: Number(newRule.end_month)
+		};
 		if (await act(`/venues/${venue!.code}/seasonal-rules`, 'POST', body))
 			newRule = { start_month: 3, end_month: 7, kind: 'soft_warning', reason: '' };
 	}
 
 	function fmt(d: string | null) {
 		if (!d) return 'until further notice';
-		return new Date(d + 'T00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+		return new Date(d + 'T00:00').toLocaleDateString('en-IN', {
+			day: 'numeric',
+			month: 'short',
+			year: 'numeric'
+		});
 	}
 </script>
 
@@ -107,16 +124,34 @@
 		</div>
 	{:else}
 		<dl class="mt-6 grid gap-5 {card} sm:grid-cols-2 lg:grid-cols-3">
-			<div><dt class="text-sm text-muted">Capacity</dt><dd class="font-medium">{v.capacity}{v.byod ? ' (BYOD)' : ''}</dd></div>
-			<div><dt class="text-sm text-muted">Location</dt><dd class="font-medium">{v.block ?? '—'}</dd></div>
-			<div><dt class="text-sm text-muted">Department</dt><dd class="font-medium">{v.department ?? '—'}</dd></div>
-			<div><dt class="text-sm text-muted">In-charge</dt><dd class="font-medium">{v.in_charge?.name ?? '—'}</dd></div>
-			<div><dt class="text-sm text-muted">Lab technician</dt><dd class="font-medium">{v.technician?.name ?? '—'}</dd></div>
+			<div>
+				<dt class="text-sm text-muted">Capacity</dt>
+				<dd class="font-medium">{v.capacity}{v.byod ? ' (BYOD)' : ''}</dd>
+			</div>
+			<div>
+				<dt class="text-sm text-muted">Location</dt>
+				<dd class="font-medium">{v.block ?? '—'}</dd>
+			</div>
+			<div>
+				<dt class="text-sm text-muted">Department</dt>
+				<dd class="font-medium">{v.department ?? '—'}</dd>
+			</div>
+			<div>
+				<dt class="text-sm text-muted">In-charge</dt>
+				<dd class="font-medium">{v.in_charge?.name ?? '—'}</dd>
+			</div>
+			<div>
+				<dt class="text-sm text-muted">Lab technician</dt>
+				<dd class="font-medium">{v.technician?.name ?? '—'}</dd>
+			</div>
 			<div>
 				<dt class="text-sm text-muted">Approval</dt>
 				<dd class="font-medium">In-charge{v.needs_hod_approval ? ', then HOD' : ''}</dd>
 			</div>
-			{#if v.notes}<div class="sm:col-span-2 lg:col-span-3"><dt class="text-sm text-muted">Notes</dt><dd>{v.notes}</dd></div>{/if}
+			{#if v.notes}<div class="sm:col-span-2 lg:col-span-3">
+					<dt class="text-sm text-muted">Notes</dt>
+					<dd>{v.notes}</dd>
+				</div>{/if}
 		</dl>
 	{/if}
 
@@ -128,9 +163,18 @@
 		{:else}
 			<ul class="mt-3 space-y-2">
 				{#each v.status_periods as p (p.id)}
-					<li class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3">
-						<span><strong class="capitalize">{p.status}</strong> · {fmt(p.from_date)} to {fmt(p.to_date)}{p.reason ? ` · ${p.reason}` : ''}</span>
-						{#if v.can_edit}<button class={btnDanger} onclick={() => act(`/status-periods/${p.id}`, 'DELETE')}>Remove</button>{/if}
+					<li
+						class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3"
+					>
+						<span
+							><strong class="capitalize">{p.status}</strong> · {fmt(p.from_date)} to {fmt(
+								p.to_date
+							)}{p.reason ? ` · ${p.reason}` : ''}</span
+						>
+						{#if v.can_edit}<button
+								class={btnDanger}
+								onclick={() => act(`/status-periods/${p.id}`, 'DELETE')}>Remove</button
+							>{/if}
 					</li>
 				{/each}
 			</ul>
@@ -145,10 +189,33 @@
 						<option value="closed">Closed</option>
 					</select>
 				</div>
-				<div><label class={label} for="pfrom">From</label><input id="pfrom" type="date" required bind:value={newPeriod.from_date} class={field} /></div>
-				<div><label class={label} for="pto">To (optional)</label><input id="pto" type="date" bind:value={newPeriod.to_date} class={field} /></div>
-				<div><label class={label} for="preason">Reason</label><input id="preason" bind:value={newPeriod.reason} class={field} /></div>
-				<div class="sm:col-span-2 lg:col-span-4"><button class={btnSecondary}>Add period</button></div>
+				<div>
+					<label class={label} for="pfrom">From</label><input
+						id="pfrom"
+						type="date"
+						required
+						bind:value={newPeriod.from_date}
+						class={field}
+					/>
+				</div>
+				<div>
+					<label class={label} for="pto">To (optional)</label><input
+						id="pto"
+						type="date"
+						bind:value={newPeriod.to_date}
+						class={field}
+					/>
+				</div>
+				<div>
+					<label class={label} for="preason">Reason</label><input
+						id="preason"
+						bind:value={newPeriod.reason}
+						class={field}
+					/>
+				</div>
+				<div class="sm:col-span-2 lg:col-span-4">
+					<button class={btnSecondary}>Add period</button>
+				</div>
 			</form>
 		{/if}
 	</section>
@@ -159,9 +226,19 @@
 			<h2 class="text-lg font-semibold">Seasonal rules</h2>
 			<ul class="mt-3 space-y-2">
 				{#each v.seasonal_rules as r (r.id)}
-					<li class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3">
-						<span><strong>{MONTHS[r.start_month - 1]}–{MONTHS[r.end_month - 1]}</strong> · {r.kind === 'blocked' ? 'Not bookable' : 'Warning only'} · {r.reason}</span>
-						{#if v.can_edit_restricted}<button class={btnDanger} onclick={() => act(`/seasonal-rules/${r.id}`, 'DELETE')}>Remove</button>{/if}
+					<li
+						class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3"
+					>
+						<span
+							><strong>{MONTHS[r.start_month - 1]}–{MONTHS[r.end_month - 1]}</strong> · {r.kind ===
+							'blocked'
+								? 'Not bookable'
+								: 'Warning only'} · {r.reason}</span
+						>
+						{#if v.can_edit_restricted}<button
+								class={btnDanger}
+								onclick={() => act(`/seasonal-rules/${r.id}`, 'DELETE')}>Remove</button
+							>{/if}
 					</li>
 				{/each}
 			</ul>
@@ -169,18 +246,35 @@
 				<form class="mt-4 grid gap-4 {card} sm:grid-cols-2 lg:grid-cols-4" onsubmit={addRule}>
 					<div>
 						<label class={label} for="rfrom">From month</label>
-						<select id="rfrom" bind:value={newRule.start_month} class={field}>{#each MONTHS as m, i (m)}<option value={i + 1}>{m}</option>{/each}</select>
+						<select id="rfrom" bind:value={newRule.start_month} class={field}
+							>{#each MONTHS as m, i (m)}<option value={i + 1}>{m}</option>{/each}</select
+						>
 					</div>
 					<div>
 						<label class={label} for="rto">To month</label>
-						<select id="rto" bind:value={newRule.end_month} class={field}>{#each MONTHS as m, i (m)}<option value={i + 1}>{m}</option>{/each}</select>
+						<select id="rto" bind:value={newRule.end_month} class={field}
+							>{#each MONTHS as m, i (m)}<option value={i + 1}>{m}</option>{/each}</select
+						>
 					</div>
 					<div>
 						<label class={label} for="rkind">Effect</label>
-						<select id="rkind" bind:value={newRule.kind} class={field}><option value="soft_warning">Warning only</option><option value="blocked">Not bookable</option></select>
+						<select id="rkind" bind:value={newRule.kind} class={field}
+							><option value="soft_warning">Warning only</option><option value="blocked"
+								>Not bookable</option
+							></select
+						>
 					</div>
-					<div><label class={label} for="rreason">Reason</label><input id="rreason" required bind:value={newRule.reason} class={field} /></div>
-					<div class="sm:col-span-2 lg:col-span-4"><button class={btnSecondary}>Add rule</button></div>
+					<div>
+						<label class={label} for="rreason">Reason</label><input
+							id="rreason"
+							required
+							bind:value={newRule.reason}
+							class={field}
+						/>
+					</div>
+					<div class="sm:col-span-2 lg:col-span-4">
+						<button class={btnSecondary}>Add rule</button>
+					</div>
 				</form>
 			{/if}
 		</section>
@@ -195,10 +289,14 @@
 				<h3 class="mt-6 font-semibold text-muted">{title}</h3>
 				<ul class="mt-2 grid gap-2 sm:grid-cols-2">
 					{#each items as e (e.id)}
-						<li class="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-2.5">
+						<li
+							class="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-2.5"
+						>
 							<span class="min-w-0">
 								{e.name}
-								{#if e.quantity > 1}<span class="text-sm whitespace-nowrap text-muted"> × {e.quantity}</span>{/if}
+								{#if e.quantity > 1}<span class="text-sm whitespace-nowrap text-muted">
+										× {e.quantity}</span
+									>{/if}
 							</span>
 							<span class="flex shrink-0 items-center gap-1">
 								{#if v.can_update_equipment}
@@ -206,16 +304,27 @@
 									<select
 										id="st-{e.id}"
 										value={e.status}
-										onchange={(ev) => act(`/equipment/${e.id}`, 'PATCH', { status: (ev.currentTarget as HTMLSelectElement).value })}
+										onchange={(ev) =>
+											act(`/equipment/${e.id}`, 'PATCH', {
+												status: (ev.currentTarget as HTMLSelectElement).value
+											})}
 										class="rounded-md border border-border bg-bg px-2 py-1 text-sm"
 									>
-										{#each Object.entries(STATUS_TEXT) as [val, text] (val)}<option value={val}>{text}</option>{/each}
+										{#each Object.entries(STATUS_TEXT) as [val, text] (val)}<option value={val}
+												>{text}</option
+											>{/each}
 									</select>
 								{:else if e.status !== 'working'}
-									<span class="rounded-full bg-danger/15 px-2.5 py-0.5 text-sm text-danger">{STATUS_TEXT[e.status]}</span>
+									<span class="rounded-full bg-danger/15 px-2.5 py-0.5 text-sm text-danger"
+										>{STATUS_TEXT[e.status]}</span
+									>
 								{/if}
 								{#if v.can_edit}
-									<button class={btnDanger} aria-label="Remove {e.name}" onclick={() => act(`/equipment/${e.id}`, 'DELETE')}>✕</button>
+									<button
+										class={btnDanger}
+										aria-label="Remove {e.name}"
+										onclick={() => act(`/equipment/${e.id}`, 'DELETE')}>✕</button
+									>
 								{/if}
 							</span>
 						</li>
@@ -224,15 +333,35 @@
 			{/if}
 		{/each}
 		{#if v.can_edit}
-			<form class="mt-6 grid gap-4 {card} sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end" onsubmit={addItem}>
-				<div><label class={label} for="iname">Add item</label><input id="iname" required bind:value={newItem.name} placeholder="e.g. Android Studio" class={field} /></div>
+			<form
+				class="mt-6 grid gap-4 {card} sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end"
+				onsubmit={addItem}
+			>
+				<div>
+					<label class={label} for="iname">Add item</label><input
+						id="iname"
+						required
+						bind:value={newItem.name}
+						placeholder="e.g. Android Studio"
+						class={field}
+					/>
+				</div>
 				<div>
 					<label class={label} for="icat">Category</label>
 					<select id="icat" bind:value={newItem.category} class={field}>
-						<option value="software">Software</option><option value="hardware">Hardware</option><option value="av">Audio-visual</option><option value="facility">Facility</option>
+						<option value="software">Software</option><option value="hardware">Hardware</option
+						><option value="av">Audio-visual</option><option value="facility">Facility</option>
 					</select>
 				</div>
-				<div><label class={label} for="iqty">Quantity</label><input id="iqty" type="number" min="1" bind:value={newItem.quantity} class={field} /></div>
+				<div>
+					<label class={label} for="iqty">Quantity</label><input
+						id="iqty"
+						type="number"
+						min="1"
+						bind:value={newItem.quantity}
+						class={field}
+					/>
+				</div>
 				<button class={btnSecondary}>Add</button>
 			</form>
 		{/if}

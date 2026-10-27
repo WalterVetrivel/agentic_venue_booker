@@ -45,7 +45,12 @@
 		e.preventDefault();
 		error = '';
 		busy = true;
-		const common = { name: form.name, block: form.block || null, notes: form.notes || null, byod: form.byod };
+		const common = {
+			name: form.name,
+			block: form.block || null,
+			notes: form.notes || null,
+			byod: form.byod
+		};
 		const director = {
 			type: form.type,
 			department: form.department || null,
@@ -99,7 +104,14 @@
 		</div>
 		<div>
 			<label class={label} for="capacity">Capacity</label>
-			<input id="capacity" type="number" min="1" required bind:value={form.capacity} class={field} />
+			<input
+				id="capacity"
+				type="number"
+				min="1"
+				required
+				bind:value={form.capacity}
+				class={field}
+			/>
 		</div>
 		<div>
 			<label class={label} for="dept">Department</label>
@@ -134,7 +146,9 @@
 	</div>
 	{#if error}<p class="text-danger sm:col-span-2" role="alert">{error}</p>{/if}
 	<div class="flex gap-3 sm:col-span-2">
-		<button type="submit" class={btnPrimary} disabled={busy}>{venue ? 'Save changes' : 'Add venue'}</button>
+		<button type="submit" class={btnPrimary} disabled={busy}
+			>{venue ? 'Save changes' : 'Add venue'}</button
+		>
 		{#if oncancel}<button type="button" class={btnSecondary} onclick={oncancel}>Cancel</button>{/if}
 	</div>
 </form>

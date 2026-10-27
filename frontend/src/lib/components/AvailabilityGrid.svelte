@@ -2,13 +2,19 @@
 	import type { DayAvailability, VenueDay } from '#lib/types.ts';
 	import { hhmm, minutesOf, minutesOnDay } from '#lib/time.ts';
 
-	let { data, from = null, to = null }: { data: DayAvailability; from?: string | null; to?: string | null } =
-		$props();
+	let {
+		data,
+		from = null,
+		to = null
+	}: { data: DayAvailability; from?: string | null; to?: string | null } = $props();
 
 	const open = $derived(data.open_from ? minutesOf(data.open_from) : 480);
 	const close = $derived(data.open_to ? minutesOf(data.open_to) : 1080);
 	const slots = $derived(
-		Array.from({ length: (close - open) / data.slot_minutes }, (_, i) => open + i * data.slot_minutes)
+		Array.from(
+			{ length: (close - open) / data.slot_minutes },
+			(_, i) => open + i * data.slot_minutes
+		)
 	);
 
 	type Cell = { state: string; label: string };
@@ -56,7 +62,9 @@
 				>
 				{#each slots as s (s)}
 					<th
-						class="min-w-6 border-b border-border px-0 py-3 text-left text-xs font-normal text-muted {inWindow(s)
+						class="min-w-6 border-b border-border px-0 py-3 text-left text-xs font-normal text-muted {inWindow(
+							s
+						)
 							? 'bg-accent-soft'
 							: ''}"
 					>
@@ -70,7 +78,8 @@
 				<tr class="border-b border-border last:border-0">
 					<th class="sticky left-0 z-10 bg-surface px-4 py-2 text-left font-normal">
 						<a href="/venues/{v.code}" class="font-medium hover:text-accent">{v.code}</a>
-						<span class="block text-xs text-muted">{v.capacity} seats{v.byod ? ' · BYOD' : ''}</span>
+						<span class="block text-xs text-muted">{v.capacity} seats{v.byod ? ' · BYOD' : ''}</span
+						>
 						{#each v.blocks.filter((b) => b.hard && span(b) === 'All day' && b.kind !== 'closed') as b, i (i)}
 							<span class="block max-w-48 text-xs text-danger">{b.label}</span>
 						{/each}
