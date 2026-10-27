@@ -4,7 +4,8 @@
     python -m app.agent.smoke --provider ollama     # e.g. qwen3.5:4b on this computer
     python -m app.agent.smoke --provider groq --model llama-3.3-70b-versatile --only 6
 
-Needs a seeded database (python -m app.seed --documents). Tools never change data, so this is
+Needs a seeded database with timetables and documents
+(python -m app.seed --timetables --documents). Tools never change data, so this is
 safe to run against your normal database. It prints one line per question and a summary.
 """
 

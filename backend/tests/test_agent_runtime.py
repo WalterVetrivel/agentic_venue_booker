@@ -169,11 +169,11 @@ def test_groq_streams_text_and_tool_calls(monkeypatch):
         return httpx.Response(200, content=body, headers={"content-type": "text/event-stream"})
 
     _patch_http(monkeypatch, handler)
-    out = _drain(gateway.GroqLLM("gsk_test", "openai/gpt-oss-120b"))
+    out = _drain(gateway.GroqLLM("gsk_test", "openai/gpt-oss-20b"))
     assert out[0] == "Checking"
     reply = out[-1]
     assert reply.tool_calls == [ToolCall("call_9", "check_availability", {"venue": "CC5"})]
-    assert seen[0]["stream"] is True and seen[0]["model"] == "openai/gpt-oss-120b"
+    assert seen[0]["stream"] is True and seen[0]["model"] == "openai/gpt-oss-20b"
 
 
 def test_groq_falls_back_when_the_model_is_gone(monkeypatch):
@@ -191,13 +191,45 @@ def test_groq_falls_back_when_the_model_is_gone(monkeypatch):
     assert models == ["old-model", "llama-3.3-70b-versatile"] and out[-1].text == "ok"
 
 
-@pytest.mark.parametrize(
-    "status,message", [(401, "rejected the API key"), (429, "limit was reached")]
-)
-def test_groq_errors_are_friendly(monkeypatch, status, message):
-    _patch_http(monkeypatch, lambda r: httpx.Response(status, json={"error": {"message": "x"}}))
-    with pytest.raises(LLMError, match=message):
+def test_groq_rejected_key_is_explained(monkeypatch):
+    _patch_http(monkeypatch, lambda r: httpx.Response(401, json={"error": {"message": "x"}}))
+    with pytest.raises(LLMError, match="rejected the API key"):
         _drain(gateway.GroqLLM("gsk_test", "m"))
+
+
+def test_groq_waits_out_a_short_rate_limit(monkeypatch):
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        if len(calls) == 1:
+            message = "Rate limit reached for model. Please try again in 10ms."
+            return httpx.Response(429, json={"error": {"message": message}})
+        return httpx.Response(200, content=_sse({"choices": [{"delta": {"content": "ok"}}]}))
+
+    _patch_http(monkeypatch, handler)
+    assert _drain(gateway.GroqLLM("gsk_test", "m"))[-1].text == "ok" and len(calls) == 2
+
+
+def test_groq_reports_a_long_rate_limit(monkeypatch):
+    message = "Rate limit reached (tokens per day). Please try again in 7m12.5s."
+    _patch_http(monkeypatch, lambda r: httpx.Response(429, json={"error": {"message": message}}))
+    with pytest.raises(LLMError, match="limit was reached"):
+        _drain(gateway.GroqLLM("gsk_test", "m"))
+
+
+def test_groq_asks_again_after_a_malformed_tool_call(monkeypatch):
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        if len(calls) == 1:
+            error = {"code": "tool_use_failed", "message": "Tool call validation failed"}
+            return httpx.Response(200, content=_sse({"error": error}))
+        return httpx.Response(200, content=_sse({"choices": [{"delta": {"content": "ok"}}]}))
+
+    _patch_http(monkeypatch, handler)
+    assert _drain(gateway.GroqLLM("gsk_test", "m"))[-1].text == "ok" and len(calls) == 2
 
 
 def test_groq_needs_a_key():

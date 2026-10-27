@@ -152,12 +152,18 @@ def _clean_schema(schema: dict) -> dict:
             node = {k: walk(v) for k, v in node.items() if k not in ("title", "properties")}
             if props is not None:  # property names aren't keywords: a field may be called "title"
                 node["properties"] = {name: walk(p) for name, p in props.items()}
+            # Groq checks "format": "time" as RFC 3339 (HH:MM:SS+zone), which models don't
+            # write. The tools accept HH:MM, so say that instead.
+            if node.get("format") == "time":
+                node.pop("format")
+                node.setdefault("description", "24-hour time, HH:MM")
+                node["pattern"] = r"^\d{2}:\d{2}(:\d{2})?$"
             # `x: str | None` becomes anyOf [str, null]; keep just the real type.
             options = [o for o in node.get("anyOf", []) if o.get("type") != "null"]
             if "anyOf" in node and len(options) == 1:
                 node.pop("anyOf")
                 node.pop("default", None)
-                node.update(options[0])
+                node = {**options[0], **node}  # the field's own description wins
             return node
         if isinstance(node, list):
             return [walk(x) for x in node]
@@ -447,7 +453,14 @@ def _section(db: Session, text: str) -> ClassSection:
         )
     )
     if section is None:
-        raise ToolError(f"No timetable for {dept} {year}-{sec}.")
+        known = db.scalars(
+            select(ClassSection).order_by(ClassSection.dept, ClassSection.year)
+        ).all()
+        listed = ", ".join(s.label for s in known) or "none yet"
+        raise ToolError(
+            f"No timetable has been committed for {dept} {year}-{sec}. "
+            f"Classes with timetables: {listed}."
+        )
     return section
 
 

@@ -135,7 +135,7 @@ These are only seed defaults. The real list lives in the database and can be edi
 | Vectors | embeddings stored as BLOBs, cosine search with NumPy | there are fewer than 2,000 chunks, so brute force takes milliseconds. This avoids loading SQLite extensions, which is fragile on Windows with Python 3.14. sqlite-vec can be swapped in later. |
 | Embeddings | Ollama `nomic-embed-text` | Groq has no embeddings API. If Ollama is down, search falls back to keywords only (FTS5). |
 | LLM | Groq (default, key from `.env`) or Ollama. Both are used through the OpenAI-compatible chat API. | One client, and switching provider only changes `base_url`, key and model. |
-| Default models | Groq `openai/gpt-oss-120b` (fallback `llama-3.3-70b-versatile`); Ollama `qwen3.5:4b` | all handle tool calling; changeable in Settings. The laptop has 8 GB RAM and no GPU, so `qwen3.5:latest` (6.6 GB) is not the default. |
+| Default models | Groq `openai/gpt-oss-20b` (fallback `llama-3.3-70b-versatile`); Ollama `qwen3.5:4b` | all handle tool calling; changeable in Settings. The laptop has 8 GB RAM and no GPU, so `qwen3.5:latest` (6.6 GB) is not the default. |
 | MCP | `mcp` Python SDK (FastMCP) | official SDK |
 | PDF text | `pypdf` plus `pdfplumber` (keeps table layout) | the timetables are table-shaped |
 | Frontend | **Svelte 5 + SvelteKit (static SPA build)**, Tailwind CSS | needs much less code than React for the same UI, so fewer tokens to build and maintain |
