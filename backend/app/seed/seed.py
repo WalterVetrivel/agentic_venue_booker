@@ -1,6 +1,7 @@
 """Idempotent seed: roles, users (from the faculty Excel sheet), venues and equipment."""
 
 import re
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 
@@ -214,20 +215,34 @@ def seed_timetables(db: Session) -> int:
     return total
 
 
-def seed_documents(db: Session, embed: bool = True) -> dict[str, int]:
-    """Load every mock circular and report (skipping ones already loaded), then embed them."""
+def seed_documents(
+    db: Session, embed: bool = True, progress: Callable[[str], None] | None = None
+) -> dict[str, int]:
+    """Load every mock circular and report (skipping ones already loaded), then embed them.
+
+    Commits every 25 documents, so an interrupted run picks up where it stopped.
+    """
     from app.models import Document
     from app.services import documents
 
+    say = progress or (lambda _: None)
     folder = get_settings().mock_data_dir
     loaded = {d.filename for d in db.scalars(select(Document))}
-    added = 0
-    for kind in ("circulars", "reports"):
-        for pdf in sorted((folder / kind).glob("*.pdf")):
-            if pdf.name not in loaded:
-                documents.ingest(db, pdf, embed=False)
-                added += 1
-    db.commit()
-    embedded = documents.embed_missing(db) if embed else 0
-    db.commit()
+    todo = [
+        pdf
+        for kind in ("circulars", "reports")
+        for pdf in sorted((folder / kind).glob("*.pdf"))
+        if pdf.name not in loaded
+    ]
+    for i, pdf in enumerate(todo, 1):
+        documents.ingest(db, pdf, embed=False)
+        if i % 25 == 0 or i == len(todo):
+            db.commit()
+            say(f"Read {i} of {len(todo)} documents")
+    embedded = 0
+    if embed:
+        say("Indexing for meaning-based search (skipped if Ollama isn't running)…")
+        embedded = documents.embed_missing(db)
+        db.commit()
+    added = len(todo)
     return {"documents_added": added, "embedded": embedded}

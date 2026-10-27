@@ -24,7 +24,7 @@ def main() -> None:
         if args.timetables:
             print({"timetable_slots": seed_timetables(db)})
         if args.documents:
-            print(seed_documents(db))
+            print(seed_documents(db, progress=lambda m: print(m, flush=True)))
 
 
 if __name__ == "__main__":
