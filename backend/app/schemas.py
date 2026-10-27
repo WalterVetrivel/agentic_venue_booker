@@ -294,3 +294,147 @@ class ClassSlotOut(BaseModel):
     subject_name: str
     faculty_name: str | None
     batch: str
+
+
+# Bookings ---------------------------------------------------------------------------------------
+
+
+class MoveIn(BaseModel):
+    slot_id: int
+    date: date
+    action: Literal["relocated", "byod_classroom"]
+    venue_code: str | None = None
+
+
+class BookingIn(BaseModel):
+    venue: str
+    title: str = Field(max_length=200)
+    event_type: str
+    expected_count: int = Field(ge=1, le=2000)
+    date_from: date
+    date_to: date | None = None
+    start_time: time
+    end_time: time
+    description: str | None = Field(default=None, max_length=4000)
+    requirements: str | None = Field(default=None, max_length=2000)
+    moves: list[MoveIn] = []
+
+
+class BookingSubmitIn(BookingIn):
+    join_waitlist: bool = False
+    reschedule_of: int | None = None
+
+
+class RelocationOptionOut(BaseModel):
+    code: str
+    name: str
+    capacity: int
+    software_match: float
+    missing_software: list[str]
+
+
+class ClassClashOut(BaseModel):
+    slot_id: int
+    date: date
+    label: str
+    subject_name: str
+    faculty_name: str | None
+    start: time
+    end: time
+    batch_size: int
+    options: list[RelocationOptionOut]
+
+
+class VenueBrief(BaseModel):
+    code: str
+    name: str
+    type: str
+    capacity: int
+
+
+class BookingCheckOut(BaseModel):
+    venue: VenueBrief
+    outcome: Literal["free", "displace", "waitlist", "blocked"]
+    days: list[date]
+    blocked: list[BlockOut]
+    taken: list[BlockOut]
+    clashes: list[ClassClashOut]
+    warnings: list[NoticeOut]
+    alternatives: list[VenueBrief]
+
+
+class OccurrenceOut(BaseModel):
+    start: datetime
+    end: datetime
+
+
+class ApprovalOut(BaseModel):
+    step: str
+    decision: str
+    approver: str | None
+    comment: str | None
+    decided_at: datetime
+
+
+class MoveOut(BaseModel):
+    slot_id: int
+    date: date
+    label: str
+    time: str
+    action: str
+    venue: str | None
+    faculty_name: str | None
+
+
+class BookingOut(BaseModel):
+    id: int
+    ref: str
+    title: str
+    event_type: str
+    description: str | None
+    requirements: str | None
+    expected_count: int
+    venue: VenueBrief
+    requester: str
+    requester_email: str
+    status: str
+    start: datetime
+    end: datetime
+    occurrences: list[OccurrenceOut]
+    approvals: list[ApprovalOut]
+    moves: list[MoveOut]
+    steps: list[str]
+    waitlist_position: int | None
+    offer_expires_at: datetime | None
+    cancel_reason: str | None
+    parent_ref: str | None
+    created_at: datetime
+    can_cancel: bool
+    can_reschedule: bool
+    can_approve: bool
+
+
+class ApprovalItemOut(BaseModel):
+    booking: BookingOut
+    step: str
+    notes: list[str]
+    waiting_behind: int
+
+
+class DecisionIn(BaseModel):
+    comment: str | None = Field(default=None, max_length=2000)
+
+
+class CancelIn(BaseModel):
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class NotificationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    kind: str
+    message: str
+    link: str | None
+    created_at: datetime
+    read_at: datetime | None

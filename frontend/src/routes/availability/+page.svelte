@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { replaceState } from '$app/navigation';
 	import { api } from '#lib/api.ts';
+	import { session } from '#lib/stores/session.svelte.ts';
 	import AvailabilityGrid from '#lib/components/AvailabilityGrid.svelte';
 	import { addDays, isoDate, minutesOf, minutesOnDay, prettyDate } from '#lib/time.ts';
 	import type { DayAvailability } from '#lib/types.ts';
@@ -56,6 +57,13 @@
 			)
 		};
 	});
+
+	function bookHref(code: string) {
+		const q = new URLSearchParams({ venue: code, date: day });
+		if (from) q.set('start', from);
+		if (to) q.set('end', to);
+		return `/book?${q}`;
+	}
 
 	const field =
 		'w-full rounded-lg border border-border bg-bg px-3 py-2.5 focus:border-accent focus:outline-none';
@@ -160,5 +168,12 @@
 	<p class="mt-2 text-sm text-muted">
 		{shown.venues.length} venue{shown.venues.length === 1 ? '' : 's'}
 	</p>
-	<div class="mt-3"><AvailabilityGrid data={shown} from={from || null} to={to || null} /></div>
+	<div class="mt-3">
+		<AvailabilityGrid
+			data={shown}
+			from={from || null}
+			to={to || null}
+			bookHref={session.can('book') ? bookHref : null}
+		/>
+	</div>
 {/if}

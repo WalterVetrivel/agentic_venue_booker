@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import Notifications from './Notifications.svelte';
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { ui } from '#lib/stores/ui.svelte.ts';
 	import { ROLE_LABELS } from '#lib/types.ts';
@@ -48,6 +49,7 @@
 		{/if}
 
 		{#if session.user}
+			<Notifications />
 			<div class="hidden text-right leading-tight md:block">
 				<div class="font-medium">{session.user.name}</div>
 				<div class="text-sm text-muted">

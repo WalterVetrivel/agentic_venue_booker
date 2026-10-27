@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { api } from '#lib/api.ts';
+	import { session } from '#lib/stores/session.svelte.ts';
 	import VenueForm from '#lib/components/VenueForm.svelte';
 	import WeekSchedule from '#lib/components/WeekSchedule.svelte';
 	import { btnDanger, btnPrimary, btnSecondary, card, field, label } from '#lib/ui.ts';
@@ -106,7 +107,10 @@
 	<div class="mt-4 flex flex-wrap items-start justify-between gap-4">
 		<h1 class="text-2xl font-semibold">{v.name} <span class="text-muted">({v.code})</span></h1>
 		<div class="flex gap-3">
-			<a href="/availability?date=&type={v.type}" class={btnSecondary}>Availability</a>
+			<a href="/availability?type={v.type}" class={btnSecondary}>Availability</a>
+			{#if session.can('book')}
+				<a href="/book?venue={v.code}" class={btnPrimary}>Book this venue</a>
+			{/if}
 			{#if v.can_edit && !editing}
 				<button class={btnPrimary} onclick={() => (editing = true)}>Edit details</button>
 			{/if}

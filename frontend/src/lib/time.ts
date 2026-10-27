@@ -38,3 +38,31 @@ export function prettyDate(iso: string): string {
 		year: 'numeric'
 	});
 }
+
+/** "Tue 3 Nov, 10:00–12:00" for one occurrence. */
+export function whenText(start: string, end: string): string {
+	const [d, t] = start.split('T');
+	const [y, m, day] = d.split('-').map(Number);
+	const date = new Date(y, m - 1, day).toLocaleDateString('en-IN', {
+		weekday: 'short',
+		day: 'numeric',
+		month: 'short'
+	});
+	return `${date}, ${t.slice(0, 5)}–${end.split('T')[1].slice(0, 5)}`;
+}
+
+export function dateTimeText(iso: string): string {
+	return new Date(iso).toLocaleString('en-IN', {
+		day: 'numeric',
+		month: 'short',
+		hour: '2-digit',
+		minute: '2-digit'
+	});
+}
+
+/** The current local time as a naive ISO string, comparable with the backend's datetimes. */
+export function nowLocal(): string {
+	const d = new Date();
+	const pad = (n: number) => String(n).padStart(2, '0');
+	return `${isoDate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+}
