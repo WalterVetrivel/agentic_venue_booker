@@ -1,13 +1,34 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.routing import Route
 
-from app.api import auth, availability, bookings, documents, timetables, users, venues
+from app import mcp_server
+from app.api import (
+    auth,
+    availability,
+    bookings,
+    chat,
+    documents,
+    settings,
+    timetables,
+    users,
+    venues,
+)
 from app.config import get_settings
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Agentic Venue Booker")
+    mcp = mcp_server.make_session_manager()
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        async with mcp.run():
+            yield
+
+    app = FastAPI(title="Agentic Venue Booker", lifespan=lifespan)
     app.include_router(auth.router)
     app.include_router(venues.router)
     app.include_router(availability.router)
@@ -15,6 +36,13 @@ def create_app() -> FastAPI:
     app.include_router(timetables.router)
     app.include_router(bookings.router)
     app.include_router(documents.router)
+    app.include_router(chat.router)
+    app.include_router(settings.router)
+
+    # MCP clients connect to /mcp (or /mcp/); both reach the same handler.
+    mcp_app = mcp_server.asgi_app(mcp)
+    app.router.routes.append(Route("/mcp", mcp_app, methods=["GET", "POST", "DELETE"]))
+    app.mount("/mcp", mcp_app)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:

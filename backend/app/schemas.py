@@ -550,3 +550,104 @@ class SearchOut(BaseModel):
     query: str
     mode: str  # hybrid | keywords
     hits: list[SearchHitOut]
+
+
+# Assistant ---------------------------------------------------------------------------------------
+
+
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=8000)
+
+
+class AttachmentOut(BaseModel):
+    kind: Literal["timetable", "document", "text"]
+    title: str
+    context: str  # what the assistant is told about the file
+    link: str | None = None
+
+
+class ChatIn(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+    conversation_id: int | None = None
+    provider: Literal["groq", "ollama"] | None = None
+    model: str | None = Field(None, max_length=80)
+    history: list[ChatTurn] = Field(default_factory=list, max_length=20)  # visitors only
+    attachment: AttachmentOut | None = None
+
+
+class ConversationBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    provider: str | None
+    model: str | None
+    updated_at: datetime
+
+
+class ChatMessageOut(BaseModel):
+    id: int
+    role: str
+    content: str
+    steps: list[dict]
+    cards: list[dict]
+    created_at: datetime
+
+
+class ConversationOut(ConversationBrief):
+    messages: list[ChatMessageOut]
+
+
+class ConversationRename(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+
+
+class CardStateIn(BaseModel):
+    state: Literal["done", "dismissed"]
+    note: str | None = Field(None, max_length=300)
+
+
+class ProviderOut(BaseModel):
+    key: str
+    label: str
+    ready: bool
+    note: str
+    models: list[str]
+    model: str  # the default model
+
+
+class ProvidersOut(BaseModel):
+    default: str
+    demo: bool  # the scripted demo assistant answers instead of a real model
+    providers: list[ProviderOut]
+
+
+class LLMSettingsOut(BaseModel):
+    provider: str
+    groq_model: str
+    groq_fallback_model: str
+    groq_key_set: bool
+    groq_key_masked: str
+    groq_key_source: str  # settings | env | none
+    ollama_base_url: str
+    ollama_model: str
+
+
+class LLMSettingsIn(BaseModel):
+    provider: Literal["groq", "ollama"] | None = None
+    groq_api_key: str | None = Field(None, max_length=200)  # "" removes the saved key
+    groq_model: str | None = Field(None, max_length=80)
+    groq_fallback_model: str | None = Field(None, max_length=80)
+    ollama_base_url: str | None = Field(None, max_length=200)
+    ollama_model: str | None = Field(None, max_length=80)
+
+
+class LLMTestIn(BaseModel):
+    provider: Literal["groq", "ollama"]
+    model: str | None = Field(None, max_length=80)
+
+
+class LLMTestOut(BaseModel):
+    ok: bool
+    message: str

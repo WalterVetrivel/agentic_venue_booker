@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, get_optional_user, require
+from app.auth import get_current_user, get_optional_user, get_via, require
 from app.db import get_db
 from app.models import Equipment, SeasonalRule, User, Venue, VenueAlias, VenueStatusPeriod
 from app.schemas import (
@@ -158,6 +158,7 @@ def update_equipment(
     body: EquipmentUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    via: str = Depends(get_via),
 ) -> Equipment:
     item = equipment_or_404(db, item_id)
     changes = body.model_dump(exclude_unset=True)
@@ -171,7 +172,7 @@ def update_equipment(
     for key, value in changes.items():
         setattr(item, key, value)
     item.updated_by_id = user.id
-    audit.record(db, user, "update", "equipment", item.id, before=before, after=changes)
+    audit.record(db, user, "update", "equipment", item.id, before=before, after=changes, via=via)
     db.commit()
     db.refresh(item)
     return item
