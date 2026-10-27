@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Env and data
+.env
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+backend/storage/
+
+# Node
+node_modules/
+frontend/build/
+frontend/.svelte-kit/
+test-results/
+playwright-report/
+
+# Local originals kept outside the repo layout on the laptop
+/circulars/
+/reports/
+/timetables/
+/Faculty Names with Initials.xlsx
+/project idea.png
+/PLAN.md
+
+.DS_Store
+Thumbs.db
