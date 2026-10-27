@@ -47,6 +47,8 @@ FTS_DELETE = text(
     "INSERT INTO doc_chunks_fts(doc_chunks_fts, rowid, text) VALUES('delete', :id, :t)"
 )
 FTS_INSERT = text("INSERT INTO doc_chunks_fts(rowid, text) VALUES (:id, :t)")
+# Matched words in snippets are wrapped in these (control characters never occur in the PDFs).
+MARK, UNMARK = "\x02", "\x03"
 KIND_LABELS = {"circular": "Circular", "report": "Report"}
 
 
@@ -331,11 +333,11 @@ def _keyword_ranking(db: Session, query: str) -> list[tuple[int, str]]:
         return []
     rows = db.execute(
         text(
-            "SELECT c.document_id, snippet(doc_chunks_fts, 0, '[', ']', ' … ', 24) "
+            "SELECT c.document_id, snippet(doc_chunks_fts, 0, :mark, :unmark, ' … ', 24) "
             "FROM doc_chunks_fts JOIN doc_chunks c ON c.id = doc_chunks_fts.rowid "
             "WHERE doc_chunks_fts MATCH :q ORDER BY bm25(doc_chunks_fts)"
         ),
-        {"q": q},
+        {"q": q, "mark": MARK, "unmark": UNMARK},
     ).all()
     return [(r[0], r[1]) for r in rows]
 
@@ -462,5 +464,6 @@ def recurring_at(db: Session, venue: Venue, day: date) -> list[RecurringEvent]:
         years = sorted({e.start_date.year for e in group})
         if len(years) >= RECURRING_MIN_YEARS:
             refs = [d.ref_no for e in group for d in (e.circular, e.report) if d and d.ref_no]
-            found.append(RecurringEvent(group[-1].title, key, years, refs))
+            title = re.sub(r"\s*\b20\d\d(-\d\d)?\b", "", group[-1].title).strip(" -")
+            found.append(RecurringEvent(title, key, years, refs))
     return found

@@ -37,10 +37,9 @@ export const NAV: NavItem[] = [
 	},
 	{
 		href: '/documents',
-		label: 'Circulars & reports',
+		label: 'Past events',
 		icon: 'file',
-		anyOf: ['upload_documents'],
-		phase: 4
+		anyOf: ['book', 'upload_documents', 'notified_of_events']
 	},
 	{
 		href: '/reports',

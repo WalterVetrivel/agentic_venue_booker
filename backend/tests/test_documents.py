@@ -41,7 +41,8 @@ def test_every_document_becomes_an_event(docs_db):
 def test_hackathon_in_the_coes_every_september(docs_db):
     for code in ("COE1", "COE2", "COE3"):
         (msg,) = warnings(docs_db, code, date(2027, 9, 17))
-        assert "Hackathon" in msg and "2023, 2024, 2025 and 2026" in msg
+        assert msg.startswith("“KIOT In-house Hackathon” is usually held in")
+        assert "2023, 2024, 2025 and 2026" in msg
     assert warnings(docs_db, "COE4", date(2027, 9, 17)) == []
     assert warnings(docs_db, "COE1", date(2027, 6, 15)) == []
 

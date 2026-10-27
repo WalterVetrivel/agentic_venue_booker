@@ -12,7 +12,7 @@ See [docs/PLAN.md](docs/PLAN.md) for the full plan and architecture.
 | 1 | Venue and equipment management, availability grid | ✅ |
 | 2 | Timetable PDF ingestion | ✅ |
 | 3 | Bookings, approvals, waitlist, class displacement | ✅ |
-| 4 | Circulars and reports, RAG, recurring-event warnings | |
+| 4 | Circulars and reports, RAG, recurring-event warnings | ✅ |
 | 5 | LLM (Groq / Ollama), MCP server, assistant | |
 | 6 | Reports and polish | |
 
@@ -30,6 +30,7 @@ copy .env.example .env          # then edit APP_SECRET (and GROQ_API_KEY from Ph
 alembic upgrade head
 python -m app.seed              # loads users and venues; add --reset to start over
 python -m app.seed --timetables # optional: also commits every mock timetable PDF
+python -m app.seed --documents  # optional: loads every mock circular and report (about 15 s)
 uvicorn app.main:app --reload   # http://127.0.0.1:8000
 
 # Frontend (second terminal)
@@ -71,6 +72,16 @@ Log in as the OA (`cseoa@kiot.ac.in`) and open **Timetables**. Upload one or mor
 6. The bell in the top bar shows notifications: approvals needed, decisions, offers, classes moved, and events in a venue you look after.
 
 Try it with `tkcse` booking `CSEPGSH`, then approve as `pvcse@kiot.ac.in` (the hall's in-charge) and `hod.cse@kiot.ac.in`.
+
+### Circulars, reports and past events
+
+Run `python -m app.seed --documents`, or log in as the OA and upload PDFs under **Past events → Upload & manage**. Each circular and event report is read without AI: the title, venue, dates, times, audience, attendance and topics come straight from the document's table. A circular and its report become one past event. Uploading a document again replaces the old copy.
+
+- **Search** finds circulars and reports by keywords (SQLite full-text search). If Ollama is running with `nomic-embed-text` (`ollama pull nomic-embed-text`), it also matches by meaning and merges the two rankings. Set `EMBEDDINGS=off` in `backend/.env` to use keywords only. Documents added while Ollama was off can be indexed later with **Index the rest**.
+- **Past events** lists every event with filters for venue, type and academic year. Ten mock documents have an end time before the start time (for example 13:25 to 12:35); their five events are marked **Needs checking** instead of being guessed. The OA, HOD or Director can correct any event, and later uploads won't overwrite the correction.
+- **Recurring-event warnings**: when an event series was held in a venue around the same date in at least two earlier years, the booking form, the availability grid and the approver's notes say so, and other free venues are suggested. Try booking `COE1` for mid-September (the in-house hackathon) or `CC1` for mid-November (model practical exams).
+
+The assistant (Phase 5) will answer questions from the same search and cite the circulars and reports it used.
 
 ## Tests
 

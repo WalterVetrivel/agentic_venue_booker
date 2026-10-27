@@ -307,3 +307,83 @@ export const STATUS_TONE: Record<string, string> = {
 	offered: 'bg-accent text-accent-fg',
 	expired: 'bg-muted/20 text-muted'
 };
+
+export type DocRef = {
+	id: number;
+	kind: 'circular' | 'report';
+	ref_no: string | null;
+	filename: string;
+	file_url: string;
+};
+
+export type PastEventBrief = {
+	id: number;
+	title: string;
+	event_type: string;
+	start_date: string | null;
+	end_date: string | null;
+	venues: string[];
+	needs_review: boolean;
+};
+
+export type DocumentInfo = DocRef & {
+	department: string | null;
+	academic_year: string | null;
+	issued_on: string | null;
+	uploaded_at: string;
+	problems: string[];
+	event: PastEventBrief | null;
+};
+
+export type UploadResult = {
+	filename: string;
+	document: DocumentInfo | null;
+	error: string | null;
+	replaced: boolean;
+};
+
+export type PastEvent = {
+	id: number;
+	title: string;
+	series_key: string;
+	event_type: string;
+	department: string | null;
+	venue_text: string | null;
+	venues: VenueBrief[];
+	start_date: string | null;
+	end_date: string | null;
+	start_time: string | null;
+	end_time: string | null;
+	audience: string | null;
+	expected_count: number | null;
+	participants: number | null;
+	registered: number | null;
+	resource_persons: string | null;
+	topics: string[];
+	rating: number | null;
+	needs_review: boolean;
+	problems: string[];
+	edited: boolean;
+	circular: DocRef | null;
+	report: DocRef | null;
+};
+
+export type EventFacets = {
+	event_types: string[];
+	years: string[];
+	documents: number;
+	events: number;
+	needs_review: number;
+	embedded: number;
+	embeddings: 'on' | 'off';
+};
+
+export type SearchHit = {
+	document: DocRef;
+	event: PastEventBrief | null;
+	snippet: string;
+	score: number;
+	matched_by: string[];
+};
+
+export type SearchResult = { query: string; mode: 'hybrid' | 'keywords'; hits: SearchHit[] };

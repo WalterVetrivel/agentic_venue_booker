@@ -21,9 +21,9 @@ export default defineConfig({
 		{ name: 'mobile', use: { ...devices['Pixel 7'] } }
 	],
 	webServer: {
-		command: `${python} -c "import pathlib; pathlib.Path('storage/e2e.db').unlink(missing_ok=True)" && ${python} -m alembic upgrade head && ${python} -m app.seed && ${python} -m uvicorn app.main:app --port 8010`,
+		command: `${python} -c "import pathlib; pathlib.Path('storage/e2e.db').unlink(missing_ok=True)" && ${python} -m alembic upgrade head && ${python} -m app.seed --documents && ${python} -m uvicorn app.main:app --port 8010`,
 		cwd: '../backend',
-		env: { DATABASE_URL: db },
+		env: { DATABASE_URL: db, EMBEDDINGS: 'off' },
 		url: 'http://127.0.0.1:8010/api/health',
 		reuseExistingServer: false,
 		timeout: 120_000
