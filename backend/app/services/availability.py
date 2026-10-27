@@ -203,6 +203,27 @@ def booking_source(
     return blocks, []
 
 
+def recurring_source(
+    db: Session, venue: Venue, day: date, ignore: frozenset[int]
+) -> tuple[list[Block], list[Notice]]:
+    """Past circulars show an event held here around this date every year: warn, don't block."""
+    from app.services.documents import recurring_at
+
+    notices = []
+    for r in recurring_at(db, venue, day):
+        years = ", ".join(map(str, r.years[:-1])) + f" and {r.years[-1]}"
+        refs = f" (see {', '.join(r.refs[-3:])})" if r.refs else ""
+        notices.append(
+            Notice(
+                venue.id,
+                "recurring",
+                f"“{r.title}” is usually held in {venue.code} around this time: it was here in "
+                f"{years}{refs}. Check with its organisers before booking.",
+            )
+        )
+    return [], notices
+
+
 Source = Callable[[Session, Venue, date, frozenset[int]], tuple[list[Block], list[Notice]]]
 SOURCES: list[Source] = [
     closed_day_source,
@@ -210,6 +231,7 @@ SOURCES: list[Source] = [
     seasonal_source,
     class_source,
     booking_source,
+    recurring_source,
 ]
 
 

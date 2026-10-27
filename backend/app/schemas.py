@@ -438,3 +438,115 @@ class NotificationOut(BaseModel):
     link: str | None
     created_at: datetime
     read_at: datetime | None
+
+
+# Documents and past events -----------------------------------------------------------------------
+
+
+class DocRef(BaseModel):
+    id: int
+    kind: str
+    ref_no: str | None
+    filename: str
+    file_url: str
+
+
+class PastEventBrief(BaseModel):
+    id: int
+    title: str
+    event_type: str
+    start_date: date | None
+    end_date: date | None
+    venues: list[str]
+    needs_review: bool
+
+
+class DocumentOut(DocRef):
+    department: str | None
+    academic_year: str | None
+    issued_on: date | None
+    uploaded_at: datetime
+    problems: list[str]
+    event: PastEventBrief | None
+
+
+class DocumentDetailOut(DocumentOut):
+    text: str
+    fields: dict
+
+
+class UploadResultOut(BaseModel):
+    filename: str
+    document: DocumentOut | None = None
+    error: str | None = None
+    replaced: bool = False
+
+
+class PastEventOut(BaseModel):
+    id: int
+    title: str
+    series_key: str
+    event_type: str
+    department: str | None
+    venue_text: str | None
+    venues: list[VenueBrief]
+    start_date: date | None
+    end_date: date | None
+    start_time: time | None
+    end_time: time | None
+    audience: str | None
+    expected_count: int | None
+    participants: int | None
+    registered: int | None
+    resource_persons: str | None
+    topics: list[str]
+    rating: float | None
+    needs_review: bool
+    problems: list[str]
+    edited: bool
+    circular: DocRef | None
+    report: DocRef | None
+
+
+class PastEventUpdate(BaseModel):
+    title: str = Field(min_length=3, max_length=300)
+    event_type: str
+    venue_codes: list[str]
+    start_date: date
+    end_date: date | None = None
+    start_time: time | None = None
+    end_time: time | None = None
+    participants: int | None = Field(default=None, ge=0)
+    resource_persons: str | None = None
+
+    @model_validator(mode="after")
+    def _order(self):
+        if self.end_date and self.end_date < self.start_date:
+            raise ValueError("The last day can't be before the first day")
+        if self.start_time and self.end_time and self.end_time <= self.start_time:
+            raise ValueError("The end time must be after the start time")
+        return self
+
+
+class EventFacetsOut(BaseModel):
+    event_types: list[str]
+    years: list[str]
+    documents: int
+    events: int
+    needs_review: int
+    embedded: int
+    embeddings: str  # on | off
+
+
+class SearchHitOut(BaseModel):
+    document: DocRef
+    event: PastEventBrief | None
+    snippet: str
+    score: float
+    matched_by: list[str]
+
+
+class SearchOut(BaseModel):
+    query: str
+    mode: str  # hybrid | keywords
+    hits: list[SearchHitOut]

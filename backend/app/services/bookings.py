@@ -213,7 +213,8 @@ def check_request(
         )
     unique = list({(w.kind, w.message): w for w in warnings}.values())
     alternatives = []
-    if blocked or taken or clashes or req.expected_count > venue.capacity:
+    recurring = any(w.kind == "recurring" for w in unique)
+    if blocked or taken or clashes or recurring or req.expected_count > venue.capacity:
         alternatives = suggest_venues(db, req, occ, exclude=venue.id, like=venue)
     return RequestCheck(venue, occ, blocked, taken, clashes, unique, alternatives)
 
@@ -231,7 +232,9 @@ def suggest_venues(
     for v in find_venues(db, min_capacity=req.expected_count):
         if v.id == exclude:
             continue
-        if all(check(db, v, s, e).free for s, e in occ):
+        results = [check(db, v, s, e) for s, e in occ]
+        # Skip venues that are free but where a yearly event usually happens then.
+        if all(r.free and not any(w.kind == "recurring" for w in r.warnings) for r in results):
             found.append(v)
     if like is not None:
         found.sort(key=lambda v: (v.type != like.type, v.capacity))
