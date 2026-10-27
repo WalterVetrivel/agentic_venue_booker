@@ -9,8 +9,8 @@ See [docs/PLAN.md](docs/PLAN.md) for the full plan and architecture.
 | Phase | Scope | State |
 |---|---|---|
 | 0 | Scaffold, mock login, roles, venues, layout, theme, chat panel shell | ✅ |
-| 1 | Venue and equipment management, availability grid | ⏳ |
-| 2 | Timetable PDF ingestion | |
+| 1 | Venue and equipment management, availability grid | ✅ |
+| 2 | Timetable PDF ingestion | ⏳ |
 | 3 | Bookings, approvals, waitlist, class displacement | |
 | 4 | Circulars and reports, RAG, recurring-event warnings | |
 | 5 | LLM (Groq / Ollama), MCP server, assistant | |

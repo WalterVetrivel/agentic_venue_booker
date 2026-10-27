@@ -7,15 +7,26 @@ from app.main import create_app
 from app.seed.seed import seed_all
 
 
-@pytest.fixture(scope="session")
-def session_factory(tmp_path_factory):
-    db_file = tmp_path_factory.mktemp("db") / "test.db"
+def _seeded_factory(db_file):
     engine = make_engine(f"sqlite:///{db_file}")
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     with factory() as db:
         seed_all(db)
     return factory
+
+
+@pytest.fixture(scope="session")
+def shared_factory(tmp_path_factory):
+    return _seeded_factory(tmp_path_factory.mktemp("db") / "test.db")
+
+
+@pytest.fixture
+def session_factory(request, shared_factory, tmp_path):
+    """Read-only tests share one seeded DB; tests marked `writes_db` get a fresh one."""
+    if request.node.get_closest_marker("writes_db"):
+        return _seeded_factory(tmp_path / "test.db")
+    return shared_factory
 
 
 @pytest.fixture

@@ -20,7 +20,7 @@
 <TopBar />
 <div class="flex">
 	<SideNav />
-	<main class="min-w-0 flex-1 px-4 py-8 md:px-8 lg:px-10 {ui.chatOpen ? 'xl:mr-[26rem]' : ''}">
+	<main class="min-w-0 flex-1 px-4 pt-8 pb-28 md:px-8 lg:px-10 {ui.chatOpen ? 'xl:mr-[26rem]' : ''}">
 		<div class="mx-auto max-w-5xl">
 			{#if session.loaded}
 				{@render children()}

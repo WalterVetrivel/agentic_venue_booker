@@ -57,9 +57,11 @@ class Venue(Base):
     byod: Mapped[bool] = mapped_column(Boolean, default=False)
     needs_hod_approval: Mapped[bool] = mapped_column(Boolean, default=False)
     in_charge_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    technician_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     notes: Mapped[str | None] = mapped_column(Text)
 
-    in_charge: Mapped[User | None] = relationship(lazy="joined")
+    in_charge: Mapped[User | None] = relationship(foreign_keys=[in_charge_id], lazy="joined")
+    technician: Mapped[User | None] = relationship(foreign_keys=[technician_id], lazy="joined")
     aliases: Mapped[list["VenueAlias"]] = relationship(
         back_populates="venue", cascade="all, delete-orphan", lazy="selectin"
     )
@@ -127,3 +129,17 @@ class SeasonalRule(Base):
     reason: Mapped[str] = mapped_column(Text)
 
     venue: Mapped[Venue] = relationship(back_populates="seasonal_rules")
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    action: Mapped[str] = mapped_column(String(40))
+    entity: Mapped[str] = mapped_column(String(40))
+    entity_id: Mapped[int | None] = mapped_column(Integer)
+    before: Mapped[str | None] = mapped_column(Text)  # JSON
+    after: Mapped[str | None] = mapped_column(Text)  # JSON
+    via: Mapped[str] = mapped_column(String(10), default="ui")  # ui | agent
+    at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
