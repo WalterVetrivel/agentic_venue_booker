@@ -220,3 +220,112 @@ class TimetableSlot(Base):
     term: Mapped[AcademicTerm] = relationship(lazy="joined")
     section: Mapped[ClassSection] = relationship(lazy="joined")
     venue: Mapped[Venue] = relationship(lazy="joined")
+
+
+class Booking(Base):
+    __tablename__ = "bookings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ref: Mapped[str] = mapped_column(String(20), unique=True)  # e.g. BK-2026-0007
+    requester_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    venue_id: Mapped[int] = mapped_column(ForeignKey("venues.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    event_type: Mapped[str] = mapped_column(String(40))
+    description: Mapped[str | None] = mapped_column(Text)
+    expected_count: Mapped[int] = mapped_column(Integer)
+    requirements: Mapped[str | None] = mapped_column(Text)
+    # Overall span; the bookable time on each day is in `occurrences`.
+    start_dt: Mapped[datetime] = mapped_column(DateTime, index=True)
+    end_dt: Mapped[datetime] = mapped_column(DateTime, index=True)
+    # pending_incharge | pending_hod | confirmed | rejected | cancelled
+    # | waitlisted | offered | expired
+    status: Mapped[str] = mapped_column(String(20), index=True)
+    created_via: Mapped[str] = mapped_column(String(10), default="form")  # form | assistant
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("bookings.id", ondelete="SET NULL"))
+    cancel_reason: Mapped[str | None] = mapped_column(Text)
+    offer_expires_at: Mapped[datetime | None] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+    requester: Mapped[User] = relationship(lazy="joined")
+    venue: Mapped[Venue] = relationship(lazy="joined")
+    occurrences: Mapped[list["BookingOccurrence"]] = relationship(
+        back_populates="booking",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="BookingOccurrence.start_dt",
+    )
+    approvals: Mapped[list["Approval"]] = relationship(
+        back_populates="booking",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="Approval.id",
+    )
+    displacements: Mapped[list["SlotOverride"]] = relationship(
+        back_populates="booking", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+    @property
+    def needs_displacement(self) -> bool:
+        return bool(self.displacements)
+
+
+class BookingOccurrence(Base):
+    __tablename__ = "booking_occurrences"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    booking_id: Mapped[int] = mapped_column(ForeignKey("bookings.id", ondelete="CASCADE"))
+    start_dt: Mapped[datetime] = mapped_column(DateTime, index=True)
+    end_dt: Mapped[datetime] = mapped_column(DateTime, index=True)
+
+    booking: Mapped[Booking] = relationship(back_populates="occurrences")
+
+
+class Approval(Base):
+    __tablename__ = "approvals"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    booking_id: Mapped[int] = mapped_column(ForeignKey("bookings.id", ondelete="CASCADE"))
+    step: Mapped[str] = mapped_column(String(20))  # incharge | hod
+    approver_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    decision: Mapped[str] = mapped_column(String(10))  # approved | rejected
+    comment: Mapped[str | None] = mapped_column(Text)
+    decided_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    booking: Mapped[Booking] = relationship(back_populates="approvals")
+    approver: Mapped[User | None] = relationship(lazy="joined")
+
+
+class SlotOverride(Base):
+    """A timetabled class moved out of the way of a booking on one date."""
+
+    __tablename__ = "slot_overrides"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slot_id: Mapped[int] = mapped_column(ForeignKey("timetable_slots.id", ondelete="CASCADE"))
+    on_date: Mapped[date] = mapped_column(Date, index=True)
+    action: Mapped[str] = mapped_column(String(20))  # relocated | byod_classroom
+    new_venue_id: Mapped[int | None] = mapped_column(
+        ForeignKey("venues.id", ondelete="SET NULL"), index=True
+    )
+    booking_id: Mapped[int] = mapped_column(ForeignKey("bookings.id", ondelete="CASCADE"))
+    # Takes effect only once the booking is confirmed.
+    active: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    slot: Mapped[TimetableSlot] = relationship(lazy="joined")
+    new_venue: Mapped[Venue | None] = relationship(lazy="joined")
+    booking: Mapped[Booking] = relationship(back_populates="displacements")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(30))
+    message: Mapped[str] = mapped_column(Text)
+    link: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    read_at: Mapped[datetime | None] = mapped_column(DateTime)
