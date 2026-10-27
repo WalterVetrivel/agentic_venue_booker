@@ -1,18 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-
-async function login(page: Page, email: string) {
-	await page.goto('/login');
-	await page.getByLabel('Email').fill(email);
-	await page.getByLabel('Password').fill('password');
-	await page.getByRole('button', { name: 'Log in' }).click();
-	await expect(page.getByRole('heading', { level: 1 })).toContainText('Welcome');
-}
-
-async function navLabels(page: Page) {
-	const nav = page.getByRole('navigation', { name: 'Main' });
-	if (!(await nav.isVisible())) await page.getByRole('button', { name: 'Open menu' }).click();
-	return nav.getByRole('link').allInnerTexts();
-}
+import { expect, test } from '@playwright/test';
+import { login, navLabels } from './helpers';
 
 test('students can browse venues without logging in', async ({ page }) => {
 	await page.goto('/venues');
@@ -23,16 +10,39 @@ test('students can browse venues without logging in', async ({ page }) => {
 });
 
 const MENUS: Record<string, string[]> = {
-	'swvcse@kiot.ac.in': ['Home', 'Availability', 'Venues', 'Book a venue', 'My bookings', 'Approvals', 'Reports'],
+	'swvcse@kiot.ac.in': [
+		'Home',
+		'Availability',
+		'Venues',
+		'Book a venue',
+		'My bookings',
+		'Approvals',
+		'Reports'
+	],
 	'prcse@kiot.ac.in': ['Home', 'Availability', 'Venues', 'Book a venue', 'My bookings'],
 	'cseoa@kiot.ac.in': ['Home', 'Availability', 'Venues', 'Timetables', 'Circulars & reports'],
 	'hod.cse@kiot.ac.in': [
-		'Home', 'Availability', 'Venues', 'Book a venue', 'My bookings', 'Approvals',
-		'Timetables', 'Circulars & reports', 'Reports'
+		'Home',
+		'Availability',
+		'Venues',
+		'Book a venue',
+		'My bookings',
+		'Approvals',
+		'Timetables',
+		'Circulars & reports',
+		'Reports'
 	],
 	'dirim@kiot.ac.in': [
-		'Home', 'Availability', 'Venues', 'Book a venue', 'My bookings', 'Approvals',
-		'Timetables', 'Circulars & reports', 'Reports', 'Settings'
+		'Home',
+		'Availability',
+		'Venues',
+		'Book a venue',
+		'My bookings',
+		'Approvals',
+		'Timetables',
+		'Circulars & reports',
+		'Reports',
+		'Settings'
 	]
 };
 
@@ -77,7 +87,7 @@ test('chat panel can be closed and reopened', async ({ page }) => {
 
 test('no horizontal scrolling', async ({ page }) => {
 	await page.goto('/venues/CC1');
-	await expect(page.getByText('Software')).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Software', exact: true })).toBeVisible();
 	const overflow = await page.evaluate(
 		() => document.documentElement.scrollWidth - document.documentElement.clientWidth
 	);

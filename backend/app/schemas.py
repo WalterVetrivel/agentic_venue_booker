@@ -1,4 +1,7 @@
-from pydantic import BaseModel, ConfigDict
+from datetime import date, datetime, time
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class LoginIn(BaseModel):
@@ -59,3 +62,160 @@ class VenueOut(BaseModel):
 class VenueDetailOut(VenueOut):
     equipment: list[EquipmentOut]
     aliases: list[str]
+
+
+class StatusPeriodOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    status: str
+    from_date: date
+    to_date: date | None
+    reason: str | None
+
+
+class SeasonalRuleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    start_month: int
+    end_month: int
+    kind: str
+    reason: str
+
+
+class VenueFullOut(VenueDetailOut):
+    technician: InChargeOut | None
+    notes: str | None
+    status_periods: list[StatusPeriodOut]
+    seasonal_rules: list[SeasonalRuleOut]
+    can_edit: bool
+    can_update_equipment: bool
+    can_edit_restricted: bool
+
+
+VenueType = Literal["lab", "seminar_hall", "coe"]
+EquipmentCategory = Literal["hardware", "software", "av", "facility"]
+EquipmentStatus = Literal["working", "faulty", "under_repair"]
+
+
+class VenueCreate(BaseModel):
+    code: str = Field(min_length=1, max_length=30, pattern=r"^[A-Za-z0-9_-]+$")
+    name: str = Field(min_length=1, max_length=120)
+    type: VenueType
+    block: str | None = None
+    department: str | None = "CSE"
+    capacity: int = Field(gt=0, le=2000)
+    byod: bool = False
+    needs_hod_approval: bool = False
+    in_charge_email: str | None = None
+    technician_email: str | None = None
+    notes: str | None = None
+
+
+class VenueUpdate(BaseModel):
+    # Anyone who can edit the venue
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    block: str | None = None
+    notes: str | None = None
+    byod: bool | None = None
+    # Director only
+    type: VenueType | None = None
+    department: str | None = None
+    capacity: int | None = Field(default=None, gt=0, le=2000)
+    needs_hod_approval: bool | None = None
+    in_charge_email: str | None = None
+    technician_email: str | None = None
+
+
+RESTRICTED_VENUE_FIELDS = {
+    "type",
+    "department",
+    "capacity",
+    "needs_hod_approval",
+    "in_charge_email",
+    "technician_email",
+}
+
+
+class EquipmentIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    category: EquipmentCategory
+    quantity: int = Field(default=1, ge=1, le=10000)
+    status: EquipmentStatus = "working"
+
+
+class EquipmentUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    category: EquipmentCategory | None = None
+    quantity: int | None = Field(default=None, ge=1, le=10000)
+    status: EquipmentStatus | None = None
+
+
+class StatusPeriodIn(BaseModel):
+    status: Literal["maintenance", "renovation", "closed"]
+    from_date: date
+    to_date: date | None = None
+    reason: str | None = None
+
+    @model_validator(mode="after")
+    def _order(self):
+        if self.to_date and self.to_date < self.from_date:
+            raise ValueError("to_date must be on or after from_date")
+        return self
+
+
+class SeasonalRuleIn(BaseModel):
+    start_month: int = Field(ge=1, le=12)
+    end_month: int = Field(ge=1, le=12)
+    kind: Literal["blocked", "soft_warning"]
+    reason: str = Field(min_length=1)
+
+
+class UserBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    email: str
+    roles: list[str] = []
+
+
+class BlockOut(BaseModel):
+    start: datetime
+    end: datetime
+    kind: str
+    label: str
+    hard: bool
+
+
+class NoticeOut(BaseModel):
+    kind: str
+    message: str
+
+
+class VenueDayOut(BaseModel):
+    code: str
+    name: str
+    type: str
+    capacity: int
+    byod: bool
+    blocks: list[BlockOut]
+    warnings: list[NoticeOut]
+
+
+class DayAvailabilityOut(BaseModel):
+    date: date
+    open_from: time | None
+    open_to: time | None
+    slot_minutes: int
+    venues: list[VenueDayOut]
+
+
+class CheckOut(BaseModel):
+    venue: str
+    start: datetime
+    end: datetime
+    free: bool
+    conflicts: list[BlockOut]
+    warnings: list[NoticeOut]

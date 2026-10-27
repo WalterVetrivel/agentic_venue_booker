@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import auth, venues
+from app.api import auth, availability, users, venues
 from app.config import get_settings
 
 
@@ -10,6 +10,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Agentic Venue Booker")
     app.include_router(auth.router)
     app.include_router(venues.router)
+    app.include_router(availability.router)
+    app.include_router(users.router)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:

@@ -45,3 +45,71 @@ export const VENUE_TYPE_LABELS: Record<Venue['type'], string> = {
 	coe: 'Centres of Excellence',
 	seminar_hall: 'Seminar Halls'
 };
+
+export type StatusPeriod = {
+	id: number;
+	status: 'maintenance' | 'renovation' | 'closed';
+	from_date: string;
+	to_date: string | null;
+	reason: string | null;
+};
+
+export type SeasonalRule = {
+	id: number;
+	start_month: number;
+	end_month: number;
+	kind: 'blocked' | 'soft_warning';
+	reason: string;
+};
+
+export type VenueFull = VenueDetail & {
+	technician: { id: number; name: string; email: string } | null;
+	notes: string | null;
+	status_periods: StatusPeriod[];
+	seasonal_rules: SeasonalRule[];
+	can_edit: boolean;
+	can_update_equipment: boolean;
+	can_edit_restricted: boolean;
+};
+
+export type Block = {
+	start: string;
+	end: string;
+	kind: string;
+	label: string;
+	hard: boolean;
+};
+export type Notice = { kind: string; message: string };
+
+export type VenueDay = {
+	code: string;
+	name: string;
+	type: Venue['type'];
+	capacity: number;
+	byod: boolean;
+	blocks: Block[];
+	warnings: Notice[];
+};
+
+export type DayAvailability = {
+	date: string;
+	open_from: string | null;
+	open_to: string | null;
+	slot_minutes: number;
+	venues: VenueDay[];
+};
+
+export const MONTHS = [
+	'Jan',
+	'Feb',
+	'Mar',
+	'Apr',
+	'May',
+	'Jun',
+	'Jul',
+	'Aug',
+	'Sep',
+	'Oct',
+	'Nov',
+	'Dec'
+];

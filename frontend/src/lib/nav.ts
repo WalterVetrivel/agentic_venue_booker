@@ -11,8 +11,20 @@ export const NAV: NavItem[] = [
 	{ href: '/', label: 'Home', icon: 'home', anyOf: [] },
 	{ href: '/availability', label: 'Availability', icon: 'calendar', anyOf: [] },
 	{ href: '/venues', label: 'Venues', icon: 'building', anyOf: [] },
-	{ href: '/book', label: 'Book a venue', icon: 'plus', anyOf: ['book'], phase: 3 },
-	{ href: '/bookings', label: 'My bookings', icon: 'list', anyOf: ['book'], phase: 3 },
+	{
+		href: '/book',
+		label: 'Book a venue',
+		icon: 'plus',
+		anyOf: ['book'],
+		phase: 3
+	},
+	{
+		href: '/bookings',
+		label: 'My bookings',
+		icon: 'list',
+		anyOf: ['book'],
+		phase: 3
+	},
 	{
 		href: '/approvals',
 		label: 'Approvals',
@@ -41,7 +53,13 @@ export const NAV: NavItem[] = [
 		anyOf: ['reports_own', 'reports_cse', 'reports_all'],
 		phase: 6
 	},
-	{ href: '/settings', label: 'Settings', icon: 'gear', anyOf: ['manage_settings'], phase: 5 }
+	{
+		href: '/settings',
+		label: 'Settings',
+		icon: 'gear',
+		anyOf: ['manage_settings'],
+		phase: 5
+	}
 ];
 
 export function visibleNav(capabilities: string[]): NavItem[] {
