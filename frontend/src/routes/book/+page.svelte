@@ -15,15 +15,17 @@
 	let eventTypes = $state<string[]>([]);
 	let original = $state<Booking | null>(null);
 
-	let title = $state('');
-	let eventType = $state('');
-	let expected = $state<number | null>(null);
-	let description = $state('');
-	let requirements = $state('');
+	// The assistant's drafts link here with the form filled in (and via=agent).
+	const fromAssistant = params.get('via') === 'agent';
+	let title = $state(params.get('title') ?? '');
+	let eventType = $state(params.get('type') ?? '');
+	let expected = $state<number | null>(Number(params.get('count')) || null);
+	let description = $state(params.get('description') ?? '');
+	let requirements = $state(params.get('requirements') ?? '');
 	let venue = $state(params.get('venue') ?? '');
 	let dateFrom = $state(params.get('date') ?? isoDate(new Date()));
-	let multiDay = $state(false);
-	let dateTo = $state('');
+	let multiDay = $state(!!params.get('to'));
+	let dateTo = $state(params.get('to') ?? '');
 	let start = $state(params.get('start') ?? '10:00');
 	let end = $state(params.get('end') ?? '12:00');
 
@@ -132,6 +134,7 @@
 		try {
 			const b = await api<Booking>('/bookings', {
 				method: 'POST',
+				headers: fromAssistant ? { 'X-Via': 'agent' } : {},
 				body: JSON.stringify({
 					...body(),
 					join_waitlist: check?.outcome === 'waitlist',

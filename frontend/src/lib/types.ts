@@ -387,3 +387,77 @@ export type SearchHit = {
 };
 
 export type SearchResult = { query: string; mode: 'hybrid' | 'keywords'; hits: SearchHit[] };
+
+// Assistant ---------------------------------------------------------------------------------
+
+export type ChatCard = {
+	kind: 'draft' | 'confirm' | 'file';
+	title: string;
+	lines?: string[];
+	href?: string | null;
+	button?: string;
+	action?: { method: string; url: string; body?: unknown };
+	danger?: boolean;
+	done?: string;
+	state?: 'done' | 'dismissed';
+	note?: string | null;
+};
+
+export type ChatStep = {
+	id: string;
+	tool: string;
+	label: string;
+	ok?: boolean;
+	error?: string;
+};
+
+export type ChatMessage = {
+	id?: number;
+	role: 'user' | 'assistant';
+	content: string;
+	steps: ChatStep[];
+	cards: ChatCard[];
+	error?: string;
+	streaming?: boolean;
+};
+
+export type ConversationBrief = {
+	id: number;
+	title: string;
+	provider: string | null;
+	model: string | null;
+	updated_at: string;
+};
+
+export type Conversation = ConversationBrief & {
+	messages: (ChatMessage & { id: number; created_at: string })[];
+};
+
+export type Provider = {
+	key: 'groq' | 'ollama';
+	label: string;
+	ready: boolean;
+	note: string;
+	models: string[];
+	model: string;
+};
+
+export type Providers = { default: 'groq' | 'ollama'; demo: boolean; providers: Provider[] };
+
+export type Attachment = {
+	kind: 'timetable' | 'document' | 'text';
+	title: string;
+	context: string;
+	link: string | null;
+};
+
+export type LLMSettings = {
+	provider: 'groq' | 'ollama';
+	groq_model: string;
+	groq_fallback_model: string;
+	groq_key_set: boolean;
+	groq_key_masked: string;
+	groq_key_source: 'settings' | 'env' | 'none';
+	ollama_base_url: string;
+	ollama_model: string;
+};

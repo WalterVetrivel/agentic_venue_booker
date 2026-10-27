@@ -38,7 +38,8 @@ def authenticate(db: Session, email: str, password: str) -> User | None:
     return user
 
 
-def get_optional_user(request: Request, db: Session = Depends(get_db)) -> User | None:
+def user_from_request(request: Request, db: Session) -> User | None:
+    """The logged-in user, from the session cookie or an `Authorization: Bearer` token."""
     settings = get_settings()
     token = request.cookies.get(settings.cookie_name)
     if not token:
@@ -54,6 +55,10 @@ def get_optional_user(request: Request, db: Session = Depends(get_db)) -> User |
     return user if user and user.active else None
 
 
+def get_optional_user(request: Request, db: Session = Depends(get_db)) -> User | None:
+    return user_from_request(request, db)
+
+
 def get_current_user(user: User | None = Depends(get_optional_user)) -> User:
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not logged in")
@@ -67,3 +72,8 @@ def require(capability: str):
         return user
 
     return dependency
+
+
+def get_via(request: Request) -> str:
+    """ "agent" when the assistant's chat card made this call (it sends X-Via: agent), else "ui"."""
+    return "agent" if request.headers.get("x-via", "").lower() == "agent" else "ui"

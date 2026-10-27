@@ -51,3 +51,16 @@ def me(user: User | None = Depends(get_optional_user)) -> MeOut:
         return MeOut(user=None, capabilities=sorted(capabilities_for(None)))
     out = user_out(user)
     return MeOut(user=out, capabilities=out.capabilities)
+
+
+@router.get("/mcp-token")
+def mcp_token(user: User | None = Depends(get_optional_user)) -> dict:
+    """A bearer token for connecting an MCP client (e.g. Claude Desktop) as this user."""
+    if user is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not logged in")
+    settings = get_settings()
+    return {
+        "token": create_token(user.id),
+        "expires_in_hours": settings.jwt_ttl_hours,
+        "url": "/mcp/",
+    }

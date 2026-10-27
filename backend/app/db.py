@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from sqlalchemy import MetaData, create_engine, event
@@ -42,3 +43,16 @@ SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 def get_db() -> Iterator[Session]:
     with SessionLocal() as session:
         yield session
+
+
+@contextmanager
+def session_for(app) -> Iterator[Session]:
+    """A session outside FastAPI's dependency injection (MCP calls, streamed chat replies).
+
+    It honours `app.dependency_overrides[get_db]`, so tests get their own database here too.
+    """
+    sessions = app.dependency_overrides.get(get_db, get_db)()
+    try:
+        yield next(sessions)
+    finally:
+        sessions.close()

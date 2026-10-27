@@ -11,3 +11,4 @@ python-multipart>=0.0.12
 pdfplumber>=0.11
 pypdf>=5.0
 httpx>=0.27
+mcp>=2.3,<3

@@ -5,7 +5,7 @@ from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from app.api.availability import block_out, notice_out
-from app.auth import get_current_user, require
+from app.auth import get_current_user, get_via, require
 from app.db import get_db
 from app.models import Booking, Notification, User
 from app.schemas import (
@@ -189,6 +189,7 @@ def create_booking(
     body: BookingSubmitIn,
     db: Session = Depends(get_db),
     user: User = Depends(require("book")),
+    via: str = Depends(get_via),
 ) -> BookingOut:
     svc.expire_offers(db, datetime.now())
     parent = booking_or_404(db, body.reschedule_of) if body.reschedule_of else None
@@ -199,6 +200,7 @@ def create_booking(
         to_request(body),
         join_waitlist=body.join_waitlist,
         reschedule=parent,
+        via=via,
     )
     return booking_out(db, b, user)
 
@@ -228,16 +230,20 @@ def cancel_booking(
     body: CancelIn,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    via: str = Depends(get_via),
 ) -> BookingOut:
-    b = run(db, svc.cancel, user, booking_or_404(db, booking_id), body.reason)
+    b = run(db, svc.cancel, user, booking_or_404(db, booking_id), body.reason, via=via)
     return booking_out(db, b, user)
 
 
 @router.post("/bookings/{booking_id}/accept-offer", response_model=BookingOut)
 def accept_offer(
-    booking_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    booking_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    via: str = Depends(get_via),
 ) -> BookingOut:
-    b = run(db, svc.accept_offer, user, booking_or_404(db, booking_id))
+    b = run(db, svc.accept_offer, user, booking_or_404(db, booking_id), via=via)
     return booking_out(db, b, user)
 
 
@@ -247,8 +253,9 @@ def approve_booking(
     body: DecisionIn,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    via: str = Depends(get_via),
 ) -> BookingOut:
-    b = run(db, svc.approve, user, booking_or_404(db, booking_id), body.comment)
+    b = run(db, svc.approve, user, booking_or_404(db, booking_id), body.comment, via=via)
     return booking_out(db, b, user)
 
 
@@ -258,8 +265,9 @@ def reject_booking(
     body: DecisionIn,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    via: str = Depends(get_via),
 ) -> BookingOut:
-    b = run(db, svc.reject, user, booking_or_404(db, booking_id), body.comment or "")
+    b = run(db, svc.reject, user, booking_or_404(db, booking_id), body.comment or "", via=via)
     return booking_out(db, b, user)
 
 

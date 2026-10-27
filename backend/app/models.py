@@ -424,3 +424,53 @@ FTS_DDL = (
 )
 event.listen(DocChunk.__table__, "after_create", DDL(FTS_DDL))
 event.listen(DocChunk.__table__, "before_drop", DDL("DROP TABLE IF EXISTS doc_chunks_fts"))
+
+
+# Assistant ----------------------------------------------------------------------------------------
+
+
+class AppSetting(Base):
+    """Settings the Director changes in the app (LLM provider, models, keys)."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(60), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(120))
+    provider: Mapped[str | None] = mapped_column(String(20))
+    model: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    messages: Mapped[list["ChatMessage"]] = relationship(
+        back_populates="conversation",
+        order_by="ChatMessage.id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), index=True
+    )
+    role: Mapped[str] = mapped_column(String(10))  # user | assistant
+    content: Mapped[str] = mapped_column(Text)
+    steps: Mapped[str] = mapped_column(Text, default="[]")  # JSON: tools the assistant used
+    cards: Mapped[str] = mapped_column(Text, default="[]")  # JSON: drafts and proposals
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    conversation: Mapped[Conversation] = relationship(back_populates="messages")

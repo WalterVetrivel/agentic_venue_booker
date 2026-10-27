@@ -13,7 +13,7 @@ See [docs/PLAN.md](docs/PLAN.md) for the full plan and architecture.
 | 2 | Timetable PDF ingestion | ✅ |
 | 3 | Bookings, approvals, waitlist, class displacement | ✅ |
 | 4 | Circulars and reports, RAG, recurring-event warnings | ✅ |
-| 5 | LLM (Groq / Ollama), MCP server, assistant | |
+| 5 | LLM (Groq / Ollama), MCP server, assistant | ✅ |
 | 6 | Reports and polish | |
 
 ## Run it locally (Windows)
@@ -26,7 +26,7 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements-dev.txt
-copy .env.example .env          # then edit APP_SECRET (and GROQ_API_KEY from Phase 5)
+copy .env.example .env          # then edit APP_SECRET (the Groq key can also be set in Settings)
 alembic upgrade head
 python -m app.seed              # loads users and venues; add --reset to start over
 python -m app.seed --timetables # optional: also commits every mock timetable PDF
@@ -81,7 +81,29 @@ Run `python -m app.seed --documents`, or log in as the OA and upload PDFs under 
 - **Past events** lists every event with filters for venue, type and academic year. Ten mock documents have an end time before the start time (for example 13:25 to 12:35); their five events are marked **Needs checking** instead of being guessed. The OA, HOD or Director can correct any event, and later uploads won't overwrite the correction.
 - **Recurring-event warnings**: when an event series was held in a venue around the same date in at least two earlier years, the booking form, the availability grid and the approver's notes say so, and other free venues are suggested. Try booking `COE1` for mid-September (the in-house hackathon) or `CC1` for mid-November (model practical exams).
 
-The assistant (Phase 5) will answer questions from the same search and cite the circulars and reports it used.
+The assistant answers questions from the same search and cites the circulars and reports it used.
+
+### The assistant
+
+Open the chat panel (docked on wide screens, **Ask the assistant** on phones). It uses tools for every fact, so it never guesses availability, and it can't change anything by itself:
+
+- **Drafts**: "Book COE1 next Tuesday 10 to 12 for a Python workshop, 30 students" gives a card that opens the booking form already filled in. You check it and submit.
+- **Proposals**: cancelling a booking, approving or rejecting a request, and marking equipment faulty come back as a card with a button. Pressing it calls the normal API, and the audit log records it as `via=agent`.
+- **Attachments** (logged in): drop a PDF in the chat. The OA's timetables go to review, circulars and reports from people who upload documents go into **Past events**, and anything else is just read so you can ask about it.
+- Staff chats are saved: the title menu lists them, with search, rename and delete. Students can use the read-only tools without logging in (20 questions per 10 minutes); their chats aren't saved.
+
+**Choosing the model.** The Director sets the default in **Settings**: Groq (online; get a free key at console.groq.com/keys) or Ollama (local). People can switch in the chat panel's model menu. On Ollama, `qwen3.5:4b` works on 8 GB RAM without a GPU but is slow and makes more mistakes; use Groq for demos. If Groq retires the model, the fallback model is used.
+
+**Smoke test with a real model** (about 15 questions; read-only, safe on your normal database):
+
+```powershell
+python -m app.agent.smoke                    # default provider
+python -m app.agent.smoke --provider ollama
+```
+
+**MCP.** The same tools are an MCP server at `http://127.0.0.1:8000/mcp/` (Streamable HTTP). Without a token a client gets the public, read-only tools; with a token it gets the tools that person's roles allow. The Director's **Settings** page creates a token and the Claude Desktop config (it uses `npx mcp-remote`); any logged-in user can get one from `GET /api/auth/mcp-token`. Changes still have to be confirmed in the app.
+
+For browser tests and demos without a model, set `LLM_FAKE=1`: a scripted demo assistant answers a few question shapes using the real tools.
 
 ## Tests
 

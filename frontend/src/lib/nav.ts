@@ -52,8 +52,7 @@ export const NAV: NavItem[] = [
 		href: '/settings',
 		label: 'Settings',
 		icon: 'gear',
-		anyOf: ['manage_settings'],
-		phase: 5
+		anyOf: ['manage_settings']
 	}
 ];
 
