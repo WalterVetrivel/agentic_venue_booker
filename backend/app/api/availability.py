@@ -64,7 +64,9 @@ def check(venue: str, start: datetime, end: datetime, db: Session = Depends(get_
         start=start,
         end=end,
         free=result.free,
+        needs_displacement=result.needs_displacement,
         conflicts=[block_out(b) for b in result.conflicts],
+        classes=[block_out(b) for b in result.classes],
         warnings=[notice_out(n) for n in result.warnings],
     )
 

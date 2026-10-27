@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     default_llm_provider: str = "groq"
 
+    upload_dir: Path = BACKEND_DIR / "storage" / "uploads"
     mock_data_dir: Path = REPO_DIR / "data" / "mock"
     frontend_build_dir: Path = REPO_DIR / "frontend" / "build"
 

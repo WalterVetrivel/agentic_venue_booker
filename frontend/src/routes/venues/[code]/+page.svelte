@@ -2,17 +2,22 @@
 	import { page } from '$app/state';
 	import { api } from '#lib/api.ts';
 	import VenueForm from '#lib/components/VenueForm.svelte';
+	import WeekSchedule from '#lib/components/WeekSchedule.svelte';
 	import { btnDanger, btnPrimary, btnSecondary, card, field, label } from '#lib/ui.ts';
-	import { MONTHS, type Equipment, type VenueFull } from '#lib/types.ts';
+	import { MONTHS, type ClassSlot, type Equipment, type VenueFull } from '#lib/types.ts';
 
 	let venue = $state<VenueFull | null>(null);
+	let classes = $state<ClassSlot[]>([]);
 	let error = $state('');
 	let editing = $state(false);
 	let actionError = $state('');
 
 	async function load() {
 		try {
-			venue = await api<VenueFull>(`/venues/${page.params.code}`);
+			[venue, classes] = await Promise.all([
+				api<VenueFull>(`/venues/${page.params.code}`),
+				api<ClassSlot[]>(`/timetables/slots?venue=${page.params.code}`)
+			]);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Could not load venue';
 		}
@@ -153,6 +158,13 @@
 					<dd>{v.notes}</dd>
 				</div>{/if}
 		</dl>
+	{/if}
+
+	{#if v.type !== 'seminar_hall' || classes.length}
+		<section class="mt-10">
+			<h2 class="text-lg font-semibold">Weekly class schedule</h2>
+			<WeekSchedule slots={classes} show="venue" />
+		</section>
 	{/if}
 
 	<!-- Status periods -->

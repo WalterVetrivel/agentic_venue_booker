@@ -33,7 +33,7 @@ class Block:
     venue_id: int
     start: datetime
     end: datetime
-    kind: str  # status | seasonal | closed | (later) class | booking
+    kind: str  # status | seasonal | closed | class | (later) booking
     label: str
     hard: bool = True
 
@@ -59,9 +59,14 @@ class DayView:
 
 @dataclass
 class CheckResult:
-    free: bool
-    conflicts: list[Block]
+    free: bool  # nothing at all in the way
+    conflicts: list[Block]  # hard blocks: closed, maintenance, booked
+    classes: list[Block]  # timetabled classes; an event can displace them with HOD approval
     warnings: list[Notice]
+
+    @property
+    def needs_displacement(self) -> bool:
+        return not self.conflicts and bool(self.classes)
 
 
 def _day_bounds(day: date) -> tuple[datetime, datetime]:
@@ -103,8 +108,25 @@ def closed_day_source(db: Session, venue: Venue, day: date) -> tuple[list[Block]
     return [], []
 
 
+def class_source(db: Session, venue: Venue, day: date) -> tuple[list[Block], list[Notice]]:
+    from app.services.timetables import as_datetime, slot_label, slots_on
+
+    blocks = [
+        Block(
+            venue.id,
+            as_datetime(day, slot.start),
+            as_datetime(day, slot.end),
+            "class",
+            slot_label(slot),
+            hard=False,
+        )
+        for slot in slots_on(db, venue.id, day)
+    ]
+    return blocks, []
+
+
 Source = Callable[[Session, Venue, date], tuple[list[Block], list[Notice]]]
-SOURCES: list[Source] = [closed_day_source, status_source, seasonal_source]
+SOURCES: list[Source] = [closed_day_source, status_source, seasonal_source, class_source]
 
 
 def venue_day(db: Session, venue: Venue, day: date) -> DayView:
@@ -123,11 +145,13 @@ def check(db: Session, venue: Venue, start: datetime, end: datetime) -> CheckRes
     if end <= start:
         raise ValueError("end must be after start")
     conflicts: list[Block] = []
+    classes: list[Block] = []
     warnings: list[Notice] = []
     day = start.date()
     while datetime.combine(day, time(0, 0)) < end:
         view = venue_day(db, venue, day)
         conflicts += [b for b in view.blocks if b.hard and b.overlaps(start, end)]
+        classes += [b for b in view.blocks if b.kind == "class" and b.overlaps(start, end)]
         warnings += view.warnings
         if view.open_from and view.open_to:
             day_start = max(start, datetime.combine(day, time(0, 0)))
@@ -146,4 +170,6 @@ def check(db: Session, venue: Venue, start: datetime, end: datetime) -> CheckRes
         day += timedelta(days=1)
     # Same notice can repeat across days of a multi-day range.
     unique = list({(w.kind, w.message): w for w in warnings}.values())
-    return CheckResult(free=not conflicts, conflicts=conflicts, warnings=unique)
+    return CheckResult(
+        free=not conflicts and not classes, conflicts=conflicts, classes=classes, warnings=unique
+    )
