@@ -10,7 +10,7 @@ See [docs/PLAN.md](docs/PLAN.md) for the full plan and architecture.
 |---|---|---|
 | 0 | Scaffold, mock login, roles, venues, layout, theme, chat panel shell | ✅ |
 | 1 | Venue and equipment management, availability grid | ✅ |
-| 2 | Timetable PDF ingestion | ⏳ |
+| 2 | Timetable PDF ingestion | ✅ |
 | 3 | Bookings, approvals, waitlist, class displacement | |
 | 4 | Circulars and reports, RAG, recurring-event warnings | |
 | 5 | LLM (Groq / Ollama), MCP server, assistant | |
@@ -29,6 +29,7 @@ pip install -r requirements-dev.txt
 copy .env.example .env          # then edit APP_SECRET (and GROQ_API_KEY from Phase 5)
 alembic upgrade head
 python -m app.seed              # loads users and venues; add --reset to start over
+python -m app.seed --timetables # optional: also commits every mock timetable PDF
 uvicorn app.main:app --reload   # http://127.0.0.1:8000
 
 # Frontend (second terminal)
@@ -36,6 +37,8 @@ cd frontend
 npm install
 npm run dev                     # http://localhost:5173 (proxies /api to the backend)
 ```
+
+Re-running the seed never overwrites your edits, but it does refill a venue's equipment, aliases and seasonal rules if they are empty.
 
 To serve everything from the backend alone, run `npm run build` in `frontend`, then open http://127.0.0.1:8000.
 
@@ -53,6 +56,10 @@ All accounts use the password `password`.
 | `sh.ablock@kiot.ac.in` and similar | Seminar hall in-charges for A, D, E and MBA halls |
 
 Every faculty member in `data/mock/faculty.xlsx` has a login made from their initials, like `<initials>cse@kiot.ac.in`. Venue in-charges are set in `backend/app/seed/venues.yaml`.
+
+### Timetables
+
+Log in as the OA (`cseoa@kiot.ac.in`) and open **Timetables**. Upload one or more PDFs from `data/mock/timetables`. Each one is read, its lab sessions are checked against the venues and against classes already committed, and it waits for review. Fix any highlighted slot, then commit it. Committed lab sessions show on the availability grid. Classes are not a hard block: a booking can still ask to move them (Phase 3). Uploading a class again replaces its pending upload, and committing it replaces its earlier timetable.
 
 ## Tests
 

@@ -76,7 +76,7 @@
 
 	const isLab = (cell: string | null) =>
 		!!cell && /\((B\d,\s*)?[A-Z]+\s?\d*\)/.test(cell) && !/\(T\)/.test(cell);
-	const small = 'w-full rounded-md border border-border bg-bg px-2 py-1.5';
+	const small = 'block w-full rounded-md border border-border bg-bg px-2 py-1.5 text-fg';
 </script>
 
 <a href="/timetables" class="text-accent">← Timetables</a>
@@ -186,69 +186,62 @@
 
 	<!-- Lab slots -->
 	<h2 class="mt-8 text-lg font-semibold">Lab slots ({upload.slots.length})</h2>
-	<div class="mt-3 overflow-x-auto rounded-xl border border-border bg-surface">
-		<table class="w-full min-w-[56rem] text-sm" oninput={() => (dirty = true)}>
-			<thead class="text-left text-muted">
-				<tr>
-					<th class="p-3">Day</th><th class="p-3">Start</th><th class="p-3">End</th><th class="p-3"
-						>Subject</th
-					><th class="p-3">Batch</th><th class="p-3">Venue</th><th class="p-3"></th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each upload.slots as s, i (i)}
-					<tr class="border-t border-border align-top {s.issues?.length ? 'bg-danger/5' : ''}">
-						<td class="p-2">
-							<select
-								aria-label="Day"
-								bind:value={s.weekday}
-								class={small}
-								onchange={() => (dirty = true)}
-							>
-								{#each WEEKDAYS as d (d)}<option>{d}</option>{/each}
-							</select>
-						</td>
-						<td class="p-2"
-							><input aria-label="Start" type="time" bind:value={s.start} class={small} /></td
-						>
-						<td class="p-2"
-							><input aria-label="End" type="time" bind:value={s.end} class={small} /></td
-						>
-						<td class="p-2">
-							<input aria-label="Subject code" bind:value={s.subject_code} class={small} />
-							<span class="mt-1 block text-xs text-muted">{s.subject_name}</span>
-						</td>
-						<td class="p-2">
-							<select
-								aria-label="Batch"
-								bind:value={s.batch}
-								class={small}
-								onchange={() => (dirty = true)}
-							>
-								<option value="all">Whole class</option><option>B1</option><option>B2</option>
-							</select>
-						</td>
-						<td class="p-2">
-							<input aria-label="Venue" bind:value={s.venue} class={small} />
-							{#each s.issues ?? [] as issue, j (j)}<span class="mt-1 block text-xs text-danger"
-									>{issue}</span
-								>{/each}
-						</td>
-						<td class="p-2 text-right">
-							<button
-								class={btnDanger}
-								aria-label="Remove slot"
-								onclick={() => {
-									upload!.slots.splice(i, 1);
-									dirty = true;
-								}}>✕</button
-							>
-						</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
+	<ul class="mt-3 space-y-3">
+		{#each upload.slots as s, i (i)}
+			<li
+				class="rounded-xl border bg-surface p-4 {s.issues?.length
+					? 'border-danger/50 bg-danger/5'
+					: 'border-border'}"
+				oninput={() => (dirty = true)}
+				onchange={() => (dirty = true)}
+			>
+				<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+					<label class="text-sm text-muted"
+						>Day
+						<select aria-label="Day" bind:value={s.weekday} class="mt-1 {small}">
+							{#each WEEKDAYS as d (d)}<option>{d}</option>{/each}
+						</select>
+					</label>
+					<label class="text-sm text-muted"
+						>Start
+						<input aria-label="Start" type="time" bind:value={s.start} class="mt-1 {small}" />
+					</label>
+					<label class="text-sm text-muted"
+						>End
+						<input aria-label="End" type="time" bind:value={s.end} class="mt-1 {small}" />
+					</label>
+					<label class="text-sm text-muted"
+						>Subject
+						<input aria-label="Subject code" bind:value={s.subject_code} class="mt-1 {small}" />
+					</label>
+					<label class="text-sm text-muted"
+						>Batch
+						<select aria-label="Batch" bind:value={s.batch} class="mt-1 {small}">
+							<option value="all">Whole class</option><option>B1</option><option>B2</option>
+						</select>
+					</label>
+					<label class="text-sm text-muted"
+						>Venue
+						<input aria-label="Venue" bind:value={s.venue} class="mt-1 {small}" />
+					</label>
+				</div>
+				<div class="mt-2 flex items-start justify-between gap-3">
+					<div class="text-sm">
+						<span class="text-muted">{s.subject_name}</span>
+						{#each s.issues ?? [] as issue, j (j)}<span class="block text-danger">{issue}</span
+							>{/each}
+					</div>
+					<button
+						class={btnDanger}
+						onclick={() => {
+							upload!.slots.splice(i, 1);
+							dirty = true;
+						}}>Remove</button
+					>
+				</div>
+			</li>
+		{/each}
+	</ul>
 
 	{#if error}<p class="mt-4 text-danger" role="alert">{error}</p>{/if}
 	{#if upload.status !== 'committed'}

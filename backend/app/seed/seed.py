@@ -112,7 +112,16 @@ def seed_all(db: Session) -> dict[str, int]:
 
 
 def _seed_venue(db: Session, pw_hash: str, v: dict, profiles: dict[str, list[str]]) -> None:
-    if db.scalar(select(Venue).where(Venue.code == v["code"])) is not None:
+    existing = db.scalar(select(Venue).where(Venue.code == v["code"]))
+    if existing is not None:
+        # Re-seeding never overwrites edits, but refills child lists that are empty
+        # (e.g. lost to an old migration), so a damaged database can be repaired.
+        if not existing.aliases:
+            existing.aliases = _aliases(v)
+        if not existing.equipment:
+            existing.equipment = _equipment(v, profiles)
+        if not existing.seasonal_rules:
+            existing.seasonal_rules = _seasonal_rules(v)
         return
     in_charge = db.scalar(select(User).where(User.email == v["in_charge"]))
     if in_charge is not None and "incharge" not in in_charge.role_keys:
@@ -131,7 +140,12 @@ def _seed_venue(db: Session, pw_hash: str, v: dict, profiles: dict[str, list[str
         in_charge=in_charge,
     )
     db.add(venue)
+    venue.aliases = _aliases(v)
+    venue.equipment = _equipment(v, profiles)
+    venue.seasonal_rules = _seasonal_rules(v)
 
+
+def _aliases(v: dict) -> list[VenueAlias]:
     aliases = {v["code"], v["name"], *v.get("aliases", [])}
     if v["type"] == "lab":
         aliases.add(f"{v['code']} Lab")
@@ -143,8 +157,10 @@ def _seed_venue(db: Session, pw_hash: str, v: dict, profiles: dict[str, list[str
             f"Centre of Excellence {n}",
             f"CoE {n}",
         }
-    venue.aliases = [VenueAlias(alias=a) for a in sorted(aliases)]
+    return [VenueAlias(alias=a) for a in sorted(aliases)]
 
+
+def _equipment(v: dict, profiles: dict[str, list[str]]) -> list[Equipment]:
     items: list[Equipment] = []
     if v["type"] == "seminar_hall":
         av = [
@@ -179,9 +195,11 @@ def _seed_venue(db: Session, pw_hash: str, v: dict, profiles: dict[str, list[str
             Equipment(name="Power points for laptops", category="facility", quantity=30),
             Equipment(name="Wi-Fi", category="facility"),
         ]
-    venue.equipment = items
+    return items
 
-    venue.seasonal_rules = [SeasonalRule(**r) for r in v.get("seasonal_rules", [])]
+
+def _seasonal_rules(v: dict) -> list[SeasonalRule]:
+    return [SeasonalRule(**r) for r in v.get("seasonal_rules", [])]
 
 
 def seed_timetables(db: Session) -> int:

@@ -136,3 +136,14 @@ def test_free_venues_exclude_classes(client, session_factory):
     ).json()
     codes = {v["code"] for v in free}
     assert "CC1" not in codes and "PGLAB" in codes
+
+
+def test_reuploading_a_class_replaces_the_pending_upload(client, login):
+    login("cseoa@kiot.ac.in")
+    first = upload(client, "TT_CSE_II_YR_A.pdf").json()["id"]
+    second = upload(client, "TT_CSE_II_YR_A.pdf").json()["id"]
+    pending = [
+        u["id"] for u in client.get("/api/timetables/uploads").json() if u["status"] == "parsed"
+    ]
+    assert pending == [second]
+    assert client.get(f"/api/timetables/uploads/{first}").status_code == 404

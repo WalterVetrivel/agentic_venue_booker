@@ -1,6 +1,7 @@
-from sqlalchemy import select
+import pytest
+from sqlalchemy import delete, select
 
-from app.models import User, Venue
+from app.models import Equipment, SeasonalRule, User, Venue, VenueAlias
 from app.seed.seed import normalise_name, seed_all
 
 
@@ -16,6 +17,18 @@ def test_seed_is_idempotent(db):
     before = len(db.scalars(select(User)).all())
     seed_all(db)
     assert len(db.scalars(select(User)).all()) == before
+
+
+@pytest.mark.writes_db
+def test_reseed_refills_lost_child_rows(db):
+    counts = {m: len(db.scalars(select(m)).all()) for m in (Equipment, VenueAlias, SeasonalRule)}
+    for m in counts:
+        db.execute(delete(m))
+    db.commit()
+    db.expire_all()
+    seed_all(db)
+    db.commit()
+    assert {m: len(db.scalars(select(m)).all()) for m in counts} == counts
 
 
 def test_special_accounts(db):

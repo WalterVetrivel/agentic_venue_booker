@@ -164,15 +164,29 @@ def parse_upload(db: Session, path: Path) -> dict:
 
 
 def create_upload(db: Session, user: User | None, filename: str, stored: Path) -> TimetableUpload:
+    data = parse_upload(db, stored)
+    _drop_pending_for_section(db, data["header"])
     upload = TimetableUpload(
         filename=filename,
         stored_path=str(stored),
         uploaded_by_id=user.id if user else None,
-        parsed=json.dumps(parse_upload(db, stored)),
+        parsed=json.dumps(data),
     )
     db.add(upload)
     db.flush()
     return upload
+
+
+def _drop_pending_for_section(db: Session, header: dict) -> None:
+    """A new upload for a class replaces any earlier upload of it still waiting for review."""
+    key = (header.get("dept"), header.get("year"), header.get("section"))
+    if None in key:
+        return
+    for old in db.scalars(select(TimetableUpload).where(TimetableUpload.status == "parsed")):
+        h = json.loads(old.parsed)["header"]
+        if (h.get("dept"), h.get("year"), h.get("section")) == key:
+            Path(old.stored_path).unlink(missing_ok=True)
+            db.delete(old)
 
 
 def update_upload(db: Session, upload: TimetableUpload, header: dict, slots: list[dict]) -> dict:
