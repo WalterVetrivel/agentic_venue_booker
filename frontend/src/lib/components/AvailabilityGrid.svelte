@@ -5,8 +5,15 @@
 	let {
 		data,
 		from = null,
-		to = null
-	}: { data: DayAvailability; from?: string | null; to?: string | null } = $props();
+		to = null,
+		bookHref = null
+	}: {
+		data: DayAvailability;
+		from?: string | null;
+		to?: string | null;
+		/** When set, each venue gets a "Book" link. */
+		bookHref?: ((code: string) => string) | null;
+	} = $props();
 
 	const open = $derived(data.open_from ? minutesOf(data.open_from) : 480);
 	const close = $derived(data.open_to ? minutesOf(data.open_to) : 1080);
@@ -36,7 +43,7 @@
 		seasonal: 'bg-warning/40',
 		closed: 'bg-muted/25',
 		class: 'bg-accent/40',
-		booking: 'bg-danger/50',
+		booking: 'bg-fg/45',
 		pending: 'bg-warning/60'
 	};
 
@@ -81,6 +88,11 @@
 						<a href="/venues/{v.code}" class="font-medium hover:text-accent">{v.code}</a>
 						<span class="block text-xs text-muted">{v.capacity} seats{v.byod ? ' · BYOD' : ''}</span
 						>
+						{#if bookHref}
+							<a href={bookHref(v.code)} class="text-xs font-medium text-accent hover:underline"
+								>Book</a
+							>
+						{/if}
 						{#each v.blocks.filter((b) => b.hard && span(b) === 'All day' && b.kind !== 'closed') as b, i (i)}
 							<span class="block max-w-48 text-xs text-danger">{b.label}</span>
 						{/each}
@@ -108,6 +120,9 @@
 				<a href="/venues/{v.code}" class="font-semibold">{v.name}</a>
 				<span class="text-sm text-muted">{v.capacity} seats</span>
 			</div>
+			{#if bookHref}
+				<a href={bookHref(v.code)} class="text-sm font-medium text-accent">Book {v.code}</a>
+			{/if}
 			{#if hard.length === 0}
 				<p class="mt-1 text-success">Free all day</p>
 			{:else}
@@ -130,7 +145,7 @@
 </ul>
 
 <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
-	{#each [['free', 'Free'], ['class', 'Class'], ['booking', 'Booked (Phase 3)'], ['status', 'Maintenance / closed'], ['seasonal', 'Reserved for the season'], ['closed', 'College closed']] as [k, label] (k)}
+	{#each [['free', 'Free'], ['class', 'Class'], ['booking', 'Booked'], ['pending', 'Awaiting approval'], ['status', 'Maintenance / closed'], ['seasonal', 'Reserved for the season'], ['closed', 'College closed']] as [k, label] (k)}
 		<span class="flex items-center gap-2"
 			><span class="inline-block h-4 w-4 rounded {STATE_CLASS[k]}"></span>{label}</span
 		>

@@ -11,7 +11,7 @@ See [docs/PLAN.md](docs/PLAN.md) for the full plan and architecture.
 | 0 | Scaffold, mock login, roles, venues, layout, theme, chat panel shell | ✅ |
 | 1 | Venue and equipment management, availability grid | ✅ |
 | 2 | Timetable PDF ingestion | ✅ |
-| 3 | Bookings, approvals, waitlist, class displacement | |
+| 3 | Bookings, approvals, waitlist, class displacement | ✅ |
 | 4 | Circulars and reports, RAG, recurring-event warnings | |
 | 5 | LLM (Groq / Ollama), MCP server, assistant | |
 | 6 | Reports and polish | |
@@ -60,6 +60,17 @@ Every faculty member in `data/mock/faculty.xlsx` has a login made from their ini
 ### Timetables
 
 Log in as the OA (`cseoa@kiot.ac.in`) and open **Timetables**. Upload one or more PDFs from `data/mock/timetables`. Each one is read, its lab sessions are checked against the venues and against classes already committed, and it waits for review. Fix any highlighted slot, then commit it. Committed lab sessions show on the availability grid. Classes are not a hard block: a booking can still ask to move them (Phase 3). Uploading a class again replaces its pending upload, and committing it replaces its earlier timetable.
+
+### Bookings
+
+1. Log in as a faculty member (for example `tkcse@kiot.ac.in`) and open **Book a venue**, or use the **Book** link on the availability grid or a venue page. Availability is checked as you type.
+2. If a timetabled class uses the venue then, choose for each class whether it moves to another free lab (best software match first) or runs as BYOD in the classroom. Moving a class needs the HOD's approval.
+3. If another booking holds the slot, you can join the waitlist. When the slot frees up, the first person waiting gets an offer and has 24 hours to confirm it.
+4. Requests go to the venue's in-charge, then to the HOD for CSE venues or when a class moves. Approvers see their queue under **Approvals**, with a short list of things to check. A step is skipped when the requester approves it themselves (an in-charge booking their own lab, the HOD or the Director).
+5. **My bookings** lists your requests. From a booking you can reschedule it (the old slot is kept until the new one is confirmed) or cancel it.
+6. The bell in the top bar shows notifications: approvals needed, decisions, offers, classes moved, and events in a venue you look after.
+
+Try it with `tkcse` booking `CSEPGSH`, then approve as `pvcse@kiot.ac.in` (the hall's in-charge) and `hod.cse@kiot.ac.in`.
 
 ## Tests
 

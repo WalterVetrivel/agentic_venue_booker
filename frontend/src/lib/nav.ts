@@ -15,29 +15,25 @@ export const NAV: NavItem[] = [
 		href: '/book',
 		label: 'Book a venue',
 		icon: 'plus',
-		anyOf: ['book'],
-		phase: 3
+		anyOf: ['book']
 	},
 	{
 		href: '/bookings',
 		label: 'My bookings',
 		icon: 'list',
-		anyOf: ['book'],
-		phase: 3
+		anyOf: ['book']
 	},
 	{
 		href: '/approvals',
 		label: 'Approvals',
 		icon: 'check',
-		anyOf: ['approve_own_venues', 'approve_cse_venues', 'approve_all'],
-		phase: 3
+		anyOf: ['approve_own_venues', 'approve_cse_venues', 'approve_all', 'approve_displacement']
 	},
 	{
 		href: '/timetables',
 		label: 'Timetables',
 		icon: 'table',
-		anyOf: ['upload_timetables'],
-		phase: 2
+		anyOf: ['upload_timetables']
 	},
 	{
 		href: '/documents',
