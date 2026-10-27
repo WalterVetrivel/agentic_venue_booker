@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     ollama_base_url: str = "http://localhost:11434"
     default_llm_provider: str = "groq"
-    groq_model: str = "openai/gpt-oss-120b"
+    groq_model: str = "openai/gpt-oss-20b"
     groq_fallback_model: str = "llama-3.3-70b-versatile"
     ollama_model: str = "qwen3.5:4b"
     # Tests and the browser tests use a scripted assistant instead of a real LLM.

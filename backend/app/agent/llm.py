@@ -5,7 +5,9 @@ Messages use the OpenAI chat format throughout ({"role", "content", "tool_calls"
 arrives and finishes with one `Reply` holding the whole text and any tool calls.
 """
 
+import asyncio
 import json
+import re
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -16,6 +18,7 @@ from app.agent.settings import LLMSettings
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 TIMEOUT = httpx.Timeout(60.0, connect=5.0)
+MAX_RATE_WAIT = 20  # seconds; a longer wait is reported instead (e.g. the daily limit)
 
 
 class LLMError(Exception):
@@ -78,15 +81,29 @@ class GroqLLM(LLM):
         self.api_key, self.model, self.fallback = api_key, model, fallback
 
     async def stream(self, messages, tools):
-        try:
-            async for item in self._stream(self.model, messages, tools):
-                yield item
-        except _ModelUnavailable:
-            if not self.fallback or self.fallback == self.model:
-                raise LLMError(f"Groq doesn't offer the model {self.model} any more.") from None
-            self.model = self.fallback
-            async for item in self._stream(self.model, messages, tools):
-                yield item
+        # Each retry happens before anything was yielded, so the caller never sees a half reply.
+        bad_tool_calls = 0
+        for _ in range(4):
+            try:
+                async for item in self._stream(self.model, messages, tools):
+                    yield item
+                return
+            except _ModelUnavailable:
+                if not self.fallback or self.fallback == self.model:
+                    raise LLMError(f"Groq doesn't offer the model {self.model} any more.") from None
+                self.model = self.fallback
+            except _RateLimited as e:
+                if e.wait > MAX_RATE_WAIT:
+                    raise LLMError(
+                        "Groq's free-tier limit was reached. Wait a minute, or switch to Ollama."
+                    ) from None
+                await asyncio.sleep(e.wait)
+            except _BadToolCall as e:
+                # The model's tool call didn't fit the schema; asking again usually works.
+                bad_tool_calls += 1
+                if bad_tool_calls > 1:
+                    raise LLMError(f"Groq: {e}") from None
+        raise LLMError("Groq is busy. Try again in a minute.")
 
     async def _stream(self, model, messages, tools):
         body = {"model": model, "messages": messages, "stream": True, "temperature": 0.2}
@@ -108,8 +125,11 @@ class GroqLLM(LLM):
                         if data == "[DONE]":
                             break
                         chunk = json.loads(data)
-                        if chunk.get("error"):
-                            raise LLMError(f"Groq: {chunk['error'].get('message', 'error')}")
+                        if err := chunk.get("error"):
+                            message = err.get("message", "error")
+                            if not text and not calls and _is_bad_tool_call(err):
+                                raise _BadToolCall(message)
+                            raise LLMError(f"Groq: {message}")
                         if not chunk.get("choices"):
                             continue
                         delta = chunk["choices"][0].get("delta", {})
@@ -141,6 +161,32 @@ class _ModelUnavailable(Exception):
     pass
 
 
+class _BadToolCall(Exception):
+    pass
+
+
+class _RateLimited(Exception):
+    def __init__(self, wait: float):
+        self.wait = wait
+
+
+def _is_bad_tool_call(err: dict) -> bool:
+    return err.get("code") == "tool_use_failed" or "validation failed" in err.get("message", "")
+
+
+def _retry_after(res: httpx.Response, message: str) -> float:
+    """Seconds Groq asks us to wait, from the header or "Please try again in 1m2.5s"."""
+    try:
+        return float(res.headers["retry-after"])
+    except (KeyError, ValueError):
+        pass
+    m = re.search(r"try again in (?:(\d+)m)?([\d.]+)(ms|s)", message)
+    if not m:
+        return 5.0
+    seconds = float(m.group(2)) / (1000 if m.group(3) == "ms" else 1)
+    return int(m.group(1) or 0) * 60 + seconds
+
+
 def _raise_groq(res: httpx.Response):
     try:
         err = res.json().get("error", {})
@@ -152,7 +198,9 @@ def _raise_groq(res: httpx.Response):
             "Groq rejected the API key. The Director can update it on the Settings page."
         )
     if res.status_code == 429:
-        raise LLMError("Groq's free-tier limit was reached. Wait a minute, or switch to Ollama.")
+        raise _RateLimited(_retry_after(res, message))
+    if _is_bad_tool_call(err):
+        raise _BadToolCall(message)
     if res.status_code == 404 or code in ("model_not_found", "model_decommissioned"):
         raise _ModelUnavailable()
     raise LLMError(f"Groq error ({res.status_code}): {message}")

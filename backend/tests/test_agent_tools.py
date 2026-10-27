@@ -1,3 +1,4 @@
+import json
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -54,6 +55,19 @@ def test_schemas_are_plain_for_small_models():
         assert "$defs" not in text and "anyOf" not in text, t.name
         assert all("title" not in p for p in t.schema()["properties"].values()), t.name
         assert t.schema()["type"] == "object"
+        # Groq rejects "10:00" against format "time", so times are plain HH:MM strings.
+        assert '"format": "time"' not in json.dumps(t.schema()), t.name
+
+
+def test_optional_times_keep_their_description():
+    start = tools.REGISTRY["check_availability"].schema()["properties"]["start"]
+    assert start["type"] == "string" and "leave out" in start["description"]
+    assert "pattern" in start
+
+
+def test_missing_timetable_lists_the_classes_that_have_one(db):
+    with pytest.raises(tools.ToolError, match="Classes with timetables"):
+        tools.call(db, None, "get_timetable", {"section": "CSE III-B"})
 
 
 def test_calling_a_tool_you_cannot_see_is_refused(db):
