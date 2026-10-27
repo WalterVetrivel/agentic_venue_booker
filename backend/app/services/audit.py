@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -15,6 +16,7 @@ def record(
     before: dict[str, Any] | None = None,
     after: dict[str, Any] | None = None,
     via: str = "ui",
+    at: datetime | None = None,
 ) -> None:
     db.add(
         AuditLog(
@@ -25,5 +27,6 @@ def record(
             before=json.dumps(before, default=str) if before is not None else None,
             after=json.dumps(after, default=str) if after is not None else None,
             via=via,
+            **({"at": at} if at else {}),
         )
     )

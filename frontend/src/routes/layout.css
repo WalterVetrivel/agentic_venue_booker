@@ -18,6 +18,8 @@
 	--color-danger: var(--danger);
 	--color-success: var(--success);
 	--color-warning: var(--warning);
+	--color-series-1: var(--series-1);
+	--color-series-2: var(--series-2);
 }
 
 :root {
@@ -33,6 +35,9 @@
 	--danger: #b42318;
 	--success: #11734b;
 	--warning: #9a6200;
+	/* Chart series (validated for colour-blind separation on these surfaces). */
+	--series-1: #2a78d6;
+	--series-2: #eb6834;
 	color-scheme: light;
 }
 
@@ -49,6 +54,8 @@
 	--danger: #ff8a80;
 	--success: #5fd3a0;
 	--warning: #f5c26b;
+	--series-1: #3987e5;
+	--series-2: #d95926;
 	color-scheme: dark;
 }
 

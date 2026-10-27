@@ -24,7 +24,7 @@
 			<span class="rounded-lg bg-accent-soft p-2.5 text-accent"><Icon name={c.icon} /></span>
 			<span>
 				<span class="block font-semibold">{c.label}</span>
-				{#if c.phase}<span class="text-sm text-muted">Phase {c.phase}</span>{/if}
+				<span class="text-sm text-muted">{c.blurb}</span>
 			</span>
 		</a>
 	{/each}

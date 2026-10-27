@@ -34,6 +34,7 @@ from app.permissions import capabilities_for
 from app.services import availability
 from app.services import bookings as booking_svc
 from app.services import documents as document_svc
+from app.services import reports as report_svc
 from app.services.access import can, can_update_equipment
 from app.services.timetables import resolve_venue, review
 from app.services.venues import find_venues, get_venue
@@ -998,5 +999,66 @@ def review_timetable_upload(db: Session, user: User | None, args: UploadArgs) ->
             "problems": data["problems"],
             "ready_to_commit": data["can_commit"],
             "review_link": f"/timetables/{upload.id}",
+        }
+    )
+
+
+# Reports ------------------------------------------------------------------------------------------
+
+
+class ReportArgs(BaseModel):
+    start: date | None = Field(None, description="First day; leave out for the term so far")
+    end: date | None = Field(None, description="Last day; leave out for today")
+    venue: str | None = Field(None, description="One venue code to focus on, e.g. CC5")
+
+
+@tool(
+    "utilisation_report",
+    "How much the venues this user reports on were used in a period (class hours and event "
+    "hours as a share of open hours), with events held, approval turnaround, waitlist outcomes "
+    "and equipment out of service.",
+    label="Working out the report",
+    any_of=report_svc.REPORT_CAPABILITIES,
+)
+def utilisation_report(db: Session, user: User | None, args: ReportArgs) -> ToolResult:
+    start, end, period = report_svc.default_period(db, date.today())
+    if args.start or args.end:
+        start, end, period = args.start or start, args.end or end, None
+    try:
+        report_svc.check_period(start, end)
+        scope = report_svc.scope_for(db, user)
+    except report_svc.ReportError as e:
+        raise ToolError(str(e)) from e
+    if args.venue:
+        v = _venue(db, args.venue)
+        if v.id not in scope.ids:
+            raise ToolError(f"{v.code} isn't one of the venues you report on ({scope.label}).")
+        scope = report_svc.Scope(v.code, [v])
+    use = report_svc.utilisation(db, scope, start, end)
+    held = report_svc.events(db, scope, start, end)
+    turn = report_svc.turnaround(db, scope, start, end)
+    wait = report_svc.waitlist(db, scope, start, end)
+    kit = report_svc.equipment(db, scope, start, end)
+    busiest = sorted(use["venues"], key=lambda r: -r["used_pct"])
+    link = f"/reports?{urlencode({'start': start.isoformat(), 'end': end.isoformat()})}"
+    return ToolResult(
+        {
+            "scope": scope.label,
+            "period": f"{_day_text(start)} to {_day_text(end)}"
+            + (f" ({period})" if period else ""),
+            "overall": use["total"],
+            "venues": [
+                {k: r[k] for k in ("venue", "used_pct", "class_pct", "event_pct", "free_hours")}
+                for r in busiest[:12]
+            ],
+            "events": {
+                "count": held["count"],
+                "top_types": held["by_type"][:5],
+            },
+            "approval_turnaround": {k: v for k, v in turn.items() if k != "rows"},
+            "waitlist": {k: v for k, v in wait.items() if k != "rows"},
+            "equipment_out_of_service": kit["out_of_service"],
+            "faults_reported": kit["count"],
+            "report_link": link,
         }
     )
