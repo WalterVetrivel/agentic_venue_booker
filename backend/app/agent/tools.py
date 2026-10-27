@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.agent.dates import resolve
 from app.models import (
     Booking,
     ClassSection,
@@ -235,6 +236,36 @@ def _booking_brief(b: Booking) -> dict:
         "expected": b.expected_count,
         "link": f"/bookings/{b.id}",
     }
+
+
+# Dates (everyone) ---------------------------------------------------------------------------------
+
+
+class DatesArgs(BaseModel):
+    phrases: list[str] = Field(
+        min_length=1,
+        max_length=10,
+        description="Words for days, e.g. ['next Saturday', 'Friday after next', '3 Nov']",
+    )
+
+
+@tool(
+    "resolve_dates",
+    "Turn words like 'tomorrow', 'next Saturday', 'Friday after next', 'next week' or '3 Nov' "
+    "into exact dates with weekdays. Use it whenever a date isn't in the calendar you were given.",
+    label="Working out the dates",
+)
+def resolve_dates(db: Session, user: User | None, args: DatesArgs) -> ToolResult:
+    today = date.today()
+    out = {}
+    for phrase in args.phrases:
+        try:
+            out[phrase] = [
+                f"{d.isoformat()} ({WEEKDAYS[d.weekday()]})" for d in resolve(phrase, today)
+            ]
+        except ValueError as e:
+            out[phrase] = str(e)
+    return ToolResult({"today": f"{today.isoformat()} ({WEEKDAYS[today.weekday()]})", "dates": out})
 
 
 # Venues and availability (everyone) -------------------------------------------------------------

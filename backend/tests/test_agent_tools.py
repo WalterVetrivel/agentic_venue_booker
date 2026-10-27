@@ -9,7 +9,14 @@ from app.models import User
 
 DAY = "2027-02-09"  # a Tuesday, far enough ahead
 
-PUBLIC = {"list_venues", "get_venue", "check_availability", "find_free_venues", "get_timetable"}
+PUBLIC = {
+    "resolve_dates",
+    "list_venues",
+    "get_venue",
+    "check_availability",
+    "find_free_venues",
+    "get_timetable",
+}
 BOOKER = {
     "search_past_events",
     "recommend_venues",

@@ -52,6 +52,7 @@ def test_mcp_lists_public_tools_for_visitors(client):
     assert init["serverInfo"]["name"] == "kiot-venue-booker"
     tools = mcp(client, "tools/list")["tools"]
     assert {t["name"] for t in tools} == {
+        "resolve_dates",
         "list_venues",
         "get_venue",
         "check_availability",
