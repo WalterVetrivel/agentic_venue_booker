@@ -26,6 +26,11 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def include_name(name, type_, parent_names) -> bool:
+    """FTS5 tables are created in raw SQL; autogenerate must not try to drop them."""
+    return not (type_ == "table" and name and name.startswith("doc_chunks_fts"))
+
+
 def run_migrations_offline() -> None:
     context.configure(
         url=str(engine.url),
@@ -40,7 +45,10 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     with migration_engine.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata, render_as_batch=True
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=True,
+            include_name=include_name,
         )
         with context.begin_transaction():
             context.run_migrations()

@@ -40,3 +40,20 @@ export async function uploadFile<T>(path: string, file: File): Promise<T> {
 	}
 	return res.json();
 }
+
+/** Upload several files in one request under the form field `files`. */
+export async function uploadFiles<T>(path: string, files: File[]): Promise<T> {
+	const body = new FormData();
+	for (const f of files) body.append('files', f);
+	const res = await fetch(`/api${path}`, { method: 'POST', body, credentials: 'same-origin' });
+	if (!res.ok) {
+		let message = res.statusText;
+		try {
+			message = (await res.json()).detail ?? message;
+		} catch {
+			/* not JSON */
+		}
+		throw new ApiError(res.status, message);
+	}
+	return res.json();
+}

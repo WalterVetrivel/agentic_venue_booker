@@ -66,3 +66,18 @@ export function nowLocal(): string {
 	const pad = (n: number) => String(n).padStart(2, '0');
 	return `${isoDate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
 }
+
+function shortDate(iso: string): string {
+	const [y, m, d] = iso.split('-').map(Number);
+	return new Date(y, m - 1, d).toLocaleDateString('en-IN', {
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric'
+	});
+}
+
+/** "9 Nov 2024", or "9 Dec 2024 – 13 Dec 2024" for a multi-day event. */
+export function dateRangeText(start: string | null, end: string | null): string {
+	if (!start) return 'Date unknown';
+	return end && end !== start ? `${shortDate(start)} – ${shortDate(end)}` : shortDate(start);
+}

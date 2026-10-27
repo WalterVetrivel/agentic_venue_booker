@@ -1,15 +1,18 @@
 from datetime import date, datetime, time
 
 from sqlalchemy import (
+    DDL,
     Boolean,
     Date,
     DateTime,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     Time,
     UniqueConstraint,
+    event,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -329,3 +332,95 @@ class Notification(Base):
     link: Mapped[str | None] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     read_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+# Circulars, reports and past events (RAG) -------------------------------------------------------
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(10))  # circular | report
+    filename: Mapped[str] = mapped_column(String(255))
+    stored_path: Mapped[str] = mapped_column(String(400))
+    ref_no: Mapped[str | None] = mapped_column(String(60), index=True)
+    department: Mapped[str | None] = mapped_column(String(80))
+    academic_year: Mapped[str | None] = mapped_column(String(10))
+    issued_on: Mapped[date | None] = mapped_column(Date)
+    text: Mapped[str] = mapped_column(Text)
+    fields: Mapped[str] = mapped_column(Text, default="{}")  # JSON: what was extracted
+    problems: Mapped[str] = mapped_column(Text, default="[]")  # JSON list
+    uploaded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class PastEvent(Base):
+    """One event, described by its circular, its report, or both."""
+
+    __tablename__ = "past_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    circular_id: Mapped[int | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="SET NULL"), index=True
+    )
+    report_id: Mapped[int | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="SET NULL"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(300))
+    series_key: Mapped[str] = mapped_column(String(200), index=True)
+    event_type: Mapped[str] = mapped_column(String(40))
+    department: Mapped[str | None] = mapped_column(String(80))
+    venue_text: Mapped[str | None] = mapped_column(String(300))
+    start_date: Mapped[date | None] = mapped_column(Date, index=True)
+    end_date: Mapped[date | None] = mapped_column(Date)
+    start_time: Mapped[time | None] = mapped_column(Time)
+    end_time: Mapped[time | None] = mapped_column(Time)
+    audience: Mapped[str | None] = mapped_column(Text)
+    expected_count: Mapped[int | None] = mapped_column(Integer)
+    participants: Mapped[int | None] = mapped_column(Integer)
+    registered: Mapped[int | None] = mapped_column(Integer)
+    resource_persons: Mapped[str | None] = mapped_column(Text)
+    topics: Mapped[str | None] = mapped_column(Text)  # comma-separated
+    rating: Mapped[float | None] = mapped_column()
+    needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
+    problems: Mapped[str] = mapped_column(Text, default="[]")  # JSON list
+    edited: Mapped[bool] = mapped_column(Boolean, default=False)  # a person corrected it
+
+    circular: Mapped[Document | None] = relationship(foreign_keys=[circular_id], lazy="joined")
+    report: Mapped[Document | None] = relationship(foreign_keys=[report_id], lazy="joined")
+    venues: Mapped[list[Venue]] = relationship(secondary="past_event_venues", lazy="selectin")
+
+
+class PastEventVenue(Base):
+    __tablename__ = "past_event_venues"
+
+    event_id: Mapped[int] = mapped_column(
+        ForeignKey("past_events.id", ondelete="CASCADE"), primary_key=True
+    )
+    venue_id: Mapped[int] = mapped_column(
+        ForeignKey("venues.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+
+
+class DocChunk(Base):
+    """Searchable text of a document (one chunk each: the documents are a page long)."""
+
+    __tablename__ = "doc_chunks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
+    text: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[bytes | None] = mapped_column(LargeBinary)  # float32 vector
+    embed_model: Mapped[str | None] = mapped_column(String(60))
+
+
+# Full-text index over doc_chunks.text (BM25). Kept in sync by the search service.
+FTS_DDL = (
+    "CREATE VIRTUAL TABLE IF NOT EXISTS doc_chunks_fts USING fts5("
+    "text, content='doc_chunks', content_rowid='id', tokenize='porter unicode61')"
+)
+event.listen(DocChunk.__table__, "after_create", DDL(FTS_DDL))
+event.listen(DocChunk.__table__, "before_drop", DDL("DROP TABLE IF EXISTS doc_chunks_fts"))

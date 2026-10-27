@@ -311,6 +311,11 @@
 							{#each check.warnings as w, i (i)}
 								<li class="rounded-lg border border-warning/40 bg-warning/10 px-4 py-2">
 									{w.message}
+									{#if w.kind === 'recurring'}
+										<a class="text-accent underline" href="/documents?tab=events&venue={venue}"
+											>Past events in {venue}</a
+										>
+									{/if}
 								</li>
 							{/each}
 						</ul>

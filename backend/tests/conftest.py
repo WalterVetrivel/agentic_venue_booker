@@ -4,7 +4,16 @@ from sqlalchemy.orm import sessionmaker
 
 from app.db import Base, get_db, make_engine
 from app.main import create_app
-from app.seed.seed import seed_all
+from app.seed.seed import seed_all, seed_documents
+from app.services.embeddings import reset_embedder, set_embedder
+
+
+@pytest.fixture(scope="session", autouse=True)
+def keyword_search_only():
+    """Tests never call Ollama; the embedding path is tested with a fake embedder."""
+    set_embedder(None)
+    yield
+    reset_embedder()
 
 
 def _seeded_factory(db_file):
@@ -35,24 +44,58 @@ def db(session_factory):
         yield session
 
 
+@pytest.fixture(scope="session")
+def docs_factory(tmp_path_factory, keyword_search_only):
+    """Read-only DB with every mock circular and report loaded (takes ~15 s, built once)."""
+    factory = _seeded_factory(tmp_path_factory.mktemp("docs") / "docs.db")
+    with factory() as db:
+        seed_documents(db, embed=False)
+    return factory
+
+
 @pytest.fixture
-def client(session_factory):
+def docs_db(docs_factory):
+    with docs_factory() as session:
+        yield session
+
+
+def _client(factory):
     app = create_app()
 
     def _get_db():
-        with session_factory() as session:
+        with factory() as session:
             yield session
 
     app.dependency_overrides[get_db] = _get_db
-    with TestClient(app) as c:
+    return TestClient(app)
+
+
+@pytest.fixture
+def client(session_factory):
+    with _client(session_factory) as c:
         yield c
 
 
 @pytest.fixture
-def login(client):
+def docs_client(docs_factory):
+    with _client(docs_factory) as c:
+        yield c
+
+
+def _login_with(client):
     def _login(email: str, password: str = "password"):
         res = client.post("/api/auth/login", json={"email": email, "password": password})
         assert res.status_code == 200, res.text
         return res.json()
 
     return _login
+
+
+@pytest.fixture
+def login(client):
+    return _login_with(client)
+
+
+@pytest.fixture
+def docs_login(docs_client):
+    return _login_with(docs_client)

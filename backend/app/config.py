@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     ollama_base_url: str = "http://localhost:11434"
     default_llm_provider: str = "groq"
+    # Embeddings for document search: "ollama" (nomic-embed-text) or "off" (keyword search only).
+    embeddings: str = "ollama"
+    embed_model: str = "nomic-embed-text"
 
     upload_dir: Path = BACKEND_DIR / "storage" / "uploads"
     mock_data_dir: Path = REPO_DIR / "data" / "mock"

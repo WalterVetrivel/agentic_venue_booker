@@ -17,10 +17,18 @@ const MENUS: Record<string, string[]> = {
 		'Book a venue',
 		'My bookings',
 		'Approvals',
+		'Past events',
 		'Reports'
 	],
-	'prcse@kiot.ac.in': ['Home', 'Availability', 'Venues', 'Book a venue', 'My bookings'],
-	'cseoa@kiot.ac.in': ['Home', 'Availability', 'Venues', 'Timetables', 'Circulars & reports'],
+	'prcse@kiot.ac.in': [
+		'Home',
+		'Availability',
+		'Venues',
+		'Book a venue',
+		'My bookings',
+		'Past events'
+	],
+	'cseoa@kiot.ac.in': ['Home', 'Availability', 'Venues', 'Timetables', 'Past events'],
 	'hod.cse@kiot.ac.in': [
 		'Home',
 		'Availability',
@@ -29,7 +37,7 @@ const MENUS: Record<string, string[]> = {
 		'My bookings',
 		'Approvals',
 		'Timetables',
-		'Circulars & reports',
+		'Past events',
 		'Reports'
 	],
 	'dirim@kiot.ac.in': [
@@ -40,7 +48,7 @@ const MENUS: Record<string, string[]> = {
 		'My bookings',
 		'Approvals',
 		'Timetables',
-		'Circulars & reports',
+		'Past events',
 		'Reports',
 		'Settings'
 	]

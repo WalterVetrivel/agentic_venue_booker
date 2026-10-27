@@ -212,3 +212,22 @@ def seed_timetables(db: Session) -> int:
         total += ingest_and_commit(db, pdf)
     db.commit()
     return total
+
+
+def seed_documents(db: Session, embed: bool = True) -> dict[str, int]:
+    """Load every mock circular and report (skipping ones already loaded), then embed them."""
+    from app.models import Document
+    from app.services import documents
+
+    folder = get_settings().mock_data_dir
+    loaded = {d.filename for d in db.scalars(select(Document))}
+    added = 0
+    for kind in ("circulars", "reports"):
+        for pdf in sorted((folder / kind).glob("*.pdf")):
+            if pdf.name not in loaded:
+                documents.ingest(db, pdf, embed=False)
+                added += 1
+    db.commit()
+    embedded = documents.embed_missing(db) if embed else 0
+    db.commit()
+    return {"documents_added": added, "embedded": embedded}
