@@ -15,6 +15,11 @@ def main() -> None:
         action="store_true",
         help="also load the mock circulars and event reports (and embed them if Ollama is up)",
     )
+    parser.add_argument(
+        "--bookings",
+        action="store_true",
+        help="also add demo bookings, approvals, waitlist and equipment history for the reports",
+    )
     args = parser.parse_args()
     if args.reset:
         Base.metadata.drop_all(engine)
@@ -25,6 +30,10 @@ def main() -> None:
             print({"timetable_slots": seed_timetables(db)})
         if args.documents:
             print(seed_documents(db, progress=lambda m: print(m, flush=True)))
+        if args.bookings:
+            from app.seed.demo_bookings import seed_bookings
+
+            print(seed_bookings(db))
 
 
 if __name__ == "__main__":

@@ -558,6 +558,7 @@ def submit(
         before={"ref": reschedule.ref} if reschedule else None,
         after={"ref": booking.ref, "venue": venue.code, "status": booking.status},
         via=via,
+        at=now,
     )
     return booking
 
@@ -630,6 +631,7 @@ def approve(
         booking.id,
         after={"step": step, "status": booking.status},
         via=via,
+        at=now,
     )
     return booking
 
@@ -661,7 +663,7 @@ def reject(
         _link(booking),
     )
     _release(db, booking, "rejected", None, now)
-    audit.record(db, user, "reject", "booking", booking.id, after={"step": step}, via=via)
+    audit.record(db, user, "reject", "booking", booking.id, after={"step": step}, via=via, at=now)
     return booking
 
 
@@ -689,7 +691,9 @@ def cancel(
             _link(booking),
             skip=user,
         )
-    audit.record(db, user, "cancel", "booking", booking.id, after={"reason": reason}, via=via)
+    audit.record(
+        db, user, "cancel", "booking", booking.id, after={"reason": reason}, via=via, at=now
+    )
     return booking
 
 
@@ -704,7 +708,7 @@ def accept_offer(
         raise BookingError(f"{booking.ref} has no open offer.")
     booking.offer_expires_at = None
     _route(db, booking, None, now)
-    audit.record(db, user, "accept_offer", "booking", booking.id, via=via)
+    audit.record(db, user, "accept_offer", "booking", booking.id, via=via, at=now)
     return booking
 
 

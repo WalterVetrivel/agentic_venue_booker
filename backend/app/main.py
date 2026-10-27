@@ -12,6 +12,7 @@ from app.api import (
     bookings,
     chat,
     documents,
+    reports,
     settings,
     timetables,
     users,
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(documents.router)
     app.include_router(chat.router)
     app.include_router(settings.router)
+    app.include_router(reports.router)
 
     # MCP clients connect to /mcp (or /mcp/); both reach the same handler.
     mcp_app = mcp_server.asgi_app(mcp)

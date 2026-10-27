@@ -14,7 +14,7 @@ See [docs/PLAN.md](docs/PLAN.md) for the full plan and architecture.
 | 3 | Bookings, approvals, waitlist, class displacement | ✅ |
 | 4 | Circulars and reports, RAG, recurring-event warnings | ✅ |
 | 5 | LLM (Groq / Ollama), MCP server, assistant | ✅ |
-| 6 | Reports and polish | |
+| 6 | Reports, CSV export, accessibility and polish | ✅ |
 
 ## Run it locally (Windows)
 
@@ -31,6 +31,7 @@ alembic upgrade head
 python -m app.seed              # loads users and venues; add --reset to start over
 python -m app.seed --timetables # optional: also commits every mock timetable PDF
 python -m app.seed --documents  # optional: loads every mock circular and report (about 15 s)
+python -m app.seed --bookings   # optional: demo bookings, approvals, waitlist and equipment faults for the reports
 uvicorn app.main:app --reload   # http://127.0.0.1:8000
 
 # Frontend (second terminal)
@@ -105,6 +106,21 @@ python -m app.agent.smoke --provider ollama
 
 For browser tests and demos without a model, set `LLM_FAKE=1`: a scripted demo assistant answers a few question shapes using the real tools.
 
+### Reports
+
+**Reports** shows how the venues are used, for the venues you are responsible for: an in-charge sees their own venues, the HOD sees the CSE venues and the Director sees all of them.
+
+- **Utilisation**: the share of open hours taken by timetabled classes and by events (confirmed bookings and past events), per venue, as a chart or a table. Classes moved out for a booking count in the lab they moved to, and maintenance or closed days are left out.
+- **Events** by month, type and department; **approval turnaround** per step (from when the request reached that person); **waitlist** outcomes; and **equipment faults** reported in the period, with what is out of service now.
+- Pick the term so far, the last 30 days, this or last month, or your own dates. Every section downloads as CSV (opens in Excel).
+- The assistant can answer "How busy were the labs this month?" with the `utilisation_report` tool and links to the page.
+
+`python -m app.seed --bookings` adds about three months of demo history (dates are relative to today) so the reports have something to show. It runs once; `--reset` starts over.
+
+### Demo script
+
+[docs/DEMO.md](docs/DEMO.md) walks through every feature in about 20 minutes, role by role.
+
 ## Tests
 
 ```powershell
@@ -113,6 +129,8 @@ cd frontend; npm run check; npm run build
 # end-to-end (from frontend; set PYTHON to the backend venv's python)
 $env:PYTHON="..\backend\.venv\Scripts\python"; npm run test:e2e
 ```
+
+The end-to-end tests include automated accessibility checks (axe, WCAG 2.1 AA) on the main pages in light and dark themes. Lighthouse scores 100 for accessibility on every main page.
 
 ## Layout
 

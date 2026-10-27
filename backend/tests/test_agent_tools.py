@@ -46,8 +46,14 @@ def test_students_get_only_public_read_tools():
     "email,expected",
     [
         ("tkcse@kiot.ac.in", PUBLIC | BOOKER),
-        ("swvcse@kiot.ac.in", PUBLIC | BOOKER | APPROVER | {"update_equipment_status"}),
-        ("hod.cse@kiot.ac.in", PUBLIC | BOOKER | APPROVER | {"review_timetable_upload"}),
+        (
+            "swvcse@kiot.ac.in",
+            PUBLIC | BOOKER | APPROVER | {"update_equipment_status", "utilisation_report"},
+        ),
+        (
+            "hod.cse@kiot.ac.in",
+            PUBLIC | BOOKER | APPROVER | {"review_timetable_upload", "utilisation_report"},
+        ),
         ("cseoa@kiot.ac.in", PUBLIC | {"search_past_events", "review_timetable_upload"}),
         ("dirim@kiot.ac.in", set(tools.REGISTRY)),
     ],
