@@ -121,8 +121,18 @@ Words = Annotated[list[str], BeforeValidator(to_list)]
 
 
 def drop_empty(raw: dict) -> dict:
-    """Optional arguments sent as "" or "null" mean "not given"."""
-    return {k: v for k, v in raw.items() if not _empty(v)}
+    """Optional arguments sent as "" or "null" mean "not given", also inside lists, so a
+    placeholder like {"students": [{"name": "", "class": ""}]} is left out entirely."""
+    out = {}
+    for k, v in raw.items():
+        if isinstance(v, dict):
+            v = drop_empty(v)
+        elif isinstance(v, list):
+            v = [drop_empty(i) if isinstance(i, dict) else i for i in v]
+            v = [i for i in v if not _empty(i) and i != {}]
+        if not _empty(v) and v != {} and v != []:
+            out[k] = v
+    return out
 
 
 YEARS = {"I": "I", "II": "II", "III": "III", "IV": "IV", "1": "I", "2": "II", "3": "III"}

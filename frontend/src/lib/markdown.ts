@@ -104,7 +104,10 @@ export function renderMarkdown(source: string): string {
 			html.push(`<${tag} class="${style} space-y-1 pl-5">${items.join('')}</${tag}>`);
 			continue;
 		}
-		const para: string[] = [];
+		// The first line always belongs here, so a line no branch above took (such as a table
+		// row whose separator hasn't streamed in yet) can't stall the loop.
+		const para: string[] = [inline(line)];
+		i++;
 		while (
 			i < lines.length &&
 			lines[i].trim() &&

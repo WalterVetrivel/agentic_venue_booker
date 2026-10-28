@@ -56,6 +56,65 @@ def tool_specs(tools) -> list[dict]:
     ]
 
 
+def tool_call_in_text(text: str, tools: list[dict]) -> tuple[ToolCall, str] | None:
+    """A tool call the model wrote out as text instead of making it: plain JSON arguments (often
+    in a ```json block), {"name": ..., "arguments": ...}, or Groq's failed_generation in the
+    model's own format ("to=functions.draft_booking ... {...}"). Returns the call and the text
+    without it, or None."""
+    specs = {t["function"]["name"]: t["function"] for t in tools}
+    decoder = json.JSONDecoder()
+    starts = [m.start() for m in re.finditer(r"\{", text)][:30]
+    for start in starts:
+        try:
+            value, end = decoder.raw_decode(text, start)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(value, dict):
+            continue
+        name, args = _named_call(value, specs) or (_name_before(text[:start], specs), value)
+        if name is None:
+            name = _matching_tool(args, specs)
+        if name is None:
+            continue
+        before = re.sub(r"```(?:json)?\s*$", "", text[:start])
+        after = re.sub(r"^\s*```", "", text[end:])
+        rest = re.sub(r"<\|[^|]*\|>|\bto=functions\.\w+|\bjson\b\s*$", "", before + after)
+        return ToolCall(f"call_text_{start}", name, args), rest.strip()
+    return None
+
+
+def _named_call(value: dict, specs: dict) -> tuple[str, dict] | None:
+    name = value.get("name") or (value.get("function") or {}).get("name")
+    args = value.get("arguments", value.get("parameters"))
+    if isinstance(args, str):
+        args = _parse_args(args)
+    if name in specs and isinstance(args, dict):
+        return name, args
+    return None
+
+
+def _name_before(text: str, specs: dict) -> str | None:
+    """The tool named just before the JSON, e.g. "to=functions.draft_booking <|message|>"."""
+    found = re.findall(r"\b(\w+)\b", text[-120:])
+    return next((w for w in reversed(found) if w in specs), None)
+
+
+def _matching_tool(args: dict, specs: dict) -> str | None:
+    """The one tool whose parameters include every key of these arguments (at least two)."""
+    keys = set(args)
+    if len(keys) < 2:
+        return None
+    fits = [
+        (len(set(fn["parameters"].get("properties", {})) - keys), name)
+        for name, fn in specs.items()
+        if keys <= set(fn["parameters"].get("properties", {}))
+    ]
+    fits.sort()
+    if not fits or (len(fits) > 1 and fits[0][0] == fits[1][0]):
+        return None
+    return fits[0][1]
+
+
 def _parse_args(raw) -> dict:
     if isinstance(raw, dict):
         return raw
@@ -99,10 +158,17 @@ class GroqLLM(LLM):
                     ) from None
                 await asyncio.sleep(e.wait)
             except _BadToolCall as e:
-                # The model's tool call didn't fit the schema; asking again usually works.
+                # Groq couldn't read the model's tool call. It is usually all there in the
+                # failed generation; otherwise asking again usually works.
+                if found := tool_call_in_text(e.generation, tools):
+                    yield Reply("", [found[0]])
+                    return
                 bad_tool_calls += 1
-                if bad_tool_calls > 1:
-                    raise LLMError(f"Groq: {e}") from None
+                if bad_tool_calls > 2:
+                    raise LLMError(
+                        "The model couldn't put that request into a form. Try rephrasing it, or "
+                        "give the details one at a time."
+                    ) from None
         raise LLMError("Groq is busy. Try again in a minute.")
 
     async def _stream(self, model, messages, tools):
@@ -128,7 +194,7 @@ class GroqLLM(LLM):
                         if err := chunk.get("error"):
                             message = err.get("message", "error")
                             if not text and not calls and _is_bad_tool_call(err):
-                                raise _BadToolCall(message)
+                                raise _BadToolCall(message, err.get("failed_generation"))
                             raise LLMError(f"Groq: {message}")
                         if not chunk.get("choices"):
                             continue
@@ -162,7 +228,9 @@ class _ModelUnavailable(Exception):
 
 
 class _BadToolCall(Exception):
-    pass
+    def __init__(self, message: str, generation: str = ""):
+        super().__init__(message)
+        self.generation = generation or ""
 
 
 class _RateLimited(Exception):
@@ -171,7 +239,12 @@ class _RateLimited(Exception):
 
 
 def _is_bad_tool_call(err: dict) -> bool:
-    return err.get("code") == "tool_use_failed" or "validation failed" in err.get("message", "")
+    message = err.get("message", "")
+    return (
+        err.get("code") in ("tool_use_failed", "output_parse_failed")
+        or "validation failed" in message
+        or message.startswith("Parsing failed")
+    )
 
 
 def _retry_after(res: httpx.Response, message: str) -> float:
@@ -200,7 +273,7 @@ def _raise_groq(res: httpx.Response):
     if res.status_code == 429:
         raise _RateLimited(_retry_after(res, message))
     if _is_bad_tool_call(err):
-        raise _BadToolCall(message)
+        raise _BadToolCall(message, err.get("failed_generation"))
     if res.status_code == 404 or code in ("model_not_found", "model_decommissioned"):
         raise _ModelUnavailable()
     raise LLMError(f"Groq error ({res.status_code}): {message}")

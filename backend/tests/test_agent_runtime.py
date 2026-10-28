@@ -232,6 +232,62 @@ def test_groq_asks_again_after_a_malformed_tool_call(monkeypatch):
     assert _drain(gateway.GroqLLM("gsk_test", "m"))[-1].text == "ok" and len(calls) == 2
 
 
+def test_groq_reads_the_call_out_of_a_parsing_failure(monkeypatch):
+    # gpt-oss sometimes writes the call in its own format, which Groq then refuses.
+    generation = (
+        "<|channel|>commentary to=functions.draft_booking <|constrain|>json<|message|>"
+        '{"venue": "CC5", "date": "2027-02-09", "expected_count": 12}'
+    )
+    error = {
+        "code": "output_parse_failed",
+        "message": "Parsing failed. The model generated output that could not be parsed.",
+        "failed_generation": generation,
+    }
+    _patch_http(monkeypatch, lambda r: httpx.Response(400, json={"error": error}))
+    tools = gateway.tool_specs([runtime.registry.REGISTRY["draft_booking"]])
+    (reply,) = _drain(gateway.GroqLLM("gsk_test", "m"), tools)
+    (call,) = reply.tool_calls
+    assert call.name == "draft_booking"
+    assert call.arguments == {"venue": "CC5", "date": "2027-02-09", "expected_count": 12}
+
+
+def test_groq_gives_up_on_repeated_unreadable_calls(monkeypatch):
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        error = {"code": "output_parse_failed", "message": "Parsing failed."}
+        return httpx.Response(400, json={"error": error})
+
+    _patch_http(monkeypatch, handler)
+    with pytest.raises(LLMError, match="rephrasing"):
+        _drain(gateway.GroqLLM("gsk_test", "m"))
+    assert len(calls) == 3
+
+
+def test_a_tool_call_written_as_json_is_made_and_not_shown(db):
+    text = (
+        '```json\n{"venue": "", "date": "2027-02-09", "start": "10:30", "end": "12:30", '
+        '"reason": "Capstone project for DBMS", "guide": "", '
+        '"students": [{"name": "", "class": ""}, {"name": "", "class": ""}], '
+        '"contact_email": ""}\n```'
+    )
+    model = ScriptedLLM([Reply(text), Reply("I've opened the form. Which lab?")])
+    events, _ = collect(db, None, model, "Book a lab tomorrow for our DBMS capstone")
+    assert not any(e["type"] == "text" and "{" in e["text"] for e in events)
+    step = next(e for e in events if e["type"] == "step")
+    assert step["tool"] == "draft_student_booking"
+    card = next(e["card"] for e in events if e["type"] == "card")
+    assert "reason=Capstone+project+for+DBMS" in card["href"] and "students" not in card["href"]
+    assert events[-1]["content"] == "I've opened the form. Which lab?"
+
+
+def test_json_that_is_not_a_tool_call_is_still_shown(db):
+    model = ScriptedLLM([Reply('{"note": "just data"}')])
+    events, _ = collect(db, None, model)
+    assert "".join(e["text"] for e in events if e["type"] == "text") == '{"note": "just data"}'
+
+
 def test_groq_needs_a_key():
     with pytest.raises(LLMError, match="Settings"):
         gateway.GroqLLM("", "m")
