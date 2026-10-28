@@ -12,6 +12,12 @@
 
 	let { children }: LayoutProps = $props();
 
+	// The booking form reads its fields from the URL once, so a new draft from the
+	// assistant (same page, new query) must mount a fresh form.
+	const pageKey = $derived(
+		page.url.pathname === '/book' ? page.url.pathname + page.url.search : page.url.pathname
+	);
+
 	session.load();
 
 	beforeNavigate(({ from, to }) => {
@@ -33,7 +39,7 @@
 		<div class="mx-auto max-w-5xl">
 			{#if session.loaded}
 				{#if page.url.pathname !== '/'}<Breadcrumbs />{/if}
-				{#key page.url.pathname}
+				{#key pageKey}
 					<div class="rise">
 						{@render children()}
 					</div>

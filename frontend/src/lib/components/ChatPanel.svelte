@@ -139,7 +139,7 @@
 				</button>
 				{#if historyOpen}
 					<div
-						class="absolute top-full left-0 z-10 mt-2 w-80 max-w-[calc(100vw-2rem)] pop glass-strong rounded-xl border p-3"
+						class="pop absolute top-full left-0 z-10 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-surface p-3 shadow-lg"
 					>
 						<button
 							class="mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 font-medium hover:bg-surface-2"
@@ -227,7 +227,7 @@
 				>
 				{#if modelOpen && chat.providers}
 					<div
-						class="absolute top-full right-0 z-10 mt-2 w-72 pop glass-strong rounded-xl border p-3"
+						class="pop absolute top-full right-0 z-10 mt-2 w-72 rounded-xl border border-border bg-surface p-3 shadow-lg"
 					>
 						{#if chat.providers.demo}
 							<p class="text-sm text-muted">

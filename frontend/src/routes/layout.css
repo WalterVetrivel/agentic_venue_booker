@@ -3,6 +3,7 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @theme {
+	--default-transition-timing-function: ease-in-out;
 	--font-sans:
 		'Inter', 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
 
@@ -31,7 +32,7 @@
 	--surface-2: rgb(236 240 232 / 0.75);
 	--border: rgb(23 32 51 / 0.12);
 	--fg: #172033;
-	--muted: #4f5a70;
+	--muted: #455068;
 	/* KIOT blue, from the college logo. */
 	--accent: #22409a;
 	--accent-fg: #ffffff;
@@ -97,6 +98,29 @@ body {
 	outline: 3px solid var(--accent);
 	outline-offset: 2px;
 	border-radius: 6px;
+}
+
+/* Smooth hover changes on anything interactive (utilities with their own transition win). */
+@layer base {
+	a,
+	button,
+	summary,
+	select,
+	input,
+	textarea {
+		transition-property: color, background-color, border-color, box-shadow, opacity;
+		transition-duration: 0.2s;
+		transition-timing-function: ease-in-out;
+	}
+}
+
+/* The top bar: solid, with a barely-there shadow. */
+.topbar {
+	background: var(--surface);
+	box-shadow: 0 1px 10px rgb(31 50 81 / 0.06);
+}
+:root[data-theme='dark'] .topbar {
+	box-shadow: 0 1px 12px rgb(0 0 0 / 0.35);
 }
 
 /* Pointer cursor on everything clickable; Tailwind's reset leaves buttons with the arrow. */
@@ -183,9 +207,9 @@ button:disabled {
 		0 1px 0 rgb(255 255 255 / 0.25) inset,
 		0 6px 16px -4px rgb(34 64 154 / 0.55);
 	transition:
-		transform 0.15s ease,
-		box-shadow 0.2s ease,
-		filter 0.2s ease;
+		transform 0.15s ease-in-out,
+		box-shadow 0.2s ease-in-out,
+		filter 0.2s ease-in-out;
 }
 .btn-cta:hover:not(:disabled) {
 	filter: brightness(1.08);
@@ -237,13 +261,22 @@ button:disabled {
 	-webkit-backdrop-filter: blur(20px) saturate(160%);
 }
 
+/* The collapsed side nav while it is open over the page: solid, with a shadow. */
+.nav-peek::before {
+	background: var(--surface);
+}
+.nav-peek {
+	box-shadow: 8px 0 28px rgb(31 50 81 / 0.12);
+}
+
 /* Cards and list rows that lift a little on hover. */
 .lift {
 	transition:
-		transform 0.2s ease,
-		box-shadow 0.2s ease,
-		border-color 0.2s ease,
-		background-color 0.2s ease;
+		transform 0.2s ease-in-out,
+		box-shadow 0.2s ease-in-out,
+		border-color 0.2s ease-in-out,
+		background-color 0.2s ease-in-out,
+		color 0.2s ease-in-out;
 }
 .lift:hover {
 	transform: translateY(-2px);
@@ -251,9 +284,12 @@ button:disabled {
 }
 .press {
 	transition:
-		transform 0.12s ease,
-		opacity 0.15s ease,
-		background-color 0.15s ease;
+		transform 0.12s ease-in-out,
+		opacity 0.2s ease-in-out,
+		color 0.2s ease-in-out,
+		background-color 0.2s ease-in-out,
+		border-color 0.2s ease-in-out,
+		box-shadow 0.2s ease-in-out;
 }
 .press:active:not(:disabled) {
 	transform: scale(0.97);
@@ -261,8 +297,8 @@ button:disabled {
 
 /* Content fades up as a page opens; lists stagger with --i. */
 .rise {
-	animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-	animation-delay: calc(var(--i, 0) * 45ms);
+	animation: rise 0.45s ease-in-out backwards;
+	animation-delay: calc(min(var(--i, 0), 8) * 45ms);
 }
 @keyframes rise {
 	from {
