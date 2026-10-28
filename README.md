@@ -74,6 +74,19 @@ Log in as the OA (`cseoa@kiot.ac.in`) and open **Timetables**. Upload one or mor
 
 Try it with `tkcse` booking `CSEPGSH`, then approve as `pvcse@kiot.ac.in` (the hall's in-charge) and `hod.cse@kiot.ac.in`.
 
+### Student requests
+
+Students still don't log in. Under **Book a lab** a group asks for a lab or centre of excellence (never a seminar hall) for project work: what they will work on, their faculty guide, each student's name, class and (optionally) register number, and one contact email. They get a tracking number like `ST-7K3P-9QXA` and follow the request under **Track a request**.
+
+1. The **faculty guide** they chose sees it under **Approvals** and approves or rejects each student (or all at once). Rejecting someone needs a reason. The request goes on with the approved students; if none are approved it is rejected.
+2. Then the **venue in-charge** and the **HOD** approve it as usual. If the guide is also that lab's in-charge, the in-charge step is approved with the guide's decision.
+3. **Class advisors** (the advisor named on each class timetable) get a notification once their students' outcome is final.
+4. The group gets an email at each step. Until a mail server is set up, emails are saved to `backend/storage/outbox`; see [docs/EMAIL.md](docs/EMAIL.md) to send them through Gmail.
+
+Students can only ask for free slots: they can't move a class or join the waitlist. The classes to choose from come from the committed timetables, so run `python -m app.seed --timetables` first. The assistant can also draft a student request ("Book CC5 tomorrow 2 to 4 for our mini project, guide Mrs. B. Ashwini") and look one up by its tracking number.
+
+Try it: request CC5 as a visitor with `Mrs. B. Ashwini` as guide, decide as `bacse@kiot.ac.in`, then approve as `mkscse@kiot.ac.in` (CC5's in-charge) and `hod.cse@kiot.ac.in`.
+
 ### Circulars, reports and past events
 
 Run `python -m app.seed --documents`, or log in as the OA and upload PDFs under **Past events → Upload & manage**. Each circular and event report is read without AI: the title, venue, dates, times, audience, attendance and topics come straight from the document's table. A circular and its report become one past event. Uploading a document again replaces the old copy.

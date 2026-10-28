@@ -16,7 +16,8 @@ from app.models import Booking, BookingOccurrence, SlotOverride, Venue
 
 SLOT_MINUTES = 30
 # Booking states that hold a venue (anything else, like a waitlist entry, does not).
-HOLDING_STATUSES = ("pending_incharge", "pending_hod", "confirmed", "offered")
+PENDING_STATUSES = ("pending_guide", "pending_incharge", "pending_hod")  # waiting for a decision
+HOLDING_STATUSES = (*PENDING_STATUSES, "confirmed", "offered")
 # Bookable hours by weekday (Mon=0). Sunday is closed.
 OPEN_HOURS: dict[int, tuple[time, time] | None] = {
     **{d: (time(8, 0), time(18, 0)) for d in range(5)},

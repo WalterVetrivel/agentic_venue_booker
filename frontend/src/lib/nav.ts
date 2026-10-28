@@ -6,6 +6,8 @@ export type NavItem = {
 	anyOf: string[];
 	/** One line for the home page card. */
 	blurb: string;
+	/** Only for visitors who aren't logged in (students). */
+	visitors?: boolean;
 };
 
 /** Capabilities that put someone in an approval queue (venue in-charges, HOD, Director). */
@@ -33,6 +35,22 @@ export const NAV: NavItem[] = [
 		anyOf: []
 	},
 	{
+		href: '/book/student',
+		label: 'Book a lab',
+		icon: 'plus',
+		blurb: 'Students: request a lab for group work',
+		anyOf: [],
+		visitors: true
+	},
+	{
+		href: '/track',
+		label: 'Track a request',
+		icon: 'clock',
+		blurb: 'Check a student request by its tracking number',
+		anyOf: [],
+		visitors: true
+	},
+	{
 		href: '/book',
 		label: 'Book a venue',
 		icon: 'plus',
@@ -51,7 +69,8 @@ export const NAV: NavItem[] = [
 		label: 'Approvals',
 		icon: 'check',
 		blurb: 'Requests waiting for your decision',
-		anyOf: APPROVER_CAPABILITIES
+		// Any faculty member can be named as a student group's guide.
+		anyOf: [...APPROVER_CAPABILITIES, 'book']
 	},
 	{
 		href: '/timetables',
@@ -78,11 +97,15 @@ export const NAV: NavItem[] = [
 		href: '/settings',
 		label: 'Settings',
 		icon: 'gear',
-		blurb: 'Assistant provider and models',
+		blurb: 'Assistant models and student email',
 		anyOf: ['manage_settings']
 	}
 ];
 
-export function visibleNav(capabilities: string[]): NavItem[] {
-	return NAV.filter((n) => n.anyOf.length === 0 || n.anyOf.some((c) => capabilities.includes(c)));
+export function visibleNav(capabilities: string[], loggedIn = false): NavItem[] {
+	return NAV.filter(
+		(n) =>
+			(n.visitors ? !loggedIn : true) &&
+			(n.anyOf.length === 0 || n.anyOf.some((c) => capabilities.includes(c)))
+	);
 }

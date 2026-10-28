@@ -5,6 +5,7 @@ from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from app.api.availability import block_out, notice_out
+from app.api.outbox import send_mail_after
 from app.auth import get_current_user, get_via, require
 from app.db import get_db
 from app.models import Approval, Booking, Notification, User
@@ -23,10 +24,13 @@ from app.schemas import (
     NotificationOut,
     OccurrenceOut,
     RelocationOptionOut,
+    StudentDecisionIn,
+    StudentOut,
     VenueBrief,
 )
 from app.services import bookings as svc
 from app.services.access import can
+from app.services.availability import PENDING_STATUSES
 from app.services.timetables import slot_label
 
 router = APIRouter(prefix="/api", tags=["bookings"])
@@ -58,6 +62,18 @@ def to_request(body: BookingIn) -> svc.BookingRequest:
     )
 
 
+def student_out(s) -> StudentOut:
+    return StudentOut(
+        id=s.id,
+        name=s.name,
+        register_no=s.register_no,
+        class_label=s.class_label,
+        decision=s.decision,
+        comment=s.comment,
+        decided_at=s.decided_at,
+    )
+
+
 def booking_out(db: Session, b: Booking, user: User | None) -> BookingOut:
     parent = db.get(Booking, b.parent_id) if b.parent_id else None
     mine = user is not None and b.requester_id == user.id
@@ -70,8 +86,8 @@ def booking_out(db: Session, b: Booking, user: User | None) -> BookingOut:
         requirements=b.requirements,
         expected_count=b.expected_count,
         venue=venue_brief(b.venue),
-        requester=b.requester.name,
-        requester_email=b.requester.email,
+        requester=b.requester_name,
+        requester_email=b.requester.email if b.requester else (b.contact_email or ""),
         status=b.status,
         start=b.start_dt,
         end=b.end_dt,
@@ -109,6 +125,12 @@ def booking_out(db: Session, b: Booking, user: User | None) -> BookingOut:
         and b.status in ("pending_incharge", "pending_hod", "confirmed")
         and b.start_dt > datetime.now(),
         can_approve=svc.can_act(user, b),
+        kind=b.kind,
+        guide=b.guide.name if b.guide else None,
+        students=[student_out(s) for s in b.students],
+        # Staff can pass the number on to a group that lost it.
+        tracking_code=b.tracking_code if user is not None else None,
+        contact_email=b.contact_email if user is not None else None,
     )
 
 
@@ -217,6 +239,19 @@ def my_bookings(
 
 
 @router.get(
+    "/bookings/guiding", response_model=list[BookingOut], dependencies=[Depends(housekeeping)]
+)
+def guiding(
+    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+) -> list[BookingOut]:
+    """Student requests that named this person as their faculty guide."""
+    rows = db.scalars(
+        select(Booking).where(Booking.guide_id == user.id).order_by(Booking.start_dt.desc())
+    ).all()
+    return [booking_out(db, b, user) for b in rows]
+
+
+@router.get(
     "/bookings/{booking_id}", response_model=BookingOut, dependencies=[Depends(housekeeping)]
 )
 def get_booking(
@@ -225,7 +260,11 @@ def get_booking(
     return booking_out(db, booking_or_404(db, booking_id), user)
 
 
-@router.post("/bookings/{booking_id}/cancel", response_model=BookingOut)
+@router.post(
+    "/bookings/{booking_id}/cancel",
+    response_model=BookingOut,
+    dependencies=[Depends(send_mail_after)],
+)
 def cancel_booking(
     booking_id: int,
     body: CancelIn,
@@ -248,7 +287,11 @@ def accept_offer(
     return booking_out(db, b, user)
 
 
-@router.post("/bookings/{booking_id}/approve", response_model=BookingOut)
+@router.post(
+    "/bookings/{booking_id}/approve",
+    response_model=BookingOut,
+    dependencies=[Depends(send_mail_after)],
+)
 def approve_booking(
     booking_id: int,
     body: DecisionIn,
@@ -260,7 +303,11 @@ def approve_booking(
     return booking_out(db, b, user)
 
 
-@router.post("/bookings/{booking_id}/reject", response_model=BookingOut)
+@router.post(
+    "/bookings/{booking_id}/reject",
+    response_model=BookingOut,
+    dependencies=[Depends(send_mail_after)],
+)
 def reject_booking(
     booking_id: int,
     body: DecisionIn,
@@ -269,6 +316,24 @@ def reject_booking(
     via: str = Depends(get_via),
 ) -> BookingOut:
     b = run(db, svc.reject, user, booking_or_404(db, booking_id), body.comment or "", via=via)
+    return booking_out(db, b, user)
+
+
+@router.post(
+    "/bookings/{booking_id}/students",
+    response_model=BookingOut,
+    dependencies=[Depends(send_mail_after)],
+)
+def decide_students(
+    booking_id: int,
+    body: StudentDecisionIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    via: str = Depends(get_via),
+) -> BookingOut:
+    """The faculty guide approves or rejects each student in a student request."""
+    decisions = [(d.student_id, d.decision, d.comment) for d in body.decisions]
+    b = run(db, svc.decide_students, user, booking_or_404(db, booking_id), decisions, via=via)
     return booking_out(db, b, user)
 
 
@@ -282,9 +347,7 @@ def approval_queue(
     db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ) -> list[ApprovalItemOut]:
     pending = db.scalars(
-        select(Booking)
-        .where(Booking.status.in_(("pending_incharge", "pending_hod")))
-        .order_by(Booking.start_dt)
+        select(Booking).where(Booking.status.in_(PENDING_STATUSES)).order_by(Booking.start_dt)
     ).all()
     return [
         ApprovalItemOut(

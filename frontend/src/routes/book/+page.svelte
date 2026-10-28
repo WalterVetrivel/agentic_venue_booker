@@ -166,7 +166,14 @@
 {#if !session.loaded}
 	<p class="mt-6 text-muted">Loading…</p>
 {:else if !session.can('book')}
-	<p class="mt-6 {card}">Log in as a faculty member to book a venue.</p>
+	<div class="mt-6 {card}">
+		<p>
+			Students: <a class="text-accent underline" href="/book/student"
+				>request a lab for group work</a
+			>, no login needed.
+		</p>
+		<p class="mt-2 text-muted">Staff: log in as a faculty member to book a venue.</p>
+	</div>
 {:else}
 	<p class="mt-2 text-muted">
 		{original

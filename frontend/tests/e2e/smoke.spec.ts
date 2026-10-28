@@ -6,7 +6,13 @@ test('students can browse venues without logging in', async ({ page }) => {
 	await expect(page.getByText('Computer Centre 1', { exact: true })).toBeVisible();
 	await page.getByText('Computer Centre 5', { exact: true }).click();
 	await expect(page.getByText('Power BI Desktop')).toBeVisible();
-	expect(await navLabels(page)).toEqual(['Home', 'Availability', 'Venues']);
+	expect(await navLabels(page)).toEqual([
+		'Home',
+		'Availability',
+		'Venues',
+		'Book a lab',
+		'Track a request'
+	]);
 });
 
 const MENUS: Record<string, string[]> = {
@@ -26,6 +32,7 @@ const MENUS: Record<string, string[]> = {
 		'Venues',
 		'Book a venue',
 		'My bookings',
+		'Approvals',
 		'Past events'
 	],
 	'cseoa@kiot.ac.in': ['Home', 'Availability', 'Venues', 'Timetables', 'Past events'],

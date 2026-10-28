@@ -46,7 +46,9 @@ from app.services import availability
 from app.services import bookings as booking_svc
 from app.services import documents as document_svc
 from app.services import reports as report_svc
+from app.services import student_bookings as student_svc
 from app.services.access import can, can_update_equipment
+from app.services.people import guides, name_key
 from app.services.timetables import resolve_venue, review
 from app.services.venues import find_venues, get_venue
 
@@ -63,6 +65,7 @@ HANDS_ON = {
     "Professional elective class",
 }
 STATUS_TEXT = {
+    "pending_guide": "waiting for the faculty guide",
     "pending_incharge": "waiting for the venue in-charge",
     "pending_hod": "waiting for the HOD",
     "confirmed": "confirmed",
@@ -104,9 +107,12 @@ class Tool:
     kind: Literal["read", "draft", "proposal"] = "read"
     any_of: tuple[str, ...] = ()  # capabilities; empty means everyone, including students
     login: bool = False  # staff only, even if no capability is needed
+    visitors: bool = False  # students (not logged in) only
     label: str = ""  # shown in the chat while the tool runs, e.g. "Checking availability"
 
     def allowed(self, user: User | None) -> bool:
+        if self.visitors:
+            return user is None
         if (self.login or self.any_of) and user is None:
             return False
         if not self.any_of:
@@ -879,6 +885,179 @@ def propose_cancel(db: Session, user: User | None, args: CancelArgs) -> ToolResu
     return ToolResult({"proposed": True, "booking": brief}, card)
 
 
+# Student requests (visitors) --------------------------------------------------------------------
+
+
+class StudentArg(Args):
+    name: str = Field(min_length=2)
+    class_: str = Field(alias="class", description="Department, year and section, e.g. CSE III-B")
+    register_no: str | None = None
+
+
+class StudentDraftArgs(Args):
+    venue: str = Field(description="A lab or centre of excellence code, e.g. CC5 or COE1")
+    date: Day
+    start: Clock
+    end: Clock
+    date_to: Day | None = Field(None, description="Last day, for work over several days")
+    reason: str | None = Field(None, description="What the group will work on")
+    guide: str | None = Field(None, description="The faculty guide's name")
+    students: list[StudentArg] | None = Field(None, max_length=student_svc.MAX_STUDENTS)
+    contact_email: str | None = None
+
+
+def _guide(db: Session, text: str) -> User:
+    everyone = guides(db)
+    key = name_key(text)
+    exact = [u for u in everyone if name_key(u.name) == key]
+    found = exact or [u for u in everyone if key and key in name_key(u.name)]
+    if len(found) == 1:
+        return found[0]
+    if not found:
+        raise ToolError(f"No faculty member called {text!r}. Ask for their full name.")
+    raise ToolError(
+        f"Several faculty match {text!r}: {', '.join(u.name for u in found[:6])}. Ask which one."
+    )
+
+
+@tool(
+    "draft_student_booking",
+    "Fill in the student booking form (labs and centres of excellence only, never seminar "
+    "halls) for the group to review and submit. A request needs the reason, the faculty guide, "
+    "and each student's name and class; the form asks for anything left out. Nothing is "
+    "booked until they submit it.",
+    label="Drafting the student request",
+    kind="draft",
+    visitors=True,
+)
+def draft_student_booking(db: Session, user: User | None, args: StudentDraftArgs) -> ToolResult:
+    v = _venue(db, args.venue)
+    if v.type not in student_svc.STUDENT_VENUE_TYPES:
+        raise ToolError("Students can book labs and centres of excellence only, not halls.")
+    if args.end <= args.start:
+        raise ToolError("The end time must be after the start time.")
+    guide = _guide(db, args.guide) if args.guide else None
+    students = [(s, _section(db, s.class_)) for s in args.students or []]
+    req = student_svc.StudentRequest(
+        venue_code=v.code,
+        date_from=args.date,
+        date_to=args.date_to or args.date,
+        start_time=args.start,
+        end_time=args.end,
+        reason=args.reason or "",
+        guide_id=guide.id if guide else 0,
+        contact_email=args.contact_email or "",
+        students=[student_svc.StudentIn(s.name, sec.id, s.register_no) for s, sec in students],
+    )
+    try:
+        result = student_svc.check_student_request(db, req)
+    except booking_svc.BookingError as e:
+        raise ToolError(str(e)) from e
+    problem = student_svc.outcome_text(result)
+    params = {
+        "venue": v.code,
+        "date": str(args.date),
+        "start": _hm(args.start),
+        "end": _hm(args.end),
+        "via": "agent",
+    }
+    if args.date_to and args.date_to != args.date:
+        params["to"] = str(args.date_to)
+    if args.reason:
+        params["reason"] = args.reason
+    if guide:
+        params["guide"] = str(guide.id)
+    if args.contact_email:
+        params["email"] = args.contact_email.strip()
+    if students:
+        params["students"] = json.dumps(
+            [
+                {"name": s.name, "section_id": sec.id, "register_no": s.register_no}
+                for s, sec in students
+            ]
+        )
+    missing = [
+        label
+        for label, value in (
+            ("the reason", args.reason),
+            ("the faculty guide", guide),
+            ("the students", students),
+            ("a contact email", args.contact_email),
+        )
+        if not value
+    ]
+    when = f"{_day_text(args.date)}, {_hm(args.start)}–{_hm(args.end)}"
+    lines = [f"{v.code} · {v.name}", when]
+    if guide:
+        lines.append(f"Faculty guide: {guide.name}")
+    if students:
+        lines.append("Students: " + ", ".join(f"{s.name} ({sec.label})" for s, sec in students))
+    lines.append(problem or "Free")
+    if missing:
+        lines.append("Still to fill in: " + ", ".join(missing))
+    card = {
+        "kind": "draft",
+        "title": "Draft student request",
+        "lines": lines + [w.message for w in result.warnings],
+        "href": f"/book/student?{urlencode(params)}",
+        "button": "Review & submit",
+    }
+    return ToolResult(
+        {
+            "drafted": True,
+            "free": problem is None,
+            "problem": problem,
+            "alternatives": [a.code for a in result.alternatives],
+            "still_to_fill_in": missing,
+            "note": "The group reviews the form and submits it; they get a tracking number.",
+        },
+        card,
+    )
+
+
+class TrackArgs(Args):
+    tracking_number: str = Field(description="The number the request got, e.g. ST-7K3P-9QXA")
+
+
+@tool(
+    "track_student_booking",
+    "The status of one student request, by the tracking number the student gives: which step "
+    "it waits for and the faculty guide's decision on each student.",
+    label="Looking up the request",
+)
+def track_student_booking(db: Session, user: User | None, args: TrackArgs) -> ToolResult:
+    b = student_svc.find_by_code(db, args.tracking_number)
+    if b is None:
+        raise ToolError("No request has that tracking number. Ask the student to check it.")
+    approvals = {a.step: a for a in b.approvals}
+    return ToolResult(
+        {
+            **_booking_brief(b),
+            "link": f"/track?code={b.tracking_code}",
+            "tracking_number": b.tracking_code,
+            "faculty_guide": b.guide.name if b.guide else None,
+            "steps": [
+                {
+                    "step": booking_svc.STEP_LABELS[step],
+                    "result": approvals[step].decision if step in approvals else "not yet",
+                    "comment": approvals[step].comment if step in approvals else None,
+                }
+                for step in booking_svc.steps_for(b)
+            ],
+            "students": [
+                {
+                    "name": s.name,
+                    "class": s.class_label,
+                    "guide_decision": s.decision,
+                    "comment": s.comment,
+                }
+                for s in b.students
+            ],
+            "cancel_reason": b.cancel_reason,
+        }
+    )
+
+
 # Approvals ---------------------------------------------------------------------------------------
 
 
@@ -891,7 +1070,7 @@ def propose_cancel(db: Session, user: User | None, args: CancelArgs) -> ToolResu
 def list_pending_approvals(db: Session, user: User | None, args: NoArgs) -> ToolResult:
     pending = db.scalars(
         select(Booking)
-        .where(Booking.status.in_(("pending_incharge", "pending_hod")))
+        .where(Booking.status.in_(availability.PENDING_STATUSES))
         .order_by(Booking.start_dt)
     ).all()
     return ToolResult(
@@ -899,7 +1078,7 @@ def list_pending_approvals(db: Session, user: User | None, args: NoArgs) -> Tool
             {
                 **_booking_brief(b),
                 "step": booking_svc.current_step(b),
-                "requester": b.requester.name,
+                "requester": b.requester_name,
             }
             for b in pending
             if booking_svc.can_act(user, b)
@@ -923,19 +1102,23 @@ def assess_request(db: Session, user: User | None, args: BookingArgs) -> ToolRes
     b = _booking(db, args.booking)
     notes = booking_svc.approval_notes(db, b)
     similar = _past_use(db, b.venue, b.event_type)[:3]
-    cancelled = db.scalar(
-        select(func.count(Booking.id)).where(
-            Booking.requester_id == b.requester_id,
-            Booking.status == "cancelled",
-            Booking.created_at >= datetime.now() - timedelta(days=90),
+    cancelled = (
+        db.scalar(
+            select(func.count(Booking.id)).where(
+                Booking.requester_id == b.requester_id,
+                Booking.status == "cancelled",
+                Booking.created_at >= datetime.now() - timedelta(days=90),
+            )
         )
+        if b.requester_id
+        else None
     )
     concerns = [n for n in notes if not n.startswith("Capacity fits")]
     return ToolResult(
         {
             "booking": {
                 **_booking_brief(b),
-                "requester": b.requester.name,
+                "requester": b.requester_name,
                 "event_type": b.event_type,
             },
             "can_you_decide": booking_svc.can_act(user, b),
@@ -978,7 +1161,7 @@ def propose_decision(db: Session, user: User | None, args: DecisionArgs) -> Tool
         "lines": [
             b.title,
             f"{brief['venue']} · {brief['when']}",
-            f"Requested by {b.requester.name}",
+            f"Requested by {b.requester_name}",
         ]
         + ([f"Comment: {args.comment}"] if args.comment else []),
         "action": {

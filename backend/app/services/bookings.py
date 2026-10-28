@@ -10,12 +10,15 @@ State machine (see docs/PLAN.md):
 
     * only for venues that need HOD approval, or when a class has to be moved.
 
+A student request (see app.services.student_bookings) starts at pending_guide: the faculty
+guide the group named approves or rejects each student, then it goes on as above.
+
 A step is skipped when the requester can approve it themselves (an in-charge booking their own
-lab, the HOD booking a CSE venue, the Director). The skip is still recorded as an approval.
+lab, the HOD booking a CSE venue, the Director), or, for a student request, when the guide can
+approve it too. The skip is still recorded as an approval.
 """
 
 import math
-import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 
@@ -32,10 +35,11 @@ from app.models import (
     UserRole,
     Venue,
 )
-from app.services import audit
+from app.services import audit, student_notices
 from app.services.access import can
 from app.services.availability import HOLDING_STATUSES, Block, Notice, check
 from app.services.notifications import notify
+from app.services.people import faculty_matching
 from app.services.timetables import slot_label
 from app.services.venues import find_venues, get_venue
 
@@ -63,7 +67,8 @@ EVENT_TYPES = [
 OFFER_HOURS = 24
 MAX_DAYS = 14
 OPEN_STATUSES = (*HOLDING_STATUSES, "waitlisted")  # the requester can still cancel these
-STEP_LABELS = {"incharge": "venue in-charge", "hod": "HOD"}
+STEP_LABELS = {"guide": "faculty guide", "incharge": "venue in-charge", "hod": "HOD"}
+STUDENT_EVENT_TYPE = "Student group work"
 
 
 class BookingError(Exception):
@@ -248,7 +253,8 @@ def suggest_venues(
 
 def steps_for(booking: Booking) -> list[str]:
     needs_hod = booking.venue.needs_hod_approval or booking.needs_displacement
-    return ["incharge", "hod"] if needs_hod else ["incharge"]
+    steps = ["incharge", "hod"] if needs_hod else ["incharge"]
+    return ["guide", *steps] if booking.is_student else steps
 
 
 def current_step(booking: Booking) -> str | None:
@@ -260,6 +266,9 @@ def current_step(booking: Booking) -> str | None:
 def can_approve_step(user: User | None, booking: Booking, step: str) -> bool:
     if user is None:
         return False
+    if step == "guide":
+        # Only the guide the students chose vouches for them, not the Director.
+        return booking.guide_id == user.id
     if can(user, "approve_all"):
         return True
     if step == "incharge":
@@ -277,6 +286,8 @@ def can_act(user: User | None, booking: Booking) -> bool:
 
 
 def _approvers(db: Session, booking: Booking, step: str) -> list[User]:
+    if step == "guide":
+        return [booking.guide] if booking.guide else []
     if step == "incharge":
         return [booking.venue.in_charge] if booking.venue.in_charge else _directors(db)
     return list(db.scalars(select(User).join(UserRole).where(UserRole.role_key == "hod")))
@@ -313,14 +324,29 @@ def _route(db: Session, booking: Booking, after: str | None, now: datetime) -> N
                 )
             )
             continue
+        guide_can = booking.is_student and can_approve_step(booking.guide, booking, step)
+        if step != "guide" and guide_can:
+            booking.approvals.append(
+                Approval(
+                    step=step,
+                    approver_id=booking.guide_id,
+                    decision="approved",
+                    comment="Approved automatically: the faculty guide approves this step too.",
+                    decided_at=now,
+                )
+            )
+            continue
         booking.status = f"pending_{step}"
-        notify(
-            db,
-            _approvers(db, booking, step),
-            "approval_needed",
-            f"{booking.requester.name} asks for {_describe(booking)}. Your approval is needed.",
-            "/approvals",
-        )
+        if step == "guide":
+            message = (
+                f"{booking.requester_name} named you as their faculty guide for "
+                f"{_describe(booking)}. Approve or reject each student."
+            )
+        else:
+            message = (
+                f"{booking.requester_name} asks for {_describe(booking)}. Your approval is needed."
+            )
+        notify(db, _approvers(db, booking, step), "approval_needed", message, "/approvals")
         return
     _confirm(db, booking, now)
 
@@ -333,6 +359,11 @@ def _confirm(db: Session, booking: Booking, now: datetime) -> None:
     notify(
         db, [booking.requester], "confirmed", f"{_describe(booking)} is confirmed.", _link(booking)
     )
+    if booking.is_student:
+        notify(
+            db, [booking.guide], "confirmed", f"{_describe(booking)} is confirmed.", _link(booking)
+        )
+        student_notices.confirmed(db, booking)
     notify(
         db,
         [booking.venue.in_charge, booking.venue.technician],
@@ -366,21 +397,6 @@ def _confirm(db: Session, booking: Booking, now: datetime) -> None:
         parent = db.get(Booking, booking.parent_id)
         if parent is not None and parent.status in OPEN_STATUSES:
             _release(db, parent, "cancelled", f"Rescheduled to {booking.ref}", now)
-
-
-_TITLES = re.compile(r"\b(dr|mr|mrs|ms|prof)\b\.?", re.I)
-
-
-def _name_key(name: str) -> str:
-    return re.sub(r"[^a-z]", "", _TITLES.sub("", name.lower()))
-
-
-def faculty_matching(db: Session, name: str | None) -> list[User]:
-    """Users whose name matches a timetable's faculty column, ignoring titles and punctuation."""
-    if not name:
-        return []
-    key = _name_key(name)
-    return [u for u in db.scalars(select(User).where(User.active)) if _name_key(u.name) == key]
 
 
 # Waitlist --------------------------------------------------------------------------------------
@@ -612,6 +628,11 @@ def approve(
         raise BookingError(f"{booking.ref} isn't waiting for approval.")
     if not can_approve_step(user, booking, step):
         raise BookingError(f"This step needs the {STEP_LABELS[step]}.", 403)
+    if step == "guide":
+        pending = [s for s in booking.students if s.decision == "pending"]
+        return decide_students(
+            db, user, booking, [(s.id, "approved", comment) for s in pending], via=via, now=now
+        )
     booking.approvals.append(
         Approval(step=step, approver=user, decision="approved", comment=comment, decided_at=now)
     )
@@ -623,6 +644,8 @@ def approve(
         _link(booking),
     )
     _route(db, booking, step, now)
+    if booking.is_student and booking.status != "confirmed":
+        student_notices.step_approved(db, booking, user, STEP_LABELS[step], comment)
     audit.record(
         db,
         user,
@@ -652,31 +675,114 @@ def reject(
         raise BookingError(f"This step needs the {STEP_LABELS[step]}.", 403)
     if not comment or not comment.strip():
         raise BookingError("Say why the request is rejected.", 422)
+    if step == "guide":
+        pending = [s for s in booking.students if s.decision == "pending"]
+        return decide_students(
+            db, user, booking, [(s.id, "rejected", comment) for s in pending], via=via, now=now
+        )
     booking.approvals.append(
         Approval(step=step, approver=user, decision="rejected", comment=comment, decided_at=now)
     )
     notify(
         db,
-        [booking.requester],
+        [booking.requester, booking.guide],
         "rejected",
         f"{user.name} rejected {_describe(booking)}: “{comment}”",
         _link(booking),
     )
     _release(db, booking, "rejected", None, now)
+    if booking.is_student:
+        student_notices.rejected(db, booking, user, STEP_LABELS[step], comment)
     audit.record(db, user, "reject", "booking", booking.id, after={"step": step}, via=via, at=now)
+    return booking
+
+
+def decide_students(
+    db: Session,
+    user: User,
+    booking: Booking,
+    decisions: list[tuple[int, str, str | None]],
+    via: str = "ui",
+    now: datetime | None = None,
+) -> Booking:
+    """The faculty guide approves or rejects each student: (student id, decision, comment).
+
+    Every student still waiting needs a decision. The request goes on with the approved
+    students, or is rejected if there are none.
+    """
+    now = now or datetime.now()
+    if not booking.is_student or current_step(booking) != "guide":
+        raise BookingError(f"{booking.ref} isn't waiting for the faculty guide.")
+    if not can_approve_step(user, booking, "guide"):
+        raise BookingError("Only the faculty guide the students chose can decide this.", 403)
+    by_id = {s.id: s for s in booking.students}
+    chosen: dict[int, tuple[str, str | None]] = {}
+    for student_id, decision, comment in decisions:
+        if student_id not in by_id:
+            raise BookingError("That student isn't part of this request.", 422)
+        if decision not in ("approved", "rejected"):
+            raise BookingError("Approve or reject each student.", 422)
+        comment = (comment or "").strip() or None
+        if decision == "rejected" and not comment:
+            raise BookingError(f"Say why {by_id[student_id].name} is rejected.", 422)
+        chosen[student_id] = (decision, comment)
+    missing = [s.name for s in booking.students if s.decision == "pending" and s.id not in chosen]
+    if missing:
+        raise BookingError(f"Decide for every student (still waiting: {', '.join(missing)}).", 422)
+    for student_id, (decision, comment) in chosen.items():
+        s = by_id[student_id]
+        s.decision, s.comment, s.decided_by, s.decided_at = decision, comment, user, now
+    approved = [s for s in booking.students if s.decision == "approved"]
+    rejected = [s for s in booking.students if s.decision == "rejected"]
+    summary = f"Approved {len(approved)} of {len(booking.students)} students."
+    reasons = sorted({s.comment for s in rejected if s.comment})
+    booking.approvals.append(
+        Approval(
+            step="guide",
+            approver=user,
+            decision="approved" if approved else "rejected",
+            comment=summary + (f" {' '.join(reasons)}" if reasons else ""),
+            decided_at=now,
+        )
+    )
+    student_notices.advisors(db, booking, rejected, "rejected")
+    if approved:
+        booking.expected_count = len(approved)
+        _route(db, booking, "guide", now)
+        if booking.status != "confirmed":
+            student_notices.guide_decided(db, booking, user)
+    else:
+        _release(db, booking, "rejected", None, now)
+        student_notices.rejected(db, booking, user, STEP_LABELS["guide"], "; ".join(reasons))
+    audit.record(
+        db,
+        user,
+        "decide_students",
+        "booking",
+        booking.id,
+        after={"approved": [s.name for s in approved], "rejected": [s.name for s in rejected]},
+        via=via,
+        at=now,
+    )
     return booking
 
 
 def cancel(
     db: Session,
-    user: User,
+    user: User | None,
     booking: Booking,
     reason: str | None = None,
     via: str = "ui",
     now: datetime | None = None,
+    tracking_code: str | None = None,
 ) -> Booking:
+    """Cancel a request: by the person who made it, the Director, or (for a student request)
+    anyone holding its tracking number."""
     now = now or datetime.now()
-    if booking.requester_id != user.id and not can(user, "approve_all"):
+    by_group = booking.is_student and tracking_code == booking.tracking_code
+    if not by_group and (
+        user is None or (booking.requester_id != user.id and not can(user, "approve_all"))
+    ):
         raise BookingError("Only the person who booked can cancel this.", 403)
     if booking.status not in OPEN_STATUSES:
         raise BookingError(f"{booking.ref} is already {booking.status.replace('_', ' ')}.")
@@ -685,12 +791,14 @@ def cancel(
     if was_confirmed:
         notify(
             db,
-            [booking.venue.in_charge, booking.venue.technician, booking.requester],
+            [booking.venue.in_charge, booking.venue.technician, booking.requester, booking.guide],
             "cancelled",
             f"{_describe(booking)} was cancelled" + (f": {reason}" if reason else "."),
             _link(booking),
             skip=user,
         )
+    if booking.is_student:
+        student_notices.cancelled(db, booking, reason, was_confirmed, by_group)
     audit.record(
         db, user, "cancel", "booking", booking.id, after={"reason": reason}, via=via, at=now
     )

@@ -5,14 +5,16 @@
 	import { ui } from '#lib/stores/ui.svelte.ts';
 	import { visibleNav } from '#lib/nav.ts';
 
-	const items = $derived(visibleNav(session.capabilities));
+	const items = $derived(visibleNav(session.capabilities, !!session.user));
 	// A collapsed nav opens over the page while the pointer (or focus) is on it.
 	let peek = $state(false);
 	const slim = $derived(ui.navCollapsed && !peek);
 
 	function active(href: string) {
 		const path = page.url.pathname;
-		return href === '/' ? path === '/' : path.startsWith(href);
+		if (href === '/') return path === '/';
+		// "Book a venue" (/book) isn't active on the student form (/book/student).
+		return path.startsWith(href) && !(href === '/book' && path.startsWith('/book/student'));
 	}
 </script>
 
@@ -72,7 +74,8 @@
 		</ul>
 		{#if !session.user && session.loaded}
 			<p class="mt-6 rounded-xl bg-surface-2 p-3 text-sm text-muted {slim ? 'lg:hidden' : ''}">
-				Students can browse venues and availability without logging in. Staff log in to book.
+				Students don't need to log in: browse venues and availability, request a lab for group work,
+				and track it with its number. Staff log in to book.
 			</p>
 		{/if}
 	</nav>

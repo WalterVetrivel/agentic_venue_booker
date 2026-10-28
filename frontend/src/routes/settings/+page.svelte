@@ -3,7 +3,7 @@
 	import { chat } from '#lib/stores/chat.svelte.ts';
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { btnPrimary, btnSecondary, card, field, label } from '#lib/ui.ts';
-	import type { LLMSettings } from '#lib/types.ts';
+	import type { LLMSettings, MailSettings } from '#lib/types.ts';
 
 	let current = $state<LLMSettings | null>(null);
 	let error = $state('');
@@ -20,6 +20,53 @@
 	let saved = $state('');
 	let tests = $state<Record<string, { ok: boolean; message: string } | 'running'>>({});
 	let mcp = $state<{ token: string; expires_in_hours: number } | null>(null);
+	let mail = $state<MailSettings | null>(null);
+	let mailForm = $state({ host: '', port: 587, user: '', password: '', from_addr: '' });
+	let mailSaved = $state('');
+	let mailError = $state('');
+	let mailTo = $state('');
+	let mailTest = $state<{ ok: boolean; message: string } | 'running' | null>(null);
+
+	function fillMail(m: MailSettings) {
+		mail = m;
+		mailForm = { host: m.host, port: m.port, user: m.user, password: '', from_addr: m.from_addr };
+	}
+
+	async function saveMail(e: SubmitEvent) {
+		e.preventDefault();
+		mailSaved = '';
+		mailError = '';
+		const { password, ...rest } = mailForm;
+		try {
+			fillMail(
+				await api<MailSettings>('/settings/email', {
+					method: 'PUT',
+					body: JSON.stringify(password.trim() ? { ...rest, password } : rest)
+				})
+			);
+			mailSaved = 'Saved.';
+		} catch (err) {
+			mailError = err instanceof Error ? err.message : 'Could not save';
+		}
+	}
+
+	async function removeMailPassword() {
+		fillMail(
+			await api<MailSettings>('/settings/email', {
+				method: 'PUT',
+				body: JSON.stringify({ password: '' })
+			})
+		);
+		mailSaved = 'Saved password removed.';
+	}
+
+	async function testMail() {
+		mailTest = 'running';
+		mailTest = await api<{ ok: boolean; message: string }>('/settings/email/test', {
+			method: 'POST',
+			body: JSON.stringify({ to: mailTo })
+		});
+	}
 	let copied = $state(false);
 
 	function fill(s: LLMSettings) {
@@ -40,6 +87,7 @@
 			.then(fill)
 			.catch((e) => (error = e.message));
 		api<string[]>('/settings/ollama-models').then((m) => (ollamaModels = m));
+		api<MailSettings>('/settings/email').then(fillMail);
 	});
 
 	async function save(e: SubmitEvent) {
@@ -115,7 +163,8 @@
 
 <h1 class="text-2xl font-semibold">Settings</h1>
 <p class="mt-1 text-muted">
-	Choose the model the assistant uses. Everything else works without it.
+	Choose the model the assistant uses (everything else works without it), and how student emails are
+	sent.
 </p>
 
 {#if !session.can('manage_settings')}
@@ -232,6 +281,91 @@
 			{#if error}<span class="text-danger" role="alert">{error}</span>{/if}
 		</div>
 	</form>
+
+	{#if mail}
+		<form
+			class="mt-6 grid gap-4 {card} sm:grid-cols-2"
+			aria-labelledby="mail-h"
+			onsubmit={saveMail}
+		>
+			<div class="sm:col-span-2">
+				<h2 id="mail-h" class="text-lg font-semibold">Email for student requests</h2>
+				<p class="mt-1 text-muted">
+					Students get their tracking number and each update by email.
+					{mail.configured
+						? `Sending through ${mail.host}.`
+						: 'No mail server yet, so emails are saved to backend/storage/outbox instead of being sent.'}
+					For Gmail: server <code>smtp.gmail.com</code>, port 587, the Gmail address and an app
+					password (see docs/EMAIL.md).
+				</p>
+				<p class="mt-1 text-sm text-muted">
+					{mail.student_email_domain
+						? `Students must use an @${mail.student_email_domain} address (STUDENT_EMAIL_DOMAIN in backend/.env).`
+						: 'Any email address is accepted. Set STUDENT_EMAIL_DOMAIN=kiot.ac.in in backend/.env to accept college addresses only.'}
+				</p>
+			</div>
+			<div>
+				<label class={label} for="sh">SMTP server</label>
+				<input id="sh" bind:value={mailForm.host} placeholder="smtp.gmail.com" class={field} />
+			</div>
+			<div>
+				<label class={label} for="sp">Port</label>
+				<input id="sp" type="number" min="1" max="65535" bind:value={mailForm.port} class={field} />
+			</div>
+			<div>
+				<label class={label} for="su">Username</label>
+				<input id="su" bind:value={mailForm.user} placeholder="venues@gmail.com" class={field} />
+			</div>
+			<div>
+				<label class={label} for="spw">Password (app password for Gmail)</label>
+				<input
+					id="spw"
+					type="password"
+					autocomplete="off"
+					bind:value={mailForm.password}
+					placeholder={mail.password_set ? '•••••••• (leave blank to keep)' : ''}
+					class={field}
+				/>
+				<p class="mt-1 text-sm text-muted">
+					{#if mail.password_source === 'settings'}
+						Saved here.
+						<button type="button" class="text-danger underline" onclick={removeMailPassword}
+							>Remove saved password</button
+						>
+					{:else if mail.password_source === 'env'}
+						Using SMTP_PASSWORD from backend/.env.
+					{/if}
+				</p>
+			</div>
+			<div class="sm:col-span-2">
+				<label class={label} for="sf">From address (optional)</label>
+				<input
+					id="sf"
+					bind:value={mailForm.from_addr}
+					placeholder="Same as the username"
+					class={field}
+				/>
+			</div>
+			<div class="flex flex-wrap items-center gap-3 sm:col-span-2">
+				<button class={btnPrimary}>Save email settings</button>
+				{#if mailSaved}<span class="text-success" role="status">{mailSaved}</span>{/if}
+				{#if mailError}<span class="text-danger" role="alert">{mailError}</span>{/if}
+			</div>
+			<div class="flex flex-wrap items-end gap-3 sm:col-span-2">
+				<div class="min-w-64 flex-1">
+					<label class={label} for="st">Send a test email to</label>
+					<input id="st" type="email" bind:value={mailTo} class={field} />
+				</div>
+				<button type="button" class={btnSecondary} disabled={!mailTo} onclick={testMail}
+					>Send test</button
+				>
+			</div>
+			{#if mailTest === 'running'}<p class="text-muted sm:col-span-2">Sending…</p>
+			{:else if mailTest}<p class="sm:col-span-2 {mailTest.ok ? 'text-success' : 'text-danger'}">
+					{mailTest.message}
+				</p>{/if}
+		</form>
+	{/if}
 
 	<section class="mt-6 {card}" aria-labelledby="mcp-h">
 		<h2 id="mcp-h" class="text-lg font-semibold">Use the tools from Claude Desktop (MCP)</h2>

@@ -2,6 +2,8 @@
 	import { page } from '$app/state';
 	import { api } from '#lib/api.ts';
 	import StatusBadge from '#lib/components/StatusBadge.svelte';
+	import StudentDecisions from '#lib/components/StudentDecisions.svelte';
+	import StudentList from '#lib/components/StudentList.svelte';
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { ui } from '#lib/stores/ui.svelte.ts';
 	import { dateTimeText, whenText } from '#lib/time.ts';
@@ -45,7 +47,11 @@
 		}
 	}
 
-	const STEP_NAMES: Record<string, string> = { incharge: 'Venue in-charge', hod: 'HOD' };
+	const STEP_NAMES: Record<string, string> = {
+		guide: 'Faculty guide',
+		incharge: 'Venue in-charge',
+		hod: 'HOD'
+	};
 </script>
 
 <a href={booking?.can_approve ? '/approvals' : '/bookings'} class="text-accent"
@@ -64,7 +70,9 @@
 	<div class="mt-4 flex flex-wrap items-start justify-between gap-3">
 		<div>
 			<h1 class="text-2xl font-semibold">{b.title}</h1>
-			<p class="mt-1 text-muted">{b.ref} · {b.event_type} · requested by {b.requester}</p>
+			<p class="mt-1 text-muted">
+				{b.ref} · {b.event_type} · requested by {b.requester}{b.guide ? ` under ${b.guide}` : ''}
+			</p>
 		</div>
 		<StatusBadge status={b.status} />
 	</div>
@@ -124,9 +132,15 @@
 						<dd>{b.requirements}</dd>
 					</div>
 				{/if}
+				{#if b.kind === 'student'}
+					<div>
+						<dt class="text-sm text-muted">Tracking number and contact</dt>
+						<dd>{b.tracking_code} · {b.contact_email}</dd>
+					</div>
+				{/if}
 				{#if b.description}
 					<div>
-						<dt class="text-sm text-muted">Description</dt>
+						<dt class="text-sm text-muted">{b.kind === 'student' ? 'Reason' : 'Description'}</dt>
 						<dd class="whitespace-pre-line">{b.description}</dd>
 					</div>
 				{/if}
@@ -137,6 +151,10 @@
 					</div>
 				{/if}
 			</dl>
+			{#if b.students.length}
+				<h3 class="mt-5 font-semibold">Students ({b.students.length})</h3>
+				<div class="mt-1"><StudentList students={b.students} /></div>
+			{/if}
 			{#if b.moves.length}
 				<h3 class="mt-5 font-semibold">Classes that move</h3>
 				<ul class="mt-2 space-y-1">
@@ -182,7 +200,9 @@
 				{/each}
 			</ol>
 
-			{#if b.can_approve}
+			{#if b.can_approve && b.status === 'pending_guide'}
+				<StudentDecisions booking={b} ondone={(res) => (booking = res)} />
+			{:else if b.can_approve}
 				<div class="mt-6 border-t border-border pt-5">
 					<label class={label} for="comment">Comment (needed to reject)</label>
 					<textarea id="comment" rows="2" bind:value={comment} class={field}></textarea>

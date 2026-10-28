@@ -2,10 +2,27 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
+from app.api.limits import Window
 from app.db import Base, get_db, make_engine
 from app.main import create_app
 from app.seed.seed import seed_all, seed_documents
+from app.services import mailer
 from app.services.embeddings import reset_embedder, set_embedder
+
+
+@pytest.fixture(autouse=True)
+def sent_mail():
+    """Tests never send real email (even with SMTP set in backend/.env): this records it."""
+    sent = []
+
+    def record(cfg, msg, email_id):
+        sent.append(msg)
+        return "sent"
+
+    mailer.set_transport(record)
+    Window.reset_all()
+    yield sent
+    mailer.set_transport(None)
 
 
 @pytest.fixture(scope="session", autouse=True)

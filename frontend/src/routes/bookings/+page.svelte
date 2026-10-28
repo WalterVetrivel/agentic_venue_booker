@@ -12,6 +12,7 @@
 	import type { Booking } from '#lib/types.ts';
 
 	let bookings = $state<Booking[] | null>(null);
+	let guiding = $state<Booking[]>([]);
 	let error = $state('');
 	let layout = $state(savedView('bookings', ['cards', 'table'] as const, 'cards'));
 
@@ -23,12 +24,22 @@
 
 	$effect(() => {
 		if (session.user)
-			api<Booking[]>('/bookings/mine')
-				.then((b) => (bookings = b))
+			Promise.all([api<Booking[]>('/bookings/mine'), api<Booking[]>('/bookings/guiding')])
+				.then(([mine, guided]) => {
+					bookings = mine;
+					guiding = guided;
+				})
 				.catch((e) => (error = e.message));
 	});
 
-	const ACTIVE = ['pending_incharge', 'pending_hod', 'confirmed', 'waitlisted', 'offered'];
+	const ACTIVE = [
+		'pending_guide',
+		'pending_incharge',
+		'pending_hod',
+		'confirmed',
+		'waitlisted',
+		'offered'
+	];
 	const now = nowLocal();
 	const upcoming = $derived(
 		(bookings ?? []).filter((b) => ACTIVE.includes(b.status) && b.end > now).reverse()
@@ -61,6 +72,27 @@
 {:else if error}
 	<p class="mt-6 text-danger">{error}</p>
 {:else}
+	{#if guiding.length}
+		<section class="mt-8">
+			<h2 class="text-lg font-semibold">Student requests I'm guiding ({guiding.length})</h2>
+			<div class="mt-3">
+				<RecordTable
+					label="Student requests I'm guiding"
+					extraLabel="Students"
+					rows={guiding.map((b) => ({
+						key: b.id,
+						href: `/bookings/${b.id}`,
+						title: b.title,
+						sub: b.ref,
+						venue: b.venue.code,
+						when: when(b),
+						extra: b.students.map((s) => s.name).join(', '),
+						status: b.status
+					}))}
+				/>
+			</div>
+		</section>
+	{/if}
 	{#each [['Upcoming', upcoming], ['Past and closed', past]] as [heading, list] (heading)}
 		{@const items = list as Booking[]}
 		<section class="mt-8">
