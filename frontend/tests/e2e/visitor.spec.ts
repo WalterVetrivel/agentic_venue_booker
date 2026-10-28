@@ -45,3 +45,16 @@ test('the assistant sends a signed-out faculty member to log in', async ({ page 
 	const link = chat.getByRole('link', { name: 'Log in' });
 	await expect(link).toHaveAttribute('href', '/login?next=/book');
 });
+
+test('a draft from the chat fills in the open form and keeps what was typed', async ({ page }) => {
+	await page.goto('/book/student');
+	await page.locator('#sname-0').fill('Arun K');
+	await page.locator('#reason').fill('Smart parking app');
+	const chat = await ask(page, 'Book CC7 tomorrow 14:00 to 16:00');
+	await expect(chat.getByText('Draft student request')).toBeVisible();
+	await expect(page.locator('#venue')).toHaveValue('CC7');
+	await expect(page.locator('#start')).toHaveValue('14:00');
+	// The assistant's reason replaces the typed one; the student it didn't mention stays.
+	await expect(page.locator('#reason')).toHaveValue('Mini project work');
+	await expect(page.locator('#sname-0')).toHaveValue('Arun K');
+});

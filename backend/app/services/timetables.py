@@ -20,6 +20,8 @@ from app.models import (
 )
 from app.services import audit
 
+YEARS = ("I", "II", "III", "IV")
+
 
 class TimetableError(ValueError):
     pass
@@ -68,7 +70,20 @@ def get_or_create_section(db: Session, dept: str, year: str, section: str, advis
         db.flush()
     elif advisor:
         sec.advisor = advisor
+    fill_years(db, dept)
     return sec
+
+
+def fill_years(db: Session, dept: str) -> None:
+    """Add the department's sections in every year, so students in a year with no timetable yet
+    (usually the first years) can still be named on a lab request."""
+    rows = db.scalars(select(ClassSection).where(ClassSection.dept == dept)).all()
+    have = {(s.year, s.section) for s in rows}
+    for year in YEARS:
+        for letter in sorted({s.section for s in rows}):
+            if (year, letter) not in have:
+                db.add(ClassSection(dept=dept, year=year, section=letter))
+    db.flush()
 
 
 def _overlap(a_start: str, a_end: str, b_start: str, b_end: str) -> bool:

@@ -80,8 +80,8 @@ def test_optional_times_keep_their_description():
     assert "HH:MM" in start["description"]
 
 
-def test_missing_timetable_lists_the_classes_that_have_one(db):
-    with pytest.raises(tools.ToolError, match="Classes with timetables"):
+def test_unknown_class_lists_the_classes(db):
+    with pytest.raises(tools.ToolError, match="There is no class"):
         tools.call(db, None, "get_timetable", {"section": "CSE III-B"})
 
 
@@ -144,6 +144,19 @@ def test_draft_booking_returns_a_card_and_books_nothing(db):
     assert query["venue"] == ["DSH"] and query["count"] == ["120"]
     assert query["requirements"] == ["Two microphones"] and query["start"] == ["10:00"]
     assert db.scalar(select(Booking.id).order_by(Booking.id.desc())) == before
+
+
+def test_draft_booking_opens_the_form_with_partial_details(db):
+    args = {"venue": "DSH", "title": "Alumni talk", "date": DAY}
+    result = tools.call(db, user(db, "tkcse@kiot.ac.in"), "draft_booking", args)
+    query = parse_qs(urlparse(result.card["href"]).query)
+    assert query == {"venue": ["DSH"], "title": ["Alumni talk"], "date": [DAY], "via": ["agent"]}
+    assert result.data["outcome"] is None and result.card["button"] == "Finish on the form"
+    assert result.data["still_to_fill_in"] == [
+        "the start and end time",
+        "the event type",
+        "the expected number of people",
+    ]
 
 
 def test_draft_rejects_unknown_event_types(db):

@@ -9,41 +9,66 @@
 	import { btnPrimary, btnSecondary, btnDanger, card, field, label } from '#lib/ui.ts';
 	import type { StudentCheck, StudentOptions, StudentTrack } from '#lib/types.ts';
 
-	const params = page.url.searchParams;
-	// The assistant's drafts link here with the form filled in (and via=agent).
-	const fromAssistant = params.get('via') === 'agent';
-	const fromMessage = Number(params.get('from_msg')) || null;
-	const fromCard = Number(params.get('from_card') ?? -1);
-
 	type Row = { name: string; register_no: string; section_id: number | '' };
-
-	function draftedStudents(): Row[] {
-		try {
-			const list = JSON.parse(params.get('students') ?? '[]') as Partial<Row>[];
-			if (list.length)
-				return list.map((s) => ({
-					name: s.name ?? '',
-					register_no: s.register_no ?? '',
-					section_id: s.section_id ?? ''
-				}));
-		} catch {
-			/* not a draft */
-		}
-		return [{ name: '', register_no: '', section_id: '' }];
-	}
 
 	let options = $state<StudentOptions | null>(null);
 	let loadError = $state('');
-	let venue = $state(params.get('venue') ?? '');
-	let dateFrom = $state(params.get('date') ?? addDays(isoDate(new Date()), 1));
-	let multiDay = $state(!!params.get('to'));
-	let dateTo = $state(params.get('to') ?? '');
-	let start = $state(params.get('start') ?? '14:00');
-	let end = $state(params.get('end') ?? '16:00');
-	let reason = $state(params.get('reason') ?? '');
-	let guideId = $state<number | ''>(Number(params.get('guide')) || '');
-	let email = $state(params.get('email') ?? '');
-	let students = $state<Row[]>(draftedStudents());
+	let fromAssistant = $state(false);
+	let fromMessage = $state<number | null>(null);
+	let fromCard = $state(-1);
+	let venue = $state('');
+	let dateFrom = $state(addDays(isoDate(new Date()), 1));
+	let multiDay = $state(false);
+	let dateTo = $state('');
+	let start = $state('14:00');
+	let end = $state('16:00');
+	let reason = $state('');
+	let guideId = $state<number | ''>('');
+	let email = $state('');
+	let students = $state<Row[]>([{ name: '', register_no: '', section_id: '' }]);
+
+	// The assistant's drafts link here with what it knows filled in (and via=agent). A later
+	// draft, after the group tells it a missing detail, fills in what it has and keeps the rest.
+	function fill(params: { get(key: string): string | null }) {
+		const has = (key: string) => !!params.get(key);
+		if (params.get('via') === 'agent') fromAssistant = true;
+		if (has('from_msg')) fromMessage = Number(params.get('from_msg'));
+		if (has('from_card')) fromCard = Number(params.get('from_card'));
+		if (has('venue')) venue = params.get('venue')!;
+		if (has('date')) dateFrom = params.get('date')!;
+		if (has('to')) [multiDay, dateTo] = [true, params.get('to')!];
+		if (has('start')) start = params.get('start')!;
+		if (has('end')) end = params.get('end')!;
+		if (has('reason')) reason = params.get('reason')!;
+		if (has('guide')) guideId = Number(params.get('guide')) || '';
+		if (has('email')) email = params.get('email')!;
+		let drafted: Partial<Row>[] = [];
+		try {
+			drafted = JSON.parse(params.get('students') ?? '[]');
+		} catch {
+			/* not a draft */
+		}
+		for (const d of drafted) {
+			const key = (d.name ?? '').trim().toLowerCase();
+			const row =
+				students.find((r) => r.name.trim().toLowerCase() === key) ??
+				students.find((r) => !r.name.trim());
+			const next: Row = {
+				name: d.name ?? row?.name ?? '',
+				register_no: d.register_no || row?.register_no || '',
+				section_id: d.section_id || row?.section_id || ''
+			};
+			if (row) Object.assign(row, next);
+			else if (students.length < (options?.max_students ?? 10)) students.push(next);
+		}
+	}
+	fill(page.url.searchParams);
+	let filled = page.url.search;
+	$effect(() => {
+		if (page.url.search === filled) return;
+		filled = page.url.search;
+		untrack(() => fill(page.url.searchParams));
+	});
 
 	let check = $state<StudentCheck | null>(null);
 	let checkError = $state('');
