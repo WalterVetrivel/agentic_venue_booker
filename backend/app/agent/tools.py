@@ -570,13 +570,12 @@ def _section(db: Session, text: str) -> ClassSection:
     )
     if section is None:
         known = db.scalars(
-            select(ClassSection).order_by(ClassSection.dept, ClassSection.year)
+            select(ClassSection).order_by(
+                ClassSection.dept, ClassSection.year, ClassSection.section
+            )
         ).all()
         listed = ", ".join(s.label for s in known) or "none yet"
-        raise ToolError(
-            f"No timetable has been committed for {dept} {year}-{sec}. "
-            f"Classes with timetables: {listed}."
-        )
+        raise ToolError(f"There is no class {dept} {year}-{sec}. The classes are: {listed}.")
     return section
 
 

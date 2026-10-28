@@ -80,8 +80,8 @@ def test_optional_times_keep_their_description():
     assert "HH:MM" in start["description"]
 
 
-def test_missing_timetable_lists_the_classes_that_have_one(db):
-    with pytest.raises(tools.ToolError, match="Classes with timetables"):
+def test_unknown_class_lists_the_classes(db):
+    with pytest.raises(tools.ToolError, match="There is no class"):
         tools.call(db, None, "get_timetable", {"section": "CSE III-B"})
 
 

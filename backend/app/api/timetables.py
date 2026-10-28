@@ -165,8 +165,12 @@ def list_sections(db: Session = Depends(get_db)) -> list[SectionOut]:
             select(TimetableSlot.section_id, func.count()).group_by(TimetableSlot.section_id)
         ).all()
     )
+    # Only classes that have had a timetable; the others exist so students can name them.
+    uploaded = select(TimetableUpload.section_id).where(TimetableUpload.section_id.is_not(None))
     sections = db.scalars(
-        select(ClassSection).order_by(ClassSection.dept, ClassSection.year, ClassSection.section)
+        select(ClassSection)
+        .where(ClassSection.id.in_(uploaded) | ClassSection.id.in_(counts))
+        .order_by(ClassSection.dept, ClassSection.year, ClassSection.section)
     ).all()
     return [
         SectionOut(

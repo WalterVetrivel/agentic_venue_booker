@@ -231,3 +231,25 @@ def test_assistant_tracks_a_request(client, db, session_factory, sections):
     assert [s["guide_decision"] for s in data["students"]] == ["pending", "pending"]
     with pytest.raises(tools.ToolError, match="No request"):
         tools.call(db, None, "track_student_booking", {"tracking_number": "ST-AAAA-BBBB"})
+
+
+def test_first_years_can_be_named_without_a_timetable(client, login, db, sections):
+    from app.services.timetables import get_or_create_section
+
+    get_or_create_section(db, "CSE", "III", "B", None)  # as committing a timetable does
+    db.commit()
+    labels = {s["label"] for s in client.get("/api/student/options").json()["sections"]}
+    assert {"CSE I-B", "CSE II-B", "CSE IV-B"} <= labels and "CSE I-A" not in labels
+
+    args = {"venue": "CC5", "date": DAY, "start": "14:00", "end": "16:00"}
+    result = tools.call(
+        db, None, "draft_student_booking", args | {"students": [{"name": "Arun", "class": "1 B"}]}
+    )
+    (student,) = json.loads(parse_qs(urlparse(result.card["href"]).query)["students"][0])
+    assert student["section_id"] == db.scalar(
+        select(ClassSection.id).where(ClassSection.year == "I", ClassSection.section == "B")
+    )
+
+    # The OA's timetable page still lists only the classes that have a timetable.
+    login("cseoa@kiot.ac.in")
+    assert client.get("/api/timetables/sections").json() == []
