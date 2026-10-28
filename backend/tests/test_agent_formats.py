@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import select
 
 from app.agent import tools
-from app.agent.formats import to_date, to_int, to_list, to_time
+from app.agent.formats import class_parts, to_date, to_int, to_list, to_time
 from app.models import User
 
 
@@ -124,3 +124,20 @@ def test_names_and_choices_are_read_loosely(db):
     assert result.card["action"]["body"] == {"status": "under_repair"}
     hits = tools.call(db, teacher, "search_past_events", {"query": "workshop", "year": 2024})
     assert hits is not None
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["CSE II-D", "II CSE D", "II CSE-D", "D-II-CSE", "2nd year CSE D", "cse 2d", "CSE IID", "II D"],
+)
+def test_classes_in_any_order(text):
+    assert class_parts(text, ["AI&DS", "CSBS", "CSE", "IT"]) == ("CSE", "II", "D")
+
+
+def test_class_departments_and_first_years():
+    depts = ["AI&DS", "CSBS", "CSE", "IT"]
+    assert class_parts("AIDS 3 B", depts) == ("AI&DS", "III", "B")
+    assert class_parts("first year IT section A", depts) == ("IT", "I", "A")
+    assert class_parts("CSBS IV-A", depts) == ("CSBS", "IV", "A")
+    with pytest.raises(ValueError, match="Which section"):
+        class_parts("CSE I-I", depts)

@@ -9,29 +9,53 @@
 	import { btnPrimary, btnSecondary, card, field, label } from '#lib/ui.ts';
 	import type { Booking, BookingCheck, Move, Venue } from '#lib/types.ts';
 
-	const params = page.url.searchParams;
-	const rescheduleId = params.get('reschedule');
+	const rescheduleId = page.url.searchParams.get('reschedule');
 
 	let venues = $state<Venue[]>([]);
 	let eventTypes = $state<string[]>([]);
 	let original = $state<Booking | null>(null);
 
-	// The assistant's drafts link here with the form filled in (and via=agent).
-	const fromAssistant = params.get('via') === 'agent';
+	let fromAssistant = $state(false);
 	// Which chat card the draft came from, so it can show as submitted.
-	const fromMessage = Number(params.get('from_msg')) || null;
-	const fromCard = Number(params.get('from_card') ?? -1);
-	let title = $state(params.get('title') ?? '');
-	let eventType = $state(params.get('type') ?? '');
-	let expected = $state<number | null>(Number(params.get('count')) || null);
-	let description = $state(params.get('description') ?? '');
-	let requirements = $state(params.get('requirements') ?? '');
-	let venue = $state(params.get('venue') ?? '');
-	let dateFrom = $state(params.get('date') ?? isoDate(new Date()));
-	let multiDay = $state(!!params.get('to'));
-	let dateTo = $state(params.get('to') ?? '');
-	let start = $state(params.get('start') ?? '10:00');
-	let end = $state(params.get('end') ?? '12:00');
+	let fromMessage = $state<number | null>(null);
+	let fromCard = $state(-1);
+	let title = $state('');
+	let eventType = $state('');
+	let expected = $state<number | null>(null);
+	let description = $state('');
+	let requirements = $state('');
+	let venue = $state('');
+	let dateFrom = $state(isoDate(new Date()));
+	let multiDay = $state(false);
+	let dateTo = $state('');
+	let start = $state('10:00');
+	let end = $state('12:00');
+
+	// The assistant's drafts link here with what it knows filled in (and via=agent). A later
+	// draft, after the person tells it a missing detail, fills in what it has and keeps the rest.
+	function fill(params: { get(key: string): string | null }) {
+		const has = (key: string) => !!params.get(key);
+		if (params.get('via') === 'agent') fromAssistant = true;
+		if (has('from_msg')) fromMessage = Number(params.get('from_msg'));
+		if (has('from_card')) fromCard = Number(params.get('from_card'));
+		if (has('title')) title = params.get('title')!;
+		if (has('type')) eventType = params.get('type')!;
+		if (has('count')) expected = Number(params.get('count')) || null;
+		if (has('description')) description = params.get('description')!;
+		if (has('requirements')) requirements = params.get('requirements')!;
+		if (has('venue')) venue = params.get('venue')!;
+		if (has('date')) dateFrom = params.get('date')!;
+		if (has('to')) [multiDay, dateTo] = [true, params.get('to')!];
+		if (has('start')) start = params.get('start')!;
+		if (has('end')) end = params.get('end')!;
+	}
+	fill(page.url.searchParams);
+	let filled = page.url.search;
+	$effect(() => {
+		if (page.url.search === filled) return;
+		filled = page.url.search;
+		untrack(() => fill(page.url.searchParams));
+	});
 
 	let check = $state<BookingCheck | null>(null);
 	let checkError = $state('');

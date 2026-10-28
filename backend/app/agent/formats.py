@@ -123,3 +123,38 @@ Words = Annotated[list[str], BeforeValidator(to_list)]
 def drop_empty(raw: dict) -> dict:
     """Optional arguments sent as "" or "null" mean "not given"."""
     return {k: v for k, v in raw.items() if not _empty(v)}
+
+
+YEARS = {"I": "I", "II": "II", "III": "III", "IV": "IV", "1": "I", "2": "II", "3": "III"}
+YEARS |= {"4": "IV", "1ST": "I", "2ND": "II", "3RD": "III", "4TH": "IV", "FIRST": "I"}
+YEARS |= {"SECOND": "II", "THIRD": "III", "FOURTH": "IV"}
+FILLER = {"YEAR", "YR", "SEC", "SECTION", "CLASS", "DEPT", "OF", "THE"}
+
+
+def class_parts(text: str, depts: list[str], default: str = "CSE") -> tuple[str, str, str]:
+    """Department, year and section from a class written in any order: "CSE II-D",
+    "II CSE D", "II CSE-D", "D-II-CSE", "2nd year CSE D", "cse 2d"."""
+    upper = text.upper()
+    dept = default
+    for d in sorted(depts, key=len, reverse=True):
+        # AI&DS also matches "AIDS" and "AI & DS"
+        letters = r"\W*".join(re.escape(c) for c in re.sub(r"[^A-Z0-9]", "", d.upper()))
+        if m := re.search(rf"(?<![A-Z]){letters}(?![A-Z]{{2}})", upper):
+            dept, upper = d, upper[: m.start()] + " " + upper[m.end() :]
+            break
+    tokens = []
+    for t in re.findall(r"[A-Z0-9]+", upper):
+        # "IID", "2D" and "DII" are a year and a section written together
+        if t not in YEARS and (
+            m := re.fullmatch(r"(IV|I{1,3}|[1-4])([A-HJ-Z])|([A-HJ-Z])(IV|I{1,3}|[1-4])", t)
+        ):
+            tokens += [m[1] or m[4], m[2] or m[3]]
+        elif t not in FILLER:
+            tokens.append(t)
+    years = [t for t in tokens if t in YEARS and t != "I"] or [t for t in tokens if t == "I"]
+    letters = [t for t in tokens if len(t) == 1 and t.isalpha() and t != "I"]
+    if not years:
+        raise ValueError(f"Which year is {text!r} in? Write it like 'CSE III-B'.")
+    if not letters:
+        raise ValueError(f"Which section is {text!r}? Write it like 'CSE III-B'.")
+    return dept, YEARS[years[0]], letters[0]

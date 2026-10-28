@@ -93,7 +93,7 @@ test('a visitor asks the assistant to draft a student request', async ({ page })
 	await chat.getByLabel('Message').press('Enter');
 	const draft = chat.locator('[data-card="draft"]');
 	await expect(draft.getByText('Draft student request')).toBeVisible();
-	await draft.getByRole('link', { name: 'Review & submit' }).click();
+	await draft.getByRole('link', { name: 'Finish on the form' }).click();
 	await expect(page.getByLabel('What will the group work on?')).toHaveValue('Mini project work');
 	await expect(page.getByLabel('Lab')).toHaveValue('CC6');
 });

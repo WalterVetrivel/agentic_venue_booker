@@ -146,6 +146,19 @@ def test_draft_booking_returns_a_card_and_books_nothing(db):
     assert db.scalar(select(Booking.id).order_by(Booking.id.desc())) == before
 
 
+def test_draft_booking_opens_the_form_with_partial_details(db):
+    args = {"venue": "DSH", "title": "Alumni talk", "date": DAY}
+    result = tools.call(db, user(db, "tkcse@kiot.ac.in"), "draft_booking", args)
+    query = parse_qs(urlparse(result.card["href"]).query)
+    assert query == {"venue": ["DSH"], "title": ["Alumni talk"], "date": [DAY], "via": ["agent"]}
+    assert result.data["outcome"] is None and result.card["button"] == "Finish on the form"
+    assert result.data["still_to_fill_in"] == [
+        "the start and end time",
+        "the event type",
+        "the expected number of people",
+    ]
+
+
 def test_draft_rejects_unknown_event_types(db):
     args = {
         "venue": "DSH",

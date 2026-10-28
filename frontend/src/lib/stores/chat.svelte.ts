@@ -1,3 +1,4 @@
+import { goto } from '$app/navigation';
 import { api, uploadFile } from '#lib/api.ts';
 import { session } from '#lib/stores/session.svelte.ts';
 import type {
@@ -205,8 +206,27 @@ class Chat {
 			reply.content = reply.content.trim();
 			this.busy = false;
 			this.controller = null;
+			this.refillOpenForm(reply);
 			if (session.user) this.loadConversations();
 		}
+	}
+
+	/** A draft's form link, tagged so the form can mark the card once it's submitted. */
+	draftHref(message: ChatMessage, index: number, href: string) {
+		if (!message.id) return href;
+		const url = new URL(href, window.location.origin);
+		url.searchParams.set('from_msg', String(message.id));
+		url.searchParams.set('from_card', String(index));
+		return url.pathname + url.search;
+	}
+
+	/** If the person is already on the form a new draft is for, fill it in straight away. */
+	private refillOpenForm(reply: ChatMessage) {
+		const index = reply.cards.findLastIndex((c) => c.kind === 'draft' && c.href);
+		if (index < 0) return;
+		const href = this.draftHref(reply, index, reply.cards[index].href!);
+		if (href.split('?')[0] === window.location.pathname)
+			goto(href, { replace: true, reset: false });
 	}
 
 	private apply(reply: ChatMessage, e: ChatEvent) {

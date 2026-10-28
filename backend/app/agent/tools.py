@@ -27,6 +27,7 @@ from app.agent.formats import (
     Day,
     Words,
     choice,
+    class_parts,
     closest,
     drop_empty,
 )
@@ -295,12 +296,12 @@ def _venue_brief(v: Venue) -> dict:
     return {"code": v.code, "name": v.name, "type": v.type, "capacity": v.capacity}
 
 
-def _request(a: "EventArgs", venue: str) -> booking_svc.BookingRequest:
+def _request(a: "EventArgs | DraftArgs", venue: str) -> booking_svc.BookingRequest:
     return booking_svc.BookingRequest(
         venue_code=venue,
         title=a.title or "Event",
         event_type=a.event_type or "Other",
-        expected_count=a.expected_count,
+        expected_count=a.expected_count or 1,
         date_from=a.date,
         date_to=a.date_to or a.date,
         start_time=a.start,
@@ -554,16 +555,14 @@ def get_timetable(db: Session, user: User | None, args: TimetableArgs) -> ToolRe
 
 
 def _section(db: Session, text: str) -> ClassSection:
-    m = re.search(
-        r"([A-Za-z&]+)?\s*\b(I{1,3}V?|IV|[1-4])\s*[- ]?\s*([A-Z])\b", text.strip().upper()
-    )
-    if not m:
-        raise ToolError(f"Couldn't read the class {text!r}; write it like 'CSE III-B'.")
-    roman = {"1": "I", "2": "II", "3": "III", "4": "IV"}
-    dept, year, sec = (m.group(1) or "CSE"), roman.get(m.group(2), m.group(2)), m.group(3)
+    depts = db.scalars(select(ClassSection.dept).distinct()).all()
+    try:
+        dept, year, sec = class_parts(text, list(depts))
+    except ValueError as e:
+        raise ToolError(str(e)) from e
     section = db.scalar(
         select(ClassSection).where(
-            func.upper(ClassSection.dept) == dept,
+            ClassSection.dept == dept,
             ClassSection.year == year,
             ClassSection.section == sec,
         )
@@ -765,64 +764,105 @@ def check_clashes(db: Session, user: User | None, args: ClashArgs) -> ToolResult
     )
 
 
-class DraftArgs(EventArgs):
-    venue: str
-    title: str = Field(min_length=3)
+class DraftArgs(Args):
+    venue: str | None = None
+    title: str | None = None
+    event_type: EventType | None = Field(
+        None, description=f"One of: {', '.join(booking_svc.EVENT_TYPES)}"
+    )
+    expected_count: Count | None = Field(None, ge=1)
+    date: Day | None = None
+    start: Clock | None = None
+    end: Clock | None = None
+    date_to: Day | None = Field(None, description="Last day, for an event over several days")
     description: str | None = None
     requirements: str | None = None
 
 
+def _when(day: date | None, start: time | None, end: time | None, last: date | None) -> str:
+    parts = [_day_text(day) if day else ""]
+    if start and end:
+        parts.append(f"{_hm(start)}–{_hm(end)}")
+    text = ", ".join(p for p in parts if p)
+    if day and last and last != day:
+        text += f" to {_day_text(last)}"
+    return text
+
+
 @tool(
     "draft_booking",
-    "Fill in the booking form for the user to review and submit. Nothing is booked until they "
-    "submit it themselves.",
+    "Open the booking form filled in with what you know so far, for the user to finish and "
+    "submit. Any detail can be left out: the user fills it in on the form or tells you, and you "
+    "draft again with everything. Nothing is booked until they submit it themselves.",
     label="Drafting the booking",
     kind="draft",
     any_of=("book",),
 )
 def draft_booking(db: Session, user: User | None, args: DraftArgs) -> ToolResult:
-    v = _venue(db, args.venue)
-    if args.event_type not in booking_svc.EVENT_TYPES:
+    v = _venue(db, args.venue) if args.venue else None
+    if args.event_type and args.event_type not in booking_svc.EVENT_TYPES:
         raise ToolError(f"event_type must be one of: {', '.join(booking_svc.EVENT_TYPES)}")
-    result = booking_svc.check_request(db, _request(args, v.code))
+    if args.start and args.end and args.end <= args.start:
+        raise ToolError("The end time must be after the start time.")
     params = {
-        "venue": v.code,
-        "date": str(args.date),
-        "start": _hm(args.start),
-        "end": _hm(args.end),
+        "venue": v.code if v else None,
+        "date": args.date and str(args.date),
+        "to": str(args.date_to) if args.date_to and args.date_to != args.date else None,
+        "start": args.start and _hm(args.start),
+        "end": args.end and _hm(args.end),
         "title": args.title,
         "type": args.event_type,
-        "count": str(args.expected_count),
+        "count": args.expected_count and str(args.expected_count),
+        "description": args.description,
+        "requirements": args.requirements,
         "via": "agent",
     }
-    if args.date_to and args.date_to != args.date:
-        params["to"] = str(args.date_to)
-    if args.description:
-        params["description"] = args.description
-    if args.requirements:
-        params["requirements"] = args.requirements
-    when = f"{_day_text(args.date)}, {_hm(args.start)}–{_hm(args.end)}"
-    if args.date_to and args.date_to != args.date:
-        when += f" to {_day_text(args.date_to)}"
-    outcome = {
-        "free": "Free",
-        "blocked": "Can't be booked then",
-        "waitlist": "Already booked: you can join the waitlist",
-        "displace": "A class uses it then: choose where it moves on the form",
-    }[result.outcome]
+    missing = [
+        label
+        for label, value in (
+            ("the venue", v),
+            ("the date", args.date),
+            ("the start and end time", args.start and args.end),
+            ("the event title", args.title),
+            ("the event type", args.event_type),
+            ("the expected number of people", args.expected_count),
+        )
+        if not value
+    ]
+    lines = [f"{v.code} · {v.name}"] if v else []
+    if when := _when(args.date, args.start, args.end, args.date_to):
+        lines.append(when)
+    if args.expected_count:
+        lines.append(f"{args.expected_count} expected")
+    outcome = None
+    if v and args.date and args.start and args.end:
+        result = booking_svc.check_request(db, _request(args, v.code))
+        outcome = result.outcome
+        lines.append(
+            {
+                "free": "Free",
+                "blocked": "Can't be booked then",
+                "waitlist": "Already booked: you can join the waitlist",
+                "displace": "A class uses it then: choose where it moves on the form",
+            }[outcome]
+        )
+        lines += [w.message for w in result.warnings]
+    if missing:
+        lines.append("Still to fill in: " + ", ".join(missing))
     card = {
         "kind": "draft",
-        "title": f"Draft booking: {args.title}",
-        "lines": [f"{v.code} · {v.name}", when, f"{args.expected_count} expected", outcome]
-        + [w.message for w in result.warnings],
-        "href": f"/book?{urlencode(params)}",
-        "button": "Review & submit",
+        "title": f"Draft booking: {args.title}" if args.title else "Draft booking",
+        "lines": lines,
+        "href": "/book?" + urlencode({k: val for k, val in params.items() if val}),
+        "button": "Finish on the form" if missing else "Review & submit",
     }
     return ToolResult(
         {
             "drafted": True,
-            "outcome": result.outcome,
-            "note": "The user reviews and submits the form.",
+            "outcome": outcome,
+            "still_to_fill_in": missing,
+            "note": "The user finishes the form and submits it. If they tell you a missing "
+            "detail, draft again with everything you know.",
         },
         card,
     )
@@ -889,15 +929,17 @@ def propose_cancel(db: Session, user: User | None, args: CancelArgs) -> ToolResu
 
 class StudentArg(Args):
     name: str = Field(min_length=2)
-    class_: str = Field(alias="class", description="Department, year and section, e.g. CSE III-B")
+    class_: str | None = Field(
+        None, alias="class", description="Department, year and section, e.g. CSE III-B"
+    )
     register_no: str | None = None
 
 
 class StudentDraftArgs(Args):
-    venue: str = Field(description="A lab or centre of excellence code, e.g. CC5 or COE1")
-    date: Day
-    start: Clock
-    end: Clock
+    venue: str | None = Field(None, description="A lab or centre of excellence code, e.g. CC5")
+    date: Day | None = None
+    start: Clock | None = None
+    end: Clock | None = None
     date_to: Day | None = Field(None, description="Last day, for work over several days")
     reason: str | None = Field(None, description="What the group will work on")
     guide: str | None = Field(None, description="The faculty guide's name")
@@ -921,94 +963,120 @@ def _guide(db: Session, text: str) -> User:
 
 @tool(
     "draft_student_booking",
-    "Fill in the student booking form (labs and centres of excellence only, never seminar "
-    "halls) for the group to review and submit. A request needs the reason, the faculty guide, "
-    "and each student's name and class; the form asks for anything left out. Nothing is "
-    "booked until they submit it.",
+    "Open the student booking form (labs and centres of excellence only, never seminar halls) "
+    "filled in with what you know so far, for the group to finish and submit. Any detail can be "
+    "left out: they fill it in on the form or tell you, and you draft again with everything. "
+    "A request needs the lab, date and time, the reason, the faculty guide, each student's name "
+    "and class, and a contact email. Nothing is booked until they submit it.",
     label="Drafting the student request",
     kind="draft",
     visitors=True,
 )
 def draft_student_booking(db: Session, user: User | None, args: StudentDraftArgs) -> ToolResult:
-    v = _venue(db, args.venue)
-    if v.type not in student_svc.STUDENT_VENUE_TYPES:
+    v = _venue(db, args.venue) if args.venue else None
+    if v and v.type not in student_svc.STUDENT_VENUE_TYPES:
         raise ToolError("Students can book labs and centres of excellence only, not halls.")
-    if args.end <= args.start:
+    if args.start and args.end and args.end <= args.start:
         raise ToolError("The end time must be after the start time.")
-    guide = _guide(db, args.guide) if args.guide else None
-    students = [(s, _section(db, s.class_)) for s in args.students or []]
-    req = student_svc.StudentRequest(
-        venue_code=v.code,
-        date_from=args.date,
-        date_to=args.date_to or args.date,
-        start_time=args.start,
-        end_time=args.end,
-        reason=args.reason or "",
-        guide_id=guide.id if guide else 0,
-        contact_email=args.contact_email or "",
-        students=[student_svc.StudentIn(s.name, sec.id, s.register_no) for s, sec in students],
-    )
-    try:
-        result = student_svc.check_student_request(db, req)
-    except booking_svc.BookingError as e:
-        raise ToolError(str(e)) from e
-    problem = student_svc.outcome_text(result)
+    problems = []  # details the form leaves blank for the group to fix
+    guide = None
+    if args.guide:
+        try:
+            guide = _guide(db, args.guide)
+        except ToolError as e:
+            problems.append(str(e))
+    students = []
+    for s in args.students or []:
+        section = None
+        if s.class_:
+            try:
+                section = _section(db, s.class_)
+            except ToolError as e:
+                problems.append(f"{s.name}: {e}")
+        students.append((s, section))
+    problem = None
+    alternatives = []
+    if v and args.date and args.start and args.end:
+        req = student_svc.StudentRequest(
+            venue_code=v.code,
+            date_from=args.date,
+            date_to=args.date_to or args.date,
+            start_time=args.start,
+            end_time=args.end,
+            reason="",
+            guide_id=0,
+            contact_email="",
+            students=[],
+        )
+        try:
+            result = student_svc.check_student_request(db, req)
+        except booking_svc.BookingError as e:
+            raise ToolError(str(e)) from e
+        problem = student_svc.outcome_text(result) or ""
+        alternatives = [a.code for a in result.alternatives]
     params = {
-        "venue": v.code,
-        "date": str(args.date),
-        "start": _hm(args.start),
-        "end": _hm(args.end),
-        "via": "agent",
-    }
-    if args.date_to and args.date_to != args.date:
-        params["to"] = str(args.date_to)
-    if args.reason:
-        params["reason"] = args.reason
-    if guide:
-        params["guide"] = str(guide.id)
-    if args.contact_email:
-        params["email"] = args.contact_email.strip()
-    if students:
-        params["students"] = json.dumps(
+        "venue": v.code if v else None,
+        "date": args.date and str(args.date),
+        "to": str(args.date_to) if args.date_to and args.date_to != args.date else None,
+        "start": args.start and _hm(args.start),
+        "end": args.end and _hm(args.end),
+        "reason": args.reason,
+        "guide": guide and str(guide.id),
+        "email": args.contact_email and args.contact_email.strip(),
+        "students": students
+        and json.dumps(
             [
-                {"name": s.name, "section_id": sec.id, "register_no": s.register_no}
+                {"name": s.name, "section_id": sec.id if sec else "", "register_no": s.register_no}
                 for s, sec in students
             ]
-        )
+        ),
+        "via": "agent",
+    }
     missing = [
         label
         for label, value in (
+            ("the lab", v),
+            ("the date", args.date),
+            ("the start and end time", args.start and args.end),
             ("the reason", args.reason),
             ("the faculty guide", guide),
             ("the students", students),
+            ("each student's class", all(sec for _, sec in students)),
             ("a contact email", args.contact_email),
         )
         if not value
     ]
-    when = f"{_day_text(args.date)}, {_hm(args.start)}–{_hm(args.end)}"
-    lines = [f"{v.code} · {v.name}", when]
+    lines = [f"{v.code} · {v.name}"] if v else []
+    if when := _when(args.date, args.start, args.end, args.date_to):
+        lines.append(when)
     if guide:
         lines.append(f"Faculty guide: {guide.name}")
     if students:
-        lines.append("Students: " + ", ".join(f"{s.name} ({sec.label})" for s, sec in students))
-    lines.append(problem or "Free")
+        lines.append(
+            "Students: "
+            + ", ".join(f"{s.name} ({sec.label})" if sec else s.name for s, sec in students)
+        )
+    if problem is not None:
+        lines.append(problem or "Free")
     if missing:
         lines.append("Still to fill in: " + ", ".join(missing))
     card = {
         "kind": "draft",
         "title": "Draft student request",
-        "lines": lines + [w.message for w in result.warnings],
-        "href": f"/book/student?{urlencode(params)}",
-        "button": "Review & submit",
+        "lines": lines,
+        "href": "/book/student?" + urlencode({k: val for k, val in params.items() if val}),
+        "button": "Finish on the form" if missing else "Review & submit",
     }
     return ToolResult(
         {
             "drafted": True,
-            "free": problem is None,
-            "problem": problem,
-            "alternatives": [a.code for a in result.alternatives],
+            "free": None if problem is None else not problem,
+            "problem": problem or None,
+            "alternatives": alternatives,
             "still_to_fill_in": missing,
-            "note": "The group reviews the form and submits it; they get a tracking number.",
+            "could_not_use": problems,
+            "note": "The group finishes the form and submits it to get a tracking number. If "
+            "they tell you a missing detail, draft again with everything you know.",
         },
         card,
     )

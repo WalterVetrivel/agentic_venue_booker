@@ -24,14 +24,6 @@
 		if (e.key === 'Escape') historyOpen = modelOpen = false;
 	}
 
-	/** A draft's form link, tagged so the form can mark the card once it's submitted. */
-	function draftHref(m: ChatMessage, ci: number, href: string) {
-		if (!m.id) return href;
-		const url = new URL(href, window.location.origin);
-		url.searchParams.set('from_msg', String(m.id));
-		url.searchParams.set('from_card', String(ci));
-		return url.pathname + url.search;
-	}
 	let draft = $state('');
 	let search = $state('');
 	let renaming = $state<number | null>(null);
@@ -365,7 +357,7 @@
 										{#if c.note}<p class="mt-1 text-sm text-muted">{c.note}</p>{/if}
 									{:else}
 										<a
-											href={draftHref(m, ci, c.href)}
+											href={chat.draftHref(m, ci, c.href)}
 											class="btn-cta mt-3 inline-block rounded-lg px-4 py-2 font-medium"
 											onclick={closeOnSmallScreens}>{c.button ?? 'Open'}</a
 										>

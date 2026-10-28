@@ -217,8 +217,33 @@ def test_assistant_drafts_a_student_request(db, sections):
 
     with pytest.raises(tools.ToolError, match="labs and centres"):
         tools.call(db, None, "draft_student_booking", args | {"venue": "CSEPGSH"})
-    with pytest.raises(tools.ToolError, match="Several faculty"):
-        tools.call(db, None, "draft_student_booking", args | {"guide": "Saranya"})
+    # A detail it can't use is left for the form, and the assistant is told why.
+    unclear = tools.call(db, None, "draft_student_booking", args | {"guide": "Saranya"})
+    assert "Several faculty" in unclear.data["could_not_use"][0]
+    assert "guide" not in parse_qs(urlparse(unclear.card["href"]).query)
+
+
+def test_assistant_opens_the_form_with_whatever_it_has(db, sections):
+    result = tools.call(
+        db,
+        None,
+        "draft_student_booking",
+        {"venue": "CC5", "students": [{"name": "Arun K"}, {"name": "Divya", "class": "B-III-cse"}]},
+    )
+    query = parse_qs(urlparse(result.card["href"]).query)
+    assert query["venue"] == ["CC5"] and "date" not in query
+    assert json.loads(query["students"][0]) == [
+        {"name": "Arun K", "section_id": "", "register_no": None},
+        {"name": "Divya", "section_id": sections["CSE III-B"], "register_no": None},
+    ]
+    assert result.data["free"] is None
+    missing = result.data["still_to_fill_in"]
+    assert missing[:3] == ["the date", "the start and end time", "the reason"]
+    assert "each student's class" in missing
+    assert result.card["button"] == "Finish on the form"
+
+    empty = tools.call(db, None, "draft_student_booking", {})
+    assert empty.card["href"] == "/book/student?via=agent"
 
 
 def test_assistant_tracks_a_request(client, db, session_factory, sections):
