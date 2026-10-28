@@ -37,6 +37,9 @@ Log in as `tkcse@kiot.ac.in`.
    similar yearly event is usually held then. **Submit request**.
 2. **My bookings** shows it waiting for the venue in-charge; the bell shows the notification.
 3. Try the same hall and time again: the form offers **Join the waitlist** instead.
+   Or start a form and press **Save as draft**: it waits under **My bookings › Drafts**. A
+   draft holds nothing, so if someone else books that slot first, its owner is notified and the
+   draft can only join the waitlist.
 4. 🤖 Ask: *"Book COE1 next Tuesday 10:00 to 12:00 for a Python workshop, 30 students."* A draft
    card opens the booking form already filled in; nothing is booked until you submit it.
 5. 🤖 Ask: *"Where were Gen-AI workshops held before?"* It searches the past circulars and
@@ -98,7 +101,7 @@ permissions, are then available in Claude Desktop.
 ## Checklist
 
 - [ ] Student: venue details, availability, 🤖 availability question
-- [ ] Faculty: booking, waitlist, 🤖 draft card, 🤖 past events search
+- [ ] Faculty: booking, waitlist, saved drafts, 🤖 draft card, 🤖 past events search
 - [ ] Class displacement with relocation or BYOD
 - [ ] In-charge approval with notes, HOD approval, waitlist offer after a cancellation
 - [ ] Equipment status, 🤖 proposal card

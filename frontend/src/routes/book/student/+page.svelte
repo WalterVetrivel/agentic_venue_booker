@@ -223,7 +223,9 @@
 			<span class="font-medium">Faculty member?</span> Log in to book any venue, including seminar halls,
 			for classes and events.
 		</p>
-		<a href="/login?next=/book" class="{btnPrimary} py-2 text-sm">Log in to book</a>
+		<a href="/login?next=/book" class="{btnPrimary} inline-flex items-center gap-2 py-2 text-sm"
+			><Icon name="login" size={16} /> Log in to book</a
+		>
 	</aside>
 
 	<form class="mt-6 space-y-6" onsubmit={submit}>

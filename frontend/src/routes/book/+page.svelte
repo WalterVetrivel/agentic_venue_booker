@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
+	import { goto, replaceState } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { api } from '#lib/api.ts';
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { chat } from '#lib/stores/chat.svelte.ts';
 	import { isoDate, prettyDate } from '#lib/time.ts';
 	import { btnPrimary, btnSecondary, card, field, label } from '#lib/ui.ts';
-	import type { Booking, BookingCheck, Move, Venue } from '#lib/types.ts';
+	import type { Booking, BookingCheck, BookingDraft, Move, Venue } from '#lib/types.ts';
 
 	const rescheduleId = page.url.searchParams.get('reschedule');
 
@@ -64,6 +64,13 @@
 	let submitError = $state('');
 	let submitting = $state(false);
 
+	// A saved, unsubmitted form. It holds nothing, so the slot can be taken meanwhile.
+	let draftId = $state<number | null>(Number(page.url.searchParams.get('draft')) || null);
+	let takenSinceSaved = $state(false);
+	let savingDraft = $state(false);
+	let draftNote = $state('');
+	let draftError = $state('');
+
 	$effect(() => {
 		if (!session.user) return;
 		untrack(async () => {
@@ -86,9 +93,65 @@
 				dateTo = multiDay ? last : '';
 				start = b.occurrences[0].start.slice(11, 16);
 				end = b.occurrences[0].end.slice(11, 16);
+			} else if (draftId) {
+				try {
+					loadDraft(await api<BookingDraft>(`/booking-drafts/${draftId}`));
+				} catch (e) {
+					draftId = null;
+					draftError = e instanceof Error ? e.message : 'Could not open the draft';
+				}
 			}
 		});
 	});
+
+	function loadDraft(d: BookingDraft) {
+		title = d.title;
+		eventType = d.event_type ?? '';
+		expected = d.expected_count;
+		description = d.description ?? '';
+		requirements = d.requirements ?? '';
+		venue = d.venue ?? '';
+		if (d.date_from) dateFrom = d.date_from;
+		multiDay = !!d.date_to && d.date_to !== d.date_from;
+		dateTo = multiDay ? d.date_to! : '';
+		if (d.start_time) start = d.start_time.slice(0, 5);
+		if (d.end_time) end = d.end_time.slice(0, 5);
+		takenSinceSaved = d.taken_since_saved;
+	}
+
+	async function saveDraft() {
+		savingDraft = true;
+		draftError = '';
+		try {
+			const d = await api<BookingDraft>(
+				draftId ? `/booking-drafts/${draftId}` : '/booking-drafts',
+				{
+					method: draftId ? 'PUT' : 'POST',
+					body: JSON.stringify({
+						venue: venue || null,
+						title,
+						event_type: eventType || null,
+						expected_count: expected || null,
+						date_from: dateFrom || null,
+						date_to: multiDay && dateTo ? dateTo : null,
+						start_time: start || null,
+						end_time: end || null,
+						description: description || null,
+						requirements: requirements || null
+					})
+				}
+			);
+			// Shallow: the form keeps what is on screen, and a reload reopens the draft.
+			if (!draftId) replaceState(`/book?draft=${d.id}`, {});
+			draftId = d.id;
+			takenSinceSaved = false;
+			draftNote = `Draft saved at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
+		} catch (e) {
+			draftError = e instanceof Error ? e.message : 'Could not save the draft';
+		} finally {
+			savingDraft = false;
+		}
+	}
 
 	function body() {
 		return {
@@ -166,7 +229,8 @@
 				body: JSON.stringify({
 					...body(),
 					join_waitlist: check?.outcome === 'waitlist',
-					reschedule_of: rescheduleId ? Number(rescheduleId) : null
+					reschedule_of: rescheduleId ? Number(rescheduleId) : null,
+					draft_id: draftId
 				})
 			});
 			if (fromMessage && fromCard >= 0)
@@ -299,6 +363,12 @@
 					{:else if check.outcome === 'waitlist'}
 						<div class="rounded-lg bg-warning/15 px-4 py-3">
 							<p class="font-medium">Already booked: {check.taken[0].label}</p>
+							{#if takenSinceSaved}
+								<p class="mt-1 text-sm font-medium" data-testid="taken-since-saved">
+									This slot was booked by someone else after you saved the draft, so it can only
+									join the waitlist now.
+								</p>
+							{/if}
 							<p class="mt-1 text-sm">
 								You can join the waitlist. If the slot frees up, you get 24 hours to confirm.
 							</p>
@@ -399,6 +469,17 @@
 						? 'Request the new time'
 						: 'Submit request'}
 			</button>
+			{#if !original}
+				<button type="button" class={btnSecondary} disabled={savingDraft} onclick={saveDraft}
+					>{draftId ? 'Save draft' : 'Save as draft'}</button
+				>
+			{/if}
+			{#if draftNote}
+				<span class="text-muted" role="status"
+					>{draftNote} <a class="text-accent underline" href="/bookings#drafts">My drafts</a></span
+				>
+			{/if}
+			{#if draftError}<span class="text-danger" role="alert">{draftError}</span>{/if}
 			{#if selected && expected && expected > selected.capacity}
 				<span class="text-danger">{selected.code} seats only {selected.capacity}.</span>
 			{/if}

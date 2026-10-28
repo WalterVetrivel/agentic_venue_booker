@@ -334,6 +334,31 @@ class BookingIn(BaseModel):
 class BookingSubmitIn(BookingIn):
     join_waitlist: bool = False
     reschedule_of: int | None = None
+    draft_id: int | None = None  # deleted once the booking is submitted
+
+
+class DraftIn(BaseModel):
+    """A booking form as it stands: anything may still be missing."""
+
+    venue: str | None = None
+    title: str = Field(default="", max_length=200)
+    event_type: str | None = None
+    expected_count: int | None = Field(default=None, ge=1, le=2000)
+    date_from: date | None = None
+    date_to: date | None = None
+    start_time: time | None = None
+    end_time: time | None = None
+    description: str | None = Field(default=None, max_length=4000)
+    requirements: str | None = Field(default=None, max_length=2000)
+
+
+class DraftOut(DraftIn):
+    id: int
+    venue_name: str | None = None
+    # free | waitlist | displace | blocked | incomplete | invalid, checked now
+    outcome: str
+    taken_since_saved: bool
+    updated_at: datetime
 
 
 class RelocationOptionOut(BaseModel):

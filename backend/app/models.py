@@ -331,6 +331,39 @@ class BookingStudent(Base):
     decided_by: Mapped[User | None] = relationship(lazy="joined")
 
 
+class BookingDraft(Base):
+    """A booking form saved without submitting. It holds nothing: if someone books the slot
+    meanwhile, the draft can only join the waitlist."""
+
+    __tablename__ = "booking_drafts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    venue_id: Mapped[int | None] = mapped_column(
+        ForeignKey("venues.id", ondelete="SET NULL"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(200), default="")
+    event_type: Mapped[str | None] = mapped_column(String(40))
+    expected_count: Mapped[int | None] = mapped_column(Integer)
+    description: Mapped[str | None] = mapped_column(Text)
+    requirements: Mapped[str | None] = mapped_column(Text)
+    date_from: Mapped[date | None] = mapped_column(Date)
+    date_to: Mapped[date | None] = mapped_column(Date)
+    start_time: Mapped[time | None] = mapped_column(Time)
+    end_time: Mapped[time | None] = mapped_column(Time)
+    # The slot check when it was last saved (free | waitlist | displace | blocked), so a slot
+    # taken since can be told apart from one that was already taken.
+    saved_outcome: Mapped[str | None] = mapped_column(String(20))
+    taken_notified: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+    user: Mapped[User] = relationship()
+    venue: Mapped[Venue | None] = relationship(lazy="joined")
+
+
 class BookingOccurrence(Base):
     __tablename__ = "booking_occurrences"
 

@@ -8,7 +8,7 @@ from app.api.availability import block_out, notice_out
 from app.api.outbox import send_mail_after
 from app.auth import get_current_user, get_via, require
 from app.db import get_db
-from app.models import Approval, Booking, Notification, User
+from app.models import Approval, Booking, BookingDraft, Notification, User
 from app.schemas import (
     ApprovalItemOut,
     ApprovalOut,
@@ -20,6 +20,8 @@ from app.schemas import (
     ClassClashOut,
     DecisionHistoryOut,
     DecisionIn,
+    DraftIn,
+    DraftOut,
     MoveOut,
     NotificationOut,
     OccurrenceOut,
@@ -29,6 +31,7 @@ from app.schemas import (
     VenueBrief,
 )
 from app.services import bookings as svc
+from app.services import drafts as draft_svc
 from app.services.access import can
 from app.services.availability import PENDING_STATUSES
 from app.services.timetables import slot_label
@@ -225,7 +228,97 @@ def create_booking(
         reschedule=parent,
         via=via,
     )
+    if body.draft_id and (d := db.get(BookingDraft, body.draft_id)) and d.user_id == user.id:
+        db.delete(d)
+        db.commit()
     return booking_out(db, b, user)
+
+
+# Drafts ----------------------------------------------------------------------------------------
+
+
+def draft_out(db: Session, d: BookingDraft) -> DraftOut:
+    now = draft_svc.outcome(db, d)
+    return DraftOut(
+        id=d.id,
+        venue=d.venue.code if d.venue else None,
+        venue_name=d.venue.name if d.venue else None,
+        title=d.title,
+        event_type=d.event_type,
+        expected_count=d.expected_count,
+        date_from=d.date_from,
+        date_to=d.date_to,
+        start_time=d.start_time,
+        end_time=d.end_time,
+        description=d.description,
+        requirements=d.requirements,
+        outcome=now,
+        taken_since_saved=draft_svc.taken_since_saved(d, now),
+        updated_at=d.updated_at,
+    )
+
+
+def my_draft(db: Session, user: User, draft_id: int) -> BookingDraft:
+    d = db.get(BookingDraft, draft_id)
+    if d is None or d.user_id != user.id:
+        raise HTTPException(404, "Draft not found")
+    return d
+
+
+def save_draft(db: Session, user: User, body: DraftIn, d: BookingDraft | None) -> DraftOut:
+    fields = draft_svc.DraftFields(**body.model_dump())
+    try:
+        d = draft_svc.save(db, user, fields, d)
+    except svc.BookingError as e:
+        raise HTTPException(e.status, str(e)) from e
+    db.commit()
+    db.refresh(d)
+    return draft_out(db, d)
+
+
+@router.get("/booking-drafts", response_model=list[DraftOut])
+def list_drafts(
+    db: Session = Depends(get_db), user: User = Depends(require("book"))
+) -> list[DraftOut]:
+    rows = db.scalars(
+        select(BookingDraft)
+        .where(BookingDraft.user_id == user.id)
+        .order_by(BookingDraft.updated_at.desc(), BookingDraft.id.desc())
+    ).all()
+    return [draft_out(db, d) for d in rows]
+
+
+@router.post("/booking-drafts", response_model=DraftOut, status_code=201)
+def create_draft(
+    body: DraftIn, db: Session = Depends(get_db), user: User = Depends(require("book"))
+) -> DraftOut:
+    return save_draft(db, user, body, None)
+
+
+@router.get("/booking-drafts/{draft_id}", response_model=DraftOut)
+def get_draft(
+    draft_id: int, db: Session = Depends(get_db), user: User = Depends(require("book"))
+) -> DraftOut:
+    return draft_out(db, my_draft(db, user, draft_id))
+
+
+@router.put("/booking-drafts/{draft_id}", response_model=DraftOut)
+def update_draft(
+    draft_id: int,
+    body: DraftIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(require("book")),
+) -> DraftOut:
+    return save_draft(db, user, body, my_draft(db, user, draft_id))
+
+
+@router.delete("/booking-drafts/{draft_id}", status_code=204)
+def delete_draft(
+    draft_id: int, db: Session = Depends(get_db), user: User = Depends(require("book"))
+) -> Response:
+    db.delete(my_draft(db, user, draft_id))
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/bookings/mine", response_model=list[BookingOut], dependencies=[Depends(housekeeping)])

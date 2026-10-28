@@ -237,6 +237,26 @@ export type Move = {
 	venue_code?: string | null;
 };
 
+/** A booking form saved without submitting; anything may still be missing. */
+export type BookingDraft = {
+	id: number;
+	venue: string | null;
+	venue_name: string | null;
+	title: string;
+	event_type: string | null;
+	expected_count: number | null;
+	date_from: string | null;
+	date_to: string | null;
+	start_time: string | null;
+	end_time: string | null;
+	description: string | null;
+	requirements: string | null;
+	/** Checked now: free | waitlist | displace | blocked | incomplete | invalid */
+	outcome: string;
+	taken_since_saved: boolean;
+	updated_at: string;
+};
+
 export type Booking = {
 	id: number;
 	ref: string;

@@ -60,7 +60,11 @@
 			<Notifications />
 			<UserMenu />
 		{:else if session.loaded}
-			<a href="/login" class="btn-cta rounded-lg px-4 py-2 font-medium">Staff login</a>
+			<a
+				href="/login"
+				class="btn-cta inline-flex items-center gap-2 rounded-lg px-4 py-2 font-medium"
+				><Icon name="login" size={18} /> Staff login</a
+			>
 		{/if}
 	</div>
 </header>

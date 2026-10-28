@@ -7,12 +7,13 @@
 	import ViewToggle, { savedView } from '#lib/components/ViewToggle.svelte';
 
 	import { session } from '#lib/stores/session.svelte.ts';
-	import { nowLocal, whenText } from '#lib/time.ts';
-	import { btnPrimary, card } from '#lib/ui.ts';
-	import type { Booking } from '#lib/types.ts';
+	import { nowLocal, prettyDate, whenText } from '#lib/time.ts';
+	import { btnPrimary, btnSecondary, card } from '#lib/ui.ts';
+	import type { Booking, BookingDraft } from '#lib/types.ts';
 
 	let bookings = $state<Booking[] | null>(null);
 	let guiding = $state<Booking[]>([]);
+	let drafts = $state<BookingDraft[]>([]);
 	let error = $state('');
 	let layout = $state(savedView('bookings', ['cards', 'table'] as const, 'cards'));
 
@@ -24,13 +25,53 @@
 
 	$effect(() => {
 		if (session.user)
-			Promise.all([api<Booking[]>('/bookings/mine'), api<Booking[]>('/bookings/guiding')])
-				.then(([mine, guided]) => {
+			Promise.all([
+				api<Booking[]>('/bookings/mine'),
+				api<Booking[]>('/bookings/guiding'),
+				session.can('book') ? api<BookingDraft[]>('/booking-drafts') : []
+			])
+				.then(([mine, guided, saved]) => {
 					bookings = mine;
 					guiding = guided;
+					drafts = saved;
 				})
 				.catch((e) => (error = e.message));
 	});
+
+	function draftWhen(d: BookingDraft) {
+		if (!d.date_from) return 'No date yet';
+		const day = prettyDate(d.date_from);
+		const time =
+			d.start_time && d.end_time ? `, ${d.start_time.slice(0, 5)}–${d.end_time.slice(0, 5)}` : '';
+		return (
+			day + time + (d.date_to && d.date_to !== d.date_from ? ` to ${prettyDate(d.date_to)}` : '')
+		);
+	}
+
+	function draftState(d: BookingDraft): [string, string] {
+		if (d.taken_since_saved)
+			return [
+				'Booked by someone else since you saved it: it can only join the waitlist',
+				'text-warning'
+			];
+		return (
+			(
+				{
+					free: ['Free: ready to submit', 'text-success'],
+					waitlist: ['Already booked: it can only join the waitlist', 'text-warning'],
+					displace: ['A class uses the venue then: choose where it moves', 'text-warning'],
+					blocked: ["The venue can't be booked then", 'text-danger'],
+					invalid: ['Check the dates and times', 'text-danger']
+				} as Record<string, [string, string]>
+			)[d.outcome] ?? ['Not finished: add the venue, date and time', 'text-muted']
+		);
+	}
+
+	async function deleteDraft(d: BookingDraft) {
+		if (!confirm(`Delete the draft “${d.title || 'Untitled'}”?`)) return;
+		await api(`/booking-drafts/${d.id}`, { method: 'DELETE' });
+		drafts = drafts.filter((x) => x.id !== d.id);
+	}
 
 	const ACTIVE = [
 		'pending_guide',
@@ -72,6 +113,39 @@
 {:else if error}
 	<p class="mt-6 text-danger">{error}</p>
 {:else}
+	{#if drafts.length}
+		<section class="mt-8" id="drafts">
+			<h2 class="text-lg font-semibold">Drafts ({drafts.length})</h2>
+			<p class="mt-1 text-sm text-muted">
+				Saved but not submitted. A draft doesn't hold the venue: someone else can book it meanwhile.
+			</p>
+			<ul class="mt-3 space-y-3">
+				{#each drafts as d (d.id)}
+					{@const [state, tone] = draftState(d)}
+					<li class="glass rounded-2xl border border-border p-5" data-testid="draft">
+						<div class="flex flex-wrap items-start justify-between gap-3">
+							<div>
+								<p class="text-lg font-semibold">{d.title || 'Untitled draft'}</p>
+								<p class="mt-1 text-muted">
+									{d.venue ?? 'No venue yet'} · {draftWhen(d)}
+								</p>
+								<p class="mt-1 text-sm font-medium {tone}">{state}</p>
+							</div>
+							<div class="flex gap-2">
+								<a href="/book?draft={d.id}" class={btnPrimary}>Open</a>
+								<button
+									type="button"
+									class={btnSecondary}
+									aria-label="Delete draft {d.title || 'Untitled'}"
+									onclick={() => deleteDraft(d)}>Delete</button
+								>
+							</div>
+						</div>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 	{#if guiding.length}
 		<section class="mt-8">
 			<h2 class="text-lg font-semibold">Student requests I'm guiding ({guiding.length})</h2>
