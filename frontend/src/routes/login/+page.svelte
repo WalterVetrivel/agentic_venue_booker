@@ -1,11 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { session } from '#lib/stores/session.svelte.ts';
 
 	let email = $state('');
 	let password = $state('');
 	let error = $state('');
 	let busy = $state(false);
+	// Where to go after logging in, e.g. back to the booking form. Only paths on this site.
+	const raw = page.url.searchParams.get('next') ?? '/';
+	const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
@@ -13,7 +17,7 @@
 		busy = true;
 		try {
 			await session.login(email, password);
-			goto('/');
+			goto(next);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Login failed';
 		} finally {

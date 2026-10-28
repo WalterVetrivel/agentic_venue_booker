@@ -116,3 +116,11 @@ def login(client):
 @pytest.fixture
 def docs_login(docs_client):
     return _login_with(docs_client)
+
+
+@pytest.fixture
+def rate_limits(monkeypatch):
+    """Our own visitor limits are off by default (RATE_LIMITS); tests of them turn them on."""
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "rate_limits", True)

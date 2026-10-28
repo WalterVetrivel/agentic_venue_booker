@@ -172,7 +172,14 @@
 				>request a lab for group work</a
 			>, no login needed.
 		</p>
-		<p class="mt-2 text-muted">Staff: log in as a faculty member to book a venue.</p>
+		<p class="mt-2">
+			Faculty and staff:
+			<a
+				class="font-medium text-accent underline"
+				href="/login?next={encodeURIComponent(page.url.pathname + page.url.search)}"
+				>log in to book a venue</a
+			>. You'll come back here{page.url.search ? ' with the details filled in' : ''}.
+		</p>
 	</div>
 {:else}
 	<p class="mt-2 text-muted">

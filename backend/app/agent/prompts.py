@@ -29,6 +29,9 @@ Rules:
 """
 
 
+LOGIN_LINK = "[Log in](/login?next=/book)"
+
+
 def system_prompt(db: Session, user: User | None, *, short: bool = False) -> str:
     today = date.today()
     lines = [
@@ -47,7 +50,11 @@ def system_prompt(db: Session, user: User | None, *, short: bool = False) -> str
             "on, their faculty guide, each student's name and class (e.g. CSE III-B) and one "
             "contact email; ask for what's missing. Requests go to the faculty guide, then the "
             "venue in-charge, then the HOD. To check a request, call track_student_booking "
-            "with the tracking number they give; never guess at other requests."
+            "with the tracking number they give; never guess at other requests. "
+            "If they say they are faculty or staff (a teacher, professor, HOD, in-charge), or "
+            "want something only staff can do (book a seminar hall or an event, approve, cancel "
+            "a booking, see their bookings), don't draft a student request: tell them to log in "
+            f"first with this link: {LOGIN_LINK}. They come back to the booking form after."
         )
     else:
         roles = ", ".join(ROLES.get(k, k) for k in user.role_keys) or "staff"

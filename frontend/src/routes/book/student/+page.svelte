@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { api } from '#lib/api.ts';
+	import Icon from '#lib/components/Icon.svelte';
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { chat } from '#lib/stores/chat.svelte.ts';
 	import { addDays, isoDate, prettyDate } from '#lib/time.ts';
@@ -188,6 +189,17 @@
 		No login needed. Labs and centres of excellence only. Your faculty guide approves each student
 		first, then the venue in-charge and the HOD. You get a tracking number to follow it.
 	</p>
+	<aside
+		class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-accent/30 bg-accent-soft px-4 py-3"
+		aria-label="For faculty and staff"
+	>
+		<Icon name="users" size={18} class="text-accent" />
+		<p class="flex-1">
+			<span class="font-medium">Faculty member?</span> Log in to book any venue, including seminar halls,
+			for classes and events.
+		</p>
+		<a href="/login?next=/book" class="{btnPrimary} py-2 text-sm">Log in to book</a>
+	</aside>
 
 	<form class="mt-6 space-y-6" onsubmit={submit}>
 		<section class="{card} grid gap-4 sm:grid-cols-2">

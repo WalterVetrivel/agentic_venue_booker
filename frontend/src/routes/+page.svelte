@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import Icon from '#lib/components/Icon.svelte';
 	import StatusBadge from '#lib/components/StatusBadge.svelte';
 	import { api } from '#lib/api.ts';
@@ -6,9 +7,16 @@
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { APPROVER_CAPABILITIES, visibleNav } from '#lib/nav.ts';
 	import { nowLocal, whenText } from '#lib/time.ts';
-	import { btnPrimary, btnSecondary, panel } from '#lib/ui.ts';
+	import { btnPrimary, btnSecondary, field, panel } from '#lib/ui.ts';
 	import { STATUS_LABELS } from '#lib/types.ts';
 	import type { ApprovalItem, Booking } from '#lib/types.ts';
+
+	// Visitors track a student request straight from the home page, like a courier tracker.
+	let trackingCode = $state('');
+	function track(e: SubmitEvent) {
+		e.preventDefault();
+		if (trackingCode.trim()) goto(`/track?code=${encodeURIComponent(trackingCode.trim())}`);
+	}
 
 	const SHOWN = 5;
 	const ACTIVE = [
@@ -136,12 +144,53 @@
 			<a href="/book" class="{btnPrimary} inline-flex items-center gap-2"
 				><Icon name="plus" size={18} /> Book a venue</a
 			>
+		{:else if !session.user}
+			<a href="/book/student" class="{btnPrimary} inline-flex items-center gap-2"
+				><Icon name="plus" size={18} /> Book a lab</a
+			>
 		{/if}
 		<a href="/availability" class="{btnSecondary} inline-flex items-center gap-2"
 			><Icon name="calendar" size={18} /> Check availability</a
 		>
 	</div>
+	{#if !session.user}
+		<p class="mt-4 text-sm text-muted">
+			Faculty and staff: <a class="font-medium text-accent underline" href="/login?next=/book"
+				>log in to book</a
+			> seminar halls and events.
+		</p>
+	{/if}
 </section>
+
+{#if !session.user}
+	<section class="{panel} rise mt-6 p-5 sm:p-6" style="--i: 1" aria-labelledby="track-h">
+		<h2 id="track-h" class="flex items-center gap-2 text-lg font-semibold">
+			<span class="rounded-lg bg-accent-soft p-1.5 text-accent"
+				><Icon name="clock" size={18} /></span
+			>
+			Track a request
+		</h2>
+		<p class="mt-1 text-muted">Enter the tracking number you got when you sent a request.</p>
+		<form
+			class="mt-4 flex flex-wrap gap-3"
+			onsubmit={track}
+			role="search"
+			aria-label="Track a request"
+		>
+			<label for="home-track" class="sr-only">Tracking number</label>
+			<input
+				id="home-track"
+				bind:value={trackingCode}
+				required
+				placeholder="e.g. ST-7K2Q-M9XD"
+				autocomplete="off"
+				spellcheck="false"
+				class="{field} min-w-0 flex-1 font-mono uppercase sm:max-w-sm"
+			/>
+			<button class="{btnPrimary} inline-flex items-center gap-2">Track</button>
+		</form>
+	</section>
+{/if}
 
 {#if session.user && (canBook || canApprove)}
 	<div

@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.agent import runtime
 from app.agent.llm import LLMError, make_llm, ollama_models
 from app.agent.settings import llm_settings
+from app.api import limits
 from app.auth import get_current_user, require, user_from_request
 from app.config import get_settings
 from app.db import get_db, session_for
@@ -82,7 +83,7 @@ async def chat(body: ChatIn, request: Request) -> StreamingResponse:
     """Answer one message. The reply streams as `data: {json}` events (see app.agent.runtime)."""
     with session_for(request.app) as db:
         user = user_from_request(request, db)
-    if user is None:
+    if user is None and limits.enabled():
         ip = request.client.host if request.client else "?"
         if not _visitor_allowed(ip):
             raise HTTPException(429, "Too many questions for now. Try again in a few minutes.")

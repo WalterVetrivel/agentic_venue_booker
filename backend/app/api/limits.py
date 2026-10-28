@@ -5,6 +5,13 @@ from collections import defaultdict, deque
 
 from fastapi import HTTPException, Request
 
+from app.config import get_settings
+
+
+def enabled() -> bool:
+    """RATE_LIMITS in backend/.env; off by default for demos."""
+    return get_settings().rate_limits
+
 
 class Window:
     """At most `limit` events per key in any `seconds`-long window."""
@@ -27,7 +34,7 @@ class Window:
         return True
 
     def check(self, request: Request) -> None:
-        if not self.allow(request.client.host if request.client else "?"):
+        if enabled() and not self.allow(request.client.host if request.client else "?"):
             raise HTTPException(429, self.message)
 
     @classmethod
