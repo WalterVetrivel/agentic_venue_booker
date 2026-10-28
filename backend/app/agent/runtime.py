@@ -10,13 +10,14 @@
 """
 
 import json
+import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
 from app.agent import tools as registry
-from app.agent.llm import LLM, LLMError, Reply, tool_specs
+from app.agent.llm import LLM, LLMError, Reply, tool_call_in_text, tool_specs
 from app.agent.prompts import system_prompt
 from app.models import User
 
@@ -45,6 +46,15 @@ def build_messages(
     return messages
 
 
+def _may_be_json(start: str) -> bool:
+    return (
+        not start
+        or start[0] == "{"
+        or bool(re.match(r"```(json)?\s*(\{|$)", start))
+        or "```json".startswith(start)
+    )
+
+
 async def run(
     db: Session, user: User | None, llm: LLM, messages: list[dict], outcome: Outcome | None = None
 ) -> AsyncIterator[dict]:
@@ -56,11 +66,24 @@ async def run(
         for step in range(MAX_STEPS + 1):
             last = step == MAX_STEPS  # out of steps: answer with what we have
             reply = Reply()
+            # A reply that opens with JSON may be a tool call written out as text: hold it back
+            # until the end rather than show it.
+            held: list[str] | None = []
             async for item in llm.stream(messages, [] if last else specs):
                 if isinstance(item, Reply):
                     reply = item
-                else:
+                elif held is None:
                     yield {"type": "text", "text": item}
+                else:
+                    held.append(item)
+                    if not _may_be_json("".join(held).lstrip()):
+                        yield {"type": "text", "text": "".join(held)}
+                        held = None
+            found = None if reply.tool_calls or last else tool_call_in_text(reply.text, specs)
+            if found:
+                reply = Reply(found[1], [found[0]])
+            if held and reply.text:
+                yield {"type": "text", "text": reply.text}
             if reply.text:
                 texts.append(reply.text)
             if not reply.tool_calls or last:

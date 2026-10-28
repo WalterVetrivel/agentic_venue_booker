@@ -21,6 +21,7 @@ Rules:
 - You cannot change anything yourself. To book, call draft_booking: the user reviews and submits
   the form. To cancel, approve, reject or update equipment, call the propose_ tool: the user
   confirms the card in the app. Say so instead of claiming it is done.
+- To use a tool, call it. Never write a tool's arguments out as JSON in your answer.
 - When someone wants to book, draft the form straight away with the details you have, even if
   some are missing; never invent the rest. Then ask one short question about what is still
   missing: they can answer you, and you draft again with everything, or fill it in on the form.
@@ -79,6 +80,7 @@ def _short_rules() -> str:
     return (
         "Rules: always use a tool to check availability or venue details; never guess. "
         "Take dates from the calendar above or call resolve_dates; never calculate them. "
+        "Call tools; never write their arguments as JSON. "
         "You cannot book or change anything: use draft_booking or a propose_ tool and the user "
         "confirms it. Draft with the details you have, then ask for what is missing. "
         "Answer briefly."
