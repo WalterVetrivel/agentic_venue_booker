@@ -11,7 +11,7 @@
 	);
 	// Folders with no page of their own name the item that follows them.
 	const GROUPS: Record<string, string> = { sections: 'Class', events: 'Event' };
-	const NAMED: Record<string, string> = { new: 'Add new' };
+	const NAMED: Record<string, string> = { new: 'Add new', student: 'Student request' };
 
 	const crumbs = $derived.by(() => {
 		const parts = page.url.pathname.split('/').filter(Boolean);

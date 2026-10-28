@@ -28,7 +28,20 @@ class Settings(BaseSettings):
     embeddings: str = "ollama"
     embed_model: str = "nomic-embed-text"
 
+    # Email for student requests. With no SMTP host, emails are saved to `outbox_dir` instead.
+    # The Director can also set these on the Settings page.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    # Links in emails point here (the address students open the app at).
+    public_url: str = "http://localhost:5173"
+    # Only accept student contact emails on this domain, e.g. "kiot.ac.in". Empty accepts any.
+    student_email_domain: str = ""
+
     upload_dir: Path = BACKEND_DIR / "storage" / "uploads"
+    outbox_dir: Path = BACKEND_DIR / "storage" / "outbox"
     mock_data_dir: Path = REPO_DIR / "data" / "mock"
     frontend_build_dir: Path = REPO_DIR / "frontend" / "build"
 

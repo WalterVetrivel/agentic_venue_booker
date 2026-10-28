@@ -229,7 +229,9 @@ class Booking(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     ref: Mapped[str] = mapped_column(String(20), unique=True)  # e.g. BK-2026-0007
-    requester_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # Empty for a student request (students have no login).
+    requester_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(10), default="staff")  # staff | student
     venue_id: Mapped[int] = mapped_column(ForeignKey("venues.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(200))
     event_type: Mapped[str] = mapped_column(String(40))
@@ -239,20 +241,32 @@ class Booking(Base):
     # Overall span; the bookable time on each day is in `occurrences`.
     start_dt: Mapped[datetime] = mapped_column(DateTime, index=True)
     end_dt: Mapped[datetime] = mapped_column(DateTime, index=True)
-    # pending_incharge | pending_hod | confirmed | rejected | cancelled
+    # pending_guide | pending_incharge | pending_hod | confirmed | rejected | cancelled
     # | waitlisted | offered | expired
     status: Mapped[str] = mapped_column(String(20), index=True)
     created_via: Mapped[str] = mapped_column(String(10), default="form")  # form | assistant
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("bookings.id", ondelete="SET NULL"))
     cancel_reason: Mapped[str | None] = mapped_column(Text)
     offer_expires_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # Student requests: the faculty guide who approves first, the number the group tracks the
+    # request by, and the one address that gets email updates.
+    guide_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    tracking_code: Mapped[str | None] = mapped_column(String(20), unique=True, index=True)
+    contact_email: Mapped[str | None] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
 
-    requester: Mapped[User] = relationship(lazy="joined")
+    requester: Mapped[User | None] = relationship(foreign_keys=[requester_id], lazy="joined")
+    guide: Mapped[User | None] = relationship(foreign_keys=[guide_id], lazy="joined")
     venue: Mapped[Venue] = relationship(lazy="joined")
+    students: Mapped[list["BookingStudent"]] = relationship(
+        back_populates="booking",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="BookingStudent.id",
+    )
     occurrences: Mapped[list["BookingOccurrence"]] = relationship(
         back_populates="booking",
         cascade="all, delete-orphan",
@@ -273,6 +287,49 @@ class Booking(Base):
     def needs_displacement(self) -> bool:
         return bool(self.displacements)
 
+    @property
+    def is_student(self) -> bool:
+        return self.kind == "student"
+
+    @property
+    def requester_name(self) -> str:
+        if self.requester is not None:
+            return self.requester.name
+        names = [s.name for s in self.students if s.decision != "rejected"] or [
+            s.name for s in self.students
+        ]
+        shown = ", ".join(names[:2]) + (f" +{len(names) - 2}" if len(names) > 2 else "")
+        return f"Student group ({shown})" if shown else "Student group"
+
+
+class BookingStudent(Base):
+    """One student in a student request; the faculty guide approves or rejects each one."""
+
+    __tablename__ = "booking_students"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    booking_id: Mapped[int] = mapped_column(
+        ForeignKey("bookings.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(120))
+    register_no: Mapped[str | None] = mapped_column(String(30))
+    section_id: Mapped[int | None] = mapped_column(
+        ForeignKey("class_sections.id", ondelete="SET NULL")
+    )
+    # e.g. "CSE III-B"; kept if the section is removed later
+    class_label: Mapped[str] = mapped_column(String(40))
+    # pending | approved | rejected
+    decision: Mapped[str] = mapped_column(String(10), default="pending")
+    comment: Mapped[str | None] = mapped_column(Text)
+    decided_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # The class advisor has been told this student's final outcome (approved or rejected).
+    advisor_told: Mapped[str | None] = mapped_column(String(10))
+
+    booking: Mapped[Booking] = relationship(back_populates="students")
+    section: Mapped[ClassSection | None] = relationship(lazy="joined")
+    decided_by: Mapped[User | None] = relationship(lazy="joined")
+
 
 class BookingOccurrence(Base):
     __tablename__ = "booking_occurrences"
@@ -290,7 +347,7 @@ class Approval(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     booking_id: Mapped[int] = mapped_column(ForeignKey("bookings.id", ondelete="CASCADE"))
-    step: Mapped[str] = mapped_column(String(20))  # incharge | hod
+    step: Mapped[str] = mapped_column(String(20))  # guide | incharge | hod
     approver_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     decision: Mapped[str] = mapped_column(String(10))  # approved | rejected
     comment: Mapped[str | None] = mapped_column(Text)
@@ -331,6 +388,23 @@ class Notification(Base):
     link: Mapped[str | None] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     read_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class OutboxEmail(Base):
+    """An email to send (students have no login, so their updates go by email)."""
+
+    __tablename__ = "outbox_emails"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    to: Mapped[str] = mapped_column(String(120), index=True)
+    subject: Mapped[str] = mapped_column(String(200))
+    body: Mapped[str] = mapped_column(Text)
+    booking_id: Mapped[int | None] = mapped_column(ForeignKey("bookings.id", ondelete="SET NULL"))
+    # queued | sent | failed | saved (no mail server set up: written to storage/outbox instead)
+    status: Mapped[str] = mapped_column(String(10), default="queued", index=True)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
 # Circulars, reports and past events (RAG) -------------------------------------------------------

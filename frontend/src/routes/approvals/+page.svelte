@@ -6,6 +6,8 @@
 	import StatusBadge from '#lib/components/StatusBadge.svelte';
 	import RecordTable from '#lib/components/RecordTable.svelte';
 	import ViewToggle, { savedView } from '#lib/components/ViewToggle.svelte';
+	import StudentDecisions from '#lib/components/StudentDecisions.svelte';
+	import { STATUS_LABELS } from '#lib/types.ts';
 	import type { ApprovalItem, Booking, DecisionHistory } from '#lib/types.ts';
 
 	let items = $state<ApprovalItem[] | null>(null);
@@ -38,8 +40,7 @@
 				method: 'POST',
 				body: JSON.stringify({ comment: comments[b.id] || null })
 			});
-			done = [{ ref: res.ref, title: res.title, status: res.status }, ...done];
-			await load();
+			await decided(res);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Could not save';
 		} finally {
@@ -47,7 +48,16 @@
 		}
 	}
 
-	const STEP: Record<string, string> = { incharge: 'as venue in-charge', hod: 'as HOD' };
+	async function decided(res: Booking) {
+		done = [{ ref: res.ref, title: res.title, status: res.status }, ...done];
+		await load();
+	}
+
+	const STEP: Record<string, string> = {
+		guide: 'as faculty guide',
+		incharge: 'as venue in-charge',
+		hod: 'as HOD'
+	};
 </script>
 
 <div class="flex flex-wrap items-center justify-between gap-3">
@@ -79,7 +89,7 @@
 						? 'rejected'
 						: d.status === 'confirmed'
 							? 'approved and confirmed'
-							: 'approved, now waiting for the HOD'}.
+							: `approved, now ${(STATUS_LABELS[d.status] ?? d.status).toLowerCase()}`}.
 				</li>
 			{/each}
 		</ul>
@@ -132,6 +142,19 @@
 						· {b.expected_count} people
 					</p>
 					{#if b.requirements}<p class="mt-1 text-muted">Needs: {b.requirements}</p>{/if}
+					{#if b.kind === 'student'}
+						<p class="mt-1">
+							<span class="font-medium">Student group</span> under {b.guide}: {b.description}
+						</p>
+						{#if item.step !== 'guide'}
+							<p class="mt-1 text-muted">
+								Approved by the guide: {b.students
+									.filter((s) => s.decision === 'approved')
+									.map((s) => `${s.name} (${s.class_label})`)
+									.join(', ')}
+							</p>
+						{/if}
+					{/if}
 
 					<div class="mt-4 rounded-lg bg-surface-2 p-4">
 						<p class="font-medium">Things to check</p>
@@ -140,20 +163,26 @@
 						</ul>
 					</div>
 
-					<label class="mt-4 block">
-						<span class="mb-1.5 block font-medium">Comment (needed to reject)</span>
-						<input bind:value={comments[b.id]} class={field} />
-					</label>
-					<div class="mt-3 flex flex-wrap gap-3">
-						<button class={btnPrimary} disabled={busy === b.id} onclick={() => decide(b, 'approve')}
-							>Approve {b.ref}</button
-						>
-						<button
-							class="{btnSecondary} text-danger"
-							disabled={busy === b.id || !comments[b.id]?.trim()}
-							onclick={() => decide(b, 'reject')}>Reject</button
-						>
-					</div>
+					{#if item.step === 'guide'}
+						<StudentDecisions booking={b} ondone={decided} />
+					{:else}
+						<label class="mt-4 block">
+							<span class="mb-1.5 block font-medium">Comment (needed to reject)</span>
+							<input bind:value={comments[b.id]} class={field} />
+						</label>
+						<div class="mt-3 flex flex-wrap gap-3">
+							<button
+								class={btnPrimary}
+								disabled={busy === b.id}
+								onclick={() => decide(b, 'approve')}>Approve {b.ref}</button
+							>
+							<button
+								class="{btnSecondary} text-danger"
+								disabled={busy === b.id || !comments[b.id]?.trim()}
+								onclick={() => decide(b, 'reject')}>Reject</button
+							>
+						</div>
+					{/if}
 				</li>
 			{/each}
 		</ul>

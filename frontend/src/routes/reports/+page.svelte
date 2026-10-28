@@ -59,7 +59,7 @@
 			within_a_day: number;
 			approved: number;
 			rejected: number;
-			by_step: Record<'incharge' | 'hod', Stats>;
+			by_step: Record<'guide' | 'incharge' | 'hod', Stats>;
 		};
 		waitlist: { count: number; converted: number; conversion_pct: number; outcomes: Count[] };
 		equipment: {
@@ -88,7 +88,7 @@
 		{ key: 'class', label: 'Classes', color: 'var(--series-1)' },
 		{ key: 'event', label: 'Events', color: 'var(--series-2)' }
 	];
-	const STEP = { incharge: 'Venue in-charge', hod: 'HOD' };
+	const STEP = { guide: 'Faculty guide', incharge: 'Venue in-charge', hod: 'HOD' };
 
 	const params = page.url.searchParams;
 	let preset = $state(params.get('start') ? 'custom' : 'term');

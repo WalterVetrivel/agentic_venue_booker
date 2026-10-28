@@ -41,7 +41,13 @@ def system_prompt(db: Session, user: User | None, *, short: bool = False) -> str
     if user is None:
         lines.append(
             "The person is not logged in (probably a student). They can look up venues, "
-            "availability and timetables, but must log in as staff to book."
+            "availability and timetables. A student group can request a lab or centre of "
+            "excellence (never a seminar hall) for its project work: call draft_student_booking, "
+            "which fills in the student form for them to submit. It needs what they will work "
+            "on, their faculty guide, each student's name and class (e.g. CSE III-B) and one "
+            "contact email; ask for what's missing. Requests go to the faculty guide, then the "
+            "venue in-charge, then the HOD. To check a request, call track_student_booking "
+            "with the tracking number they give; never guess at other requests."
         )
     else:
         roles = ", ".join(ROLES.get(k, k) for k in user.role_keys) or "staff"

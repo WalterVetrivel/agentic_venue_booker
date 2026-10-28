@@ -14,6 +14,7 @@ from app.agent.llm import LLM, Reply, ToolCall
 VENUE = re.compile(r"\b(CC\d{1,2}|COE\d|PGLAB|IOTLAB|CSEPGSH|ASH|DSH|ESH|MBASH)\b", re.I)
 TIME = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b", re.I)
 BOOKING = re.compile(r"\bBK-\d{4}-\d+\b", re.I)
+TRACKING = re.compile(r"\bST-[A-Z0-9]{4}-[A-Z0-9]{4}\b", re.I)
 
 
 class ScriptedLLM(LLM):
@@ -54,6 +55,19 @@ def _plan(text: str, tools: set[str]) -> Reply:
     call = None
     if (ref := BOOKING.search(text)) and "cancel" in lower and "propose_cancel" in tools:
         call = ("propose_cancel", {"booking": ref.group(0).upper()})
+    elif (code := TRACKING.search(text)) and "track_student_booking" in tools:
+        call = ("track_student_booking", {"tracking_number": code.group(0).upper()})
+    elif venue and "book" in lower and "draft_student_booking" in tools:
+        call = (
+            "draft_student_booking",
+            {
+                "venue": venue.group(0).upper(),
+                "date": day.isoformat(),
+                "start": start or "14:00",
+                "end": end or "16:00",
+                "reason": "Mini project work",
+            },
+        )
     elif venue and "book" in lower:
         if "draft_booking" not in tools:
             return Reply("Please log in as staff to book a venue. I can still check availability.")
@@ -108,6 +122,13 @@ def _summarise(messages: list[dict]) -> str:
         return f"On {data['day']}, {data['venue']} has: {busy}."
     if name == "draft_booking":
         return "I've filled in the booking form. Check the details and submit it when you're ready."
+    if name == "draft_student_booking":
+        return (
+            "I've started the student request form. Add your guide, the students and a contact "
+            "email, then submit it to get a tracking number."
+        )
+    if name == "track_student_booking":
+        return f"{data['ref']} ({data['tracking_number']}) is {data['status']}."
     if name == "propose_cancel":
         return "Confirm the cancellation on the card if you want to go ahead."
     if name == "list_venues":

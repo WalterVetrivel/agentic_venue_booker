@@ -397,6 +397,16 @@ class MoveOut(BaseModel):
     faculty_name: str | None
 
 
+class StudentOut(BaseModel):
+    id: int
+    name: str
+    register_no: str | None
+    class_label: str
+    decision: str
+    comment: str | None
+    decided_at: datetime | None
+
+
 class BookingOut(BaseModel):
     id: int
     ref: str
@@ -423,6 +433,11 @@ class BookingOut(BaseModel):
     can_cancel: bool
     can_reschedule: bool
     can_approve: bool
+    kind: str = "staff"
+    guide: str | None = None
+    students: list[StudentOut] = []
+    tracking_code: str | None = None
+    contact_email: str | None = None
 
 
 class ApprovalItemOut(BaseModel):
@@ -438,6 +453,16 @@ class DecisionHistoryOut(BaseModel):
     decision: str
     comment: str | None
     decided_at: datetime
+
+
+class StudentDecisionItem(BaseModel):
+    student_id: int
+    decision: Literal["approved", "rejected"]
+    comment: str | None = Field(default=None, max_length=1000)
+
+
+class StudentDecisionIn(BaseModel):
+    decisions: list[StudentDecisionItem] = Field(min_length=1, max_length=20)
 
 
 class DecisionIn(BaseModel):
@@ -672,3 +697,112 @@ class LLMTestIn(BaseModel):
 class LLMTestOut(BaseModel):
     ok: bool
     message: str
+
+
+# Student requests (no login) ---------------------------------------------------------------------
+
+
+class StudentIn(BaseModel):
+    name: str = Field(max_length=120)
+    register_no: str | None = Field(default=None, max_length=30)
+    section_id: int
+
+
+class StudentSlotIn(BaseModel):
+    venue: str
+    date_from: date
+    date_to: date | None = None
+    start_time: time
+    end_time: time
+    count: int = Field(default=1, ge=1, le=10)
+
+
+class StudentBookingIn(BaseModel):
+    venue: str
+    date_from: date
+    date_to: date | None = None
+    start_time: time
+    end_time: time
+    reason: str = Field(max_length=2000)
+    guide_id: int
+    contact_email: str = Field(max_length=120)
+    students: list[StudentIn] = Field(max_length=10)
+
+
+class StudentCheckOut(BaseModel):
+    venue: VenueBrief
+    ok: bool
+    problem: str | None
+    days: list[date]
+    warnings: list[NoticeOut]
+    alternatives: list[VenueBrief]
+
+
+class ClassOptionOut(BaseModel):
+    id: int
+    label: str
+    dept: str
+    year: str
+    section: str
+
+
+class GuideOut(BaseModel):
+    id: int
+    name: str
+    designation: str | None
+
+
+class StudentOptionsOut(BaseModel):
+    sections: list[ClassOptionOut]
+    guides: list[GuideOut]
+    venues: list[VenueBrief]
+    max_students: int
+    email_domain: str | None
+
+
+class TrackStepOut(BaseModel):
+    step: str
+    label: str
+    state: Literal["done", "current", "waiting", "rejected", "skipped"]
+    approver: str | None
+    comment: str | None
+    decided_at: datetime | None
+
+
+class StudentTrackOut(BaseModel):
+    ref: str
+    tracking_code: str
+    status: str
+    venue: VenueBrief
+    reason: str
+    guide: str | None
+    contact_email: str | None  # masked
+    occurrences: list[OccurrenceOut]
+    students: list[StudentOut]
+    steps: list[TrackStepOut]
+    created_at: datetime
+    cancel_reason: str | None
+    can_cancel: bool
+
+
+class MailSettingsOut(BaseModel):
+    host: str
+    port: int
+    user: str
+    from_addr: str
+    password_set: bool
+    password_source: str  # settings | env | none
+    configured: bool
+    student_email_domain: str | None
+
+
+class MailSettingsIn(BaseModel):
+    host: str | None = Field(default=None, max_length=200)
+    port: int | None = Field(default=None, ge=1, le=65535)
+    user: str | None = Field(default=None, max_length=200)
+    password: str | None = Field(default=None, max_length=200)
+    from_addr: str | None = Field(default=None, max_length=200)
+
+
+class MailTestIn(BaseModel):
+    to: str = Field(max_length=120)

@@ -24,7 +24,11 @@
 
 <div class="mx-auto max-w-md">
 	<h1 class="text-2xl font-semibold">Staff login</h1>
-	<p class="mt-2 text-muted">Students don't need to log in to check availability.</p>
+	<p class="mt-2 text-muted">
+		Students don't need to log in: they can check availability,
+		<a class="text-accent underline" href="/book/student">request a lab</a> and
+		<a class="text-accent underline" href="/track">track a request</a>.
+	</p>
 
 	<form class="mt-8 space-y-5 glass rounded-2xl border p-6" onsubmit={submit}>
 		<div>

@@ -36,6 +36,7 @@ REPORT_CAPABILITIES = ("reports_all", "reports_cse", "reports_own")
 OUT_OF_SERVICE = ("faulty", "under_repair")
 WAITLIST_OUTCOMES = {
     "confirmed": "Got the venue",
+    "pending_guide": "Got the venue",
     "pending_incharge": "Got the venue",
     "pending_hod": "Got the venue",
     "offered": "Offered, waiting for a reply",
@@ -384,8 +385,14 @@ def turnaround(db: Session, scope: Scope, start: date, end: date) -> dict:
         )
         .order_by(Approval.decided_at)
     ).all()
-    # Steps the requester approved themselves took no time and would skew the numbers.
-    decided = [a for a in decided if a.approver_id != a.booking.requester_id]
+    # Steps approved automatically (the requester, or a student group's guide, could approve
+    # them) took no time and would skew the numbers.
+    decided = [
+        a
+        for a in decided
+        if a.approver_id != a.booking.requester_id
+        and not (a.comment or "").startswith("Approved automatically")
+    ]
     accepted = _offer_accepted_at(db, {a.booking_id for a in decided})
     rows = []
     for a in decided:
@@ -409,7 +416,7 @@ def turnaround(db: Session, scope: Scope, start: date, end: date) -> dict:
         )
     by_step = {
         step: _stats([r["hours"] for r in rows if r["step"] == step])
-        for step in ("incharge", "hod")
+        for step in ("guide", "incharge", "hod")
     }
     return {
         **_stats([r["hours"] for r in rows]),
@@ -454,7 +461,7 @@ def waitlist(db: Session, scope: Scope, start: date, end: date) -> dict:
             "ref": b.ref,
             "venue": b.venue.code,
             "title": b.title,
-            "requester": b.requester.name,
+            "requester": b.requester_name,
             "joined": b.created_at.isoformat(timespec="minutes"),
             "status": b.status,
             "outcome": WAITLIST_OUTCOMES.get(b.status, b.status.replace("_", " ").capitalize()),

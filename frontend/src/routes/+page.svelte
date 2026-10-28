@@ -7,18 +7,34 @@
 	import { APPROVER_CAPABILITIES, visibleNav } from '#lib/nav.ts';
 	import { nowLocal, whenText } from '#lib/time.ts';
 	import { btnPrimary, btnSecondary, panel } from '#lib/ui.ts';
+	import { STATUS_LABELS } from '#lib/types.ts';
 	import type { ApprovalItem, Booking } from '#lib/types.ts';
 
 	const SHOWN = 5;
-	const ACTIVE = ['pending_incharge', 'pending_hod', 'confirmed', 'waitlisted', 'offered'];
-	const STEP: Record<string, string> = { incharge: 'as venue in-charge', hod: 'as HOD' };
+	const ACTIVE = [
+		'pending_guide',
+		'pending_incharge',
+		'pending_hod',
+		'confirmed',
+		'waitlisted',
+		'offered'
+	];
+	const STEP: Record<string, string> = {
+		guide: 'as faculty guide',
+		incharge: 'as venue in-charge',
+		hod: 'as HOD'
+	};
 
-	const cards = $derived(visibleNav(session.capabilities).filter((n) => n.href !== '/'));
+	const cards = $derived(
+		visibleNav(session.capabilities, !!session.user).filter((n) => n.href !== '/')
+	);
 	const canBook = $derived(session.can('book'));
-	const canApprove = $derived(APPROVER_CAPABILITIES.some((c) => session.can(c)));
+	const isApprover = $derived(APPROVER_CAPABILITIES.some((c) => session.can(c)));
 
 	let bookings = $state<Booking[] | null>(null);
 	let approvals = $state<ApprovalItem[] | null>(null);
+	// Other faculty get the panel only while a student group's request waits for them as guide.
+	const canApprove = $derived(isApprover || (canBook && !!approvals?.length));
 	let bookingsError = $state('');
 	let approvalsError = $state('');
 	let deciding = $state<number | null>(null);
@@ -47,7 +63,7 @@
 					? `${res.ref} rejected.`
 					: res.status === 'confirmed'
 						? `${res.ref} approved and confirmed.`
-						: `${res.ref} approved, now waiting for the HOD.`;
+						: `${res.ref} approved, now ${(STATUS_LABELS[res.status] ?? res.status).toLowerCase()}.`;
 			rejecting = null;
 			await loadApprovals();
 		} catch (e) {
@@ -63,7 +79,7 @@
 			api<Booking[]>('/bookings/mine')
 				.then((b) => (bookings = b))
 				.catch((e) => (bookingsError = e.message));
-		if (canApprove) loadApprovals();
+		if (isApprover || canBook) loadApprovals();
 	});
 
 	const now = nowLocal();
@@ -287,7 +303,13 @@
 											{STEP[item.step] ?? ''}
 										</span>
 									</a>
-									{#if rejecting !== b.id}
+									{#if item.step === 'guide'}
+										<a
+											href="/bookings/{b.id}"
+											class="press shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface-2"
+											>Decide per student</a
+										>
+									{:else if rejecting !== b.id}
 										<div class="flex shrink-0 gap-2">
 											<button
 												class="btn-cta inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium"

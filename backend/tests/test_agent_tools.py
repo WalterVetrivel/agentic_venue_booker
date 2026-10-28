@@ -16,7 +16,9 @@ PUBLIC = {
     "check_availability",
     "find_free_venues",
     "get_timetable",
+    "track_student_booking",
 }
+VISITOR = {"draft_student_booking"}  # students only: staff use the staff form
 BOOKER = {
     "search_past_events",
     "recommend_venues",
@@ -36,10 +38,10 @@ def names(u):
     return {t.name for t in tools.tools_for(u)}
 
 
-def test_students_get_only_public_read_tools():
+def test_students_get_public_read_tools_and_the_student_draft():
     listed = tools.tools_for(None)
-    assert {t.name for t in listed} == PUBLIC
-    assert all(t.kind == "read" for t in listed)
+    assert {t.name for t in listed} == PUBLIC | VISITOR
+    assert all(t.kind == "read" for t in listed if t.name not in VISITOR)
 
 
 @pytest.mark.parametrize(
@@ -55,7 +57,7 @@ def test_students_get_only_public_read_tools():
             PUBLIC | BOOKER | APPROVER | {"review_timetable_upload", "utilisation_report"},
         ),
         ("cseoa@kiot.ac.in", PUBLIC | {"search_past_events", "review_timetable_upload"}),
-        ("dirim@kiot.ac.in", set(tools.REGISTRY)),
+        ("dirim@kiot.ac.in", set(tools.REGISTRY) - VISITOR),
     ],
 )
 def test_tools_follow_the_roles(db, email, expected):

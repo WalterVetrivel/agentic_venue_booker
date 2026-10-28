@@ -277,6 +277,63 @@ export type Booking = {
 	can_cancel: boolean;
 	can_reschedule: boolean;
 	can_approve: boolean;
+	kind: 'staff' | 'student';
+	guide: string | null;
+	students: Student[];
+	tracking_code: string | null;
+	contact_email: string | null;
+};
+
+export type Student = {
+	id: number;
+	name: string;
+	register_no: string | null;
+	class_label: string;
+	decision: 'pending' | 'approved' | 'rejected';
+	comment: string | null;
+	decided_at: string | null;
+};
+
+export type StudentOptions = {
+	sections: { id: number; label: string; dept: string; year: string; section: string }[];
+	guides: { id: number; name: string; designation: string | null }[];
+	venues: VenueBrief[];
+	max_students: number;
+	email_domain: string | null;
+};
+
+export type StudentCheck = {
+	venue: VenueBrief;
+	ok: boolean;
+	problem: string | null;
+	days: string[];
+	warnings: Notice[];
+	alternatives: VenueBrief[];
+};
+
+export type TrackStep = {
+	step: string;
+	label: string;
+	state: 'done' | 'current' | 'waiting' | 'rejected' | 'skipped';
+	approver: string | null;
+	comment: string | null;
+	decided_at: string | null;
+};
+
+export type StudentTrack = {
+	ref: string;
+	tracking_code: string;
+	status: string;
+	venue: VenueBrief;
+	reason: string;
+	guide: string | null;
+	contact_email: string | null;
+	occurrences: { start: string; end: string }[];
+	students: Student[];
+	steps: TrackStep[];
+	created_at: string;
+	cancel_reason: string | null;
+	can_cancel: boolean;
 };
 
 export type ApprovalItem = {
@@ -304,6 +361,7 @@ export type AppNotification = {
 };
 
 export const STATUS_LABELS: Record<string, string> = {
+	pending_guide: 'Waiting for faculty guide',
 	pending_incharge: 'Waiting for in-charge',
 	pending_hod: 'Waiting for HOD',
 	confirmed: 'Confirmed',
@@ -315,6 +373,7 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 export const STATUS_TONE: Record<string, string> = {
+	pending_guide: 'bg-warning/20 text-warning',
 	pending_incharge: 'bg-warning/20 text-warning',
 	pending_hod: 'bg-warning/20 text-warning',
 	confirmed: 'bg-success/15 text-success',
@@ -479,4 +538,15 @@ export type LLMSettings = {
 	groq_key_source: 'settings' | 'env' | 'none';
 	ollama_base_url: string;
 	ollama_model: string;
+};
+
+export type MailSettings = {
+	host: string;
+	port: number;
+	user: string;
+	from_addr: string;
+	password_set: boolean;
+	password_source: 'settings' | 'env' | 'none';
+	configured: boolean;
+	student_email_domain: string | null;
 };
