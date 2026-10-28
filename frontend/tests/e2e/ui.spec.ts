@@ -115,3 +115,76 @@ test('buttons and links show a pointer', async ({ page }) => {
 	expect(await cursor('button')).toBe('pointer');
 	expect(await cursor('a[href]')).toBe('pointer');
 });
+
+test('the availability calendar shows a venue by day, week and month', async ({ page }) => {
+	await page.goto('/availability?view=calendar&venue=CC1&date=2027-02-10');
+	await expect(page.getByRole('combobox', { name: 'Venue' })).toHaveValue('CC1');
+	await page.getByRole('button', { name: 'Week', exact: true }).click();
+	await expect(page.getByRole('region', { name: /8 Feb – 13 Feb 2027 at CC1/ })).toBeVisible();
+	await page.getByRole('button', { name: 'Month', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'February 2027' })).toBeVisible();
+	await page.getByRole('button', { name: /^Wednesday, 10 February/ }).click();
+	await expect(page.getByRole('heading', { name: 'Wednesday, 10 February 2027' })).toBeVisible();
+	await page.getByRole('button', { name: 'Next day' }).click();
+	await expect(page).toHaveURL(/date=2027-02-11/);
+});
+
+test('the venue page shows its calendar', async ({ page }) => {
+	await page.goto('/venues/CC1');
+	await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible();
+	await expect(page.getByRole('region', { name: /at CC1$/ })).toBeVisible();
+	await page.getByRole('button', { name: 'Class timetable' }).click();
+	await expect(page.getByRole('heading', { name: 'Weekly class schedule' })).toBeVisible();
+});
+
+test('availability alerts start collapsed with a count', async ({ page }) => {
+	// Early January brings warnings about yearly events held in these venues.
+	await page.goto('/availability?date=2027-01-04');
+	const alerts = page.locator('details', { hasText: 'Alerts' });
+	await expect(alerts).toBeVisible();
+	await expect(alerts).not.toHaveAttribute('open');
+	await alerts.locator('summary').click();
+	await expect(alerts).toHaveAttribute('open');
+});
+
+test('bookings switch between cards and a table', async ({ page }) => {
+	await login(page, 'swvcse@kiot.ac.in');
+	await expect(page.getByRole('link', { name: 'Book a venue' }).first()).toBeVisible();
+	await page.goto('/bookings');
+	await page.getByRole('button', { name: 'Table' }).click();
+	const table = page.getByRole('table').first();
+	await expect(table.getByRole('columnheader')).toHaveText([
+		'Title',
+		'Venue',
+		'Date and time',
+		'Status'
+	]);
+	await page.reload();
+	await expect(page.getByRole('button', { name: 'Table' })).toHaveAttribute('aria-pressed', 'true');
+	await page.getByRole('button', { name: 'Cards' }).click();
+});
+
+test('an in-charge approves straight from the dashboard', async ({ page }, info) => {
+	const day = info.project.name === 'desktop' ? '2027-05-11' : '2027-05-12';
+	await login(page, 'tkcse@kiot.ac.in');
+	const res = await page.request.post('/api/bookings', {
+		data: {
+			venue: 'DSH',
+			title: 'Dashboard approval check',
+			event_type: 'Workshop',
+			expected_count: 60,
+			date_from: day,
+			start_time: '10:00',
+			end_time: '12:00'
+		}
+	});
+	expect(res.status()).toBe(201);
+	const { ref } = await res.json();
+
+	await page.getByRole('button', { name: 'Log out' }).click();
+	await login(page, 'sh.dblock@kiot.ac.in');
+	const row = page.locator(`[data-approval="${ref}"]`);
+	await row.getByRole('button', { name: `Approve ${ref}` }).click();
+	await expect(page.getByRole('status')).toHaveText(`${ref} approved and confirmed.`);
+	await expect(row).toHaveCount(0);
+});

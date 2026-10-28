@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from './Icon.svelte';
 	import type { DayAvailability, VenueDay } from '#lib/types.ts';
 	import { hhmm, minutesOf, minutesOnDay } from '#lib/time.ts';
 
@@ -91,8 +92,10 @@
 						<span class="block text-xs text-muted">{v.capacity} seats{v.byod ? ' · BYOD' : ''}</span
 						>
 						{#if bookHref}
-							<a href={bookHref(v.code)} class="text-xs font-medium text-accent hover:underline"
-								>Book</a
+							<a
+								href={bookHref(v.code)}
+								class="inline-flex items-center gap-0.5 text-xs font-medium text-accent hover:underline"
+								><Icon name="plus" size={12} />Book</a
 							>
 						{/if}
 						{#each v.blocks.filter((b) => b.hard && span(b) === 'All day' && b.kind !== 'closed') as b, i (i)}
@@ -123,7 +126,11 @@
 				<span class="text-sm text-muted">{v.capacity} seats</span>
 			</div>
 			{#if bookHref}
-				<a href={bookHref(v.code)} class="text-sm font-medium text-accent">Book {v.code}</a>
+				<a
+					href={bookHref(v.code)}
+					class="inline-flex items-center gap-1 text-sm font-medium text-accent"
+					><Icon name="plus" size={14} />Book {v.code}</a
+				>
 			{/if}
 			{#if hard.length === 0}
 				<p class="mt-1 text-success">Free all day</p>

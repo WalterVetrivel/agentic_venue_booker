@@ -98,6 +98,16 @@ export type DayAvailability = {
 	venues: VenueDay[];
 };
 
+export type VenueRangeDay = {
+	date: string;
+	open_from: string | null;
+	open_to: string | null;
+	blocks: Block[];
+	warnings: Notice[];
+};
+
+export type VenueRange = { code: string; name: string; days: VenueRangeDay[] };
+
 export const MONTHS = [
 	'Jan',
 	'Feb',

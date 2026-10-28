@@ -130,7 +130,7 @@
 			/>
 		</div>
 		<div>
-			<label class={label} for="term">Term</label><input
+			<label class={label} for="term">Semester</label><input
 				id="term"
 				bind:value={h.term_name}
 				class={field}

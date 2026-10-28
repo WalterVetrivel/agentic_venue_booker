@@ -35,6 +35,14 @@
 	</a>
 
 	<div class="ml-auto flex items-center gap-2">
+		{#if session.can('book')}
+			<a
+				href="/book"
+				class="btn-cta mr-1 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 font-medium sm:px-4"
+				aria-label="Book a venue"
+				><Icon name="plus" size={18} /><span class="hidden sm:inline">Book a venue</span></a
+			>
+		{/if}
 		<button
 			class="press rounded-lg p-2.5 hover:bg-surface-2"
 			aria-label={ui.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -69,11 +77,7 @@
 				<Icon name="logout" />
 			</button>
 		{:else if session.loaded}
-			<a
-				href="/login"
-				class="press rounded-lg bg-accent px-4 py-2 font-medium text-accent-fg shadow-sm hover:opacity-90"
-				>Staff login</a
-			>
+			<a href="/login" class="btn-cta rounded-lg px-4 py-2 font-medium">Staff login</a>
 		{/if}
 	</div>
 </header>

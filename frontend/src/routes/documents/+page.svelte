@@ -1,4 +1,6 @@
 <script lang="ts">
+	import RecordTable from '#lib/components/RecordTable.svelte';
+	import ViewToggle, { savedView } from '#lib/components/ViewToggle.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api, uploadFiles } from '#lib/api.ts';
@@ -34,6 +36,7 @@
 	let year = $state('');
 	let reviewOnly = $state(page.url.searchParams.get('review') === '1');
 	let loadingEvents = $state(false);
+	let layout = $state(savedView('events', ['cards', 'table'] as const, 'cards'));
 
 	// Documents
 	let documents = $state<DocumentInfo[]>([]);
@@ -294,34 +297,74 @@
 			<input type="checkbox" bind:checked={reviewOnly} class="h-5 w-5" /> Only events that need checking
 		</label>
 
-		<p class="mt-4 text-sm text-muted" aria-live="polite">
-			{loadingEvents ? 'Loading…' : `${events.length} events`}
-		</p>
-		<ul class="mt-2 space-y-2">
-			{#each events as e (e.id)}
-				<li>
-					<a
-						href="/documents/events/{e.id}"
-						class="block lift glass rounded-xl border px-4 py-3 hover:border-accent/50"
-					>
-						<span class="flex flex-wrap items-baseline justify-between gap-2">
-							<strong>{e.title}</strong>
-							{#if e.needs_review}
-								<span class="rounded-full bg-warning/20 px-2.5 py-0.5 text-sm text-warning"
-									>Needs checking</span
-								>
-							{/if}
-						</span>
-						<span class="block text-sm text-muted">
-							{dateRangeText(e.start_date, e.end_date)} · {e.venues.map((v) => v.code).join(', ') ||
-								e.venue_text} · {e.event_type}{e.participants
-								? ` · ${e.participants} attended`
-								: ''}
-						</span>
-					</a>
-				</li>
-			{/each}
-		</ul>
+		<div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+			<p class="text-sm text-muted" aria-live="polite">
+				{loadingEvents ? 'Loading…' : `${events.length} events`}
+			</p>
+			<ViewToggle
+				bind:value={layout}
+				key="events"
+				label="Layout"
+				options={[
+					{ value: 'cards', label: 'Cards', icon: 'list' },
+					{ value: 'table', label: 'Table', icon: 'table' }
+				]}
+			/>
+		</div>
+		{#if layout === 'table'}
+			<div class="mt-3">
+				<RecordTable
+					label="Past events"
+					extraLabel="Type"
+					statusLabel="Attended"
+					rows={events.map((e) => ({
+						key: e.id,
+						href: `/documents/events/${e.id}`,
+						title: e.title,
+						venue: e.venues.map((v) => v.code).join(', ') || e.venue_text || '—',
+						when:
+							dateRangeText(e.start_date, e.end_date) +
+							(e.start_time && e.end_time
+								? `, ${e.start_time.slice(0, 5)}–${e.end_time.slice(0, 5)}`
+								: ''),
+						extra: e.event_type,
+						statusText: e.needs_review
+							? 'Needs checking'
+							: e.participants
+								? `${e.participants}`
+								: '—',
+						statusTone: e.needs_review ? 'bg-warning/20 text-warning' : ''
+					}))}
+				/>
+			</div>
+		{:else}
+			<ul class="mt-2 space-y-2">
+				{#each events as e (e.id)}
+					<li>
+						<a
+							href="/documents/events/{e.id}"
+							class="block lift glass rounded-xl border px-4 py-3 hover:border-accent/50"
+						>
+							<span class="flex flex-wrap items-baseline justify-between gap-2">
+								<strong>{e.title}</strong>
+								{#if e.needs_review}
+									<span class="rounded-full bg-warning/20 px-2.5 py-0.5 text-sm text-warning"
+										>Needs checking</span
+									>
+								{/if}
+							</span>
+							<span class="block text-sm text-muted">
+								{dateRangeText(e.start_date, e.end_date)} · {e.venues
+									.map((v) => v.code)
+									.join(', ') || e.venue_text} · {e.event_type}{e.participants
+									? ` · ${e.participants} attended`
+									: ''}
+							</span>
+						</a>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 	{:else if tab === 'documents' && canUpload}
 		<div class="mt-6 {card}">
 			<label for="pdfs" class="block font-medium">Upload circulars or event reports (PDF)</label>

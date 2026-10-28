@@ -209,6 +209,20 @@ class DayAvailabilityOut(BaseModel):
     venues: list[VenueDayOut]
 
 
+class VenueRangeDayOut(BaseModel):
+    date: date
+    open_from: time | None
+    open_to: time | None
+    blocks: list[BlockOut]
+    warnings: list[NoticeOut]
+
+
+class VenueRangeOut(BaseModel):
+    code: str
+    name: str
+    days: list[VenueRangeDayOut]
+
+
 class CheckOut(BaseModel):
     venue: str
     start: datetime

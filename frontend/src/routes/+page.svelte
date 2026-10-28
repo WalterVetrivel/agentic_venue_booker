@@ -21,6 +21,41 @@
 	let approvals = $state<ApprovalItem[] | null>(null);
 	let bookingsError = $state('');
 	let approvalsError = $state('');
+	let deciding = $state<number | null>(null);
+	let rejecting = $state<number | null>(null);
+	let reason = $state('');
+	let decided = $state('');
+
+	async function loadApprovals() {
+		try {
+			approvals = await api<ApprovalItem[]>('/approvals');
+		} catch (e) {
+			approvalsError = e instanceof Error ? e.message : 'Could not load approvals';
+		}
+	}
+
+	async function decide(b: Booking, decision: 'approve' | 'reject') {
+		deciding = b.id;
+		approvalsError = '';
+		try {
+			const res = await api<Booking>(`/bookings/${b.id}/${decision}`, {
+				method: 'POST',
+				body: JSON.stringify({ comment: decision === 'reject' ? reason.trim() : null })
+			});
+			decided =
+				res.status === 'rejected'
+					? `${res.ref} rejected.`
+					: res.status === 'confirmed'
+						? `${res.ref} approved and confirmed.`
+						: `${res.ref} approved, now waiting for the HOD.`;
+			rejecting = null;
+			await loadApprovals();
+		} catch (e) {
+			approvalsError = e instanceof Error ? e.message : 'Could not save';
+		} finally {
+			deciding = null;
+		}
+	}
 
 	$effect(() => {
 		if (!session.user) return;
@@ -28,10 +63,7 @@
 			api<Booking[]>('/bookings/mine')
 				.then((b) => (bookings = b))
 				.catch((e) => (bookingsError = e.message));
-		if (canApprove)
-			api<ApprovalItem[]>('/approvals')
-				.then((a) => (approvals = a))
-				.catch((e) => (approvalsError = e.message));
+		if (canApprove) loadApprovals();
 	});
 
 	const now = nowLocal();
@@ -140,7 +172,11 @@
 						class="mt-4 flex flex-1 flex-col items-center justify-center rounded-xl bg-surface-2 p-6 text-center"
 					>
 						<p class="text-muted">No current or upcoming bookings.</p>
-						<a href="/book" class="mt-2 font-medium text-accent hover:underline">Book a venue</a>
+						<a
+							href="/book"
+							class="mt-2 inline-flex items-center gap-1 font-medium text-accent hover:underline"
+							><Icon name="plus" size={16} /> Book a venue</a
+						>
 					</div>
 				{:else}
 					<ul class="mt-4 space-y-2">
@@ -209,9 +245,15 @@
 						/></a
 					>
 				</div>
+				{#if decided}
+					<p class="pop mt-3 rounded-lg bg-success/10 px-3 py-2 text-sm text-success" role="status">
+						{decided}
+					</p>
+				{/if}
 				{#if approvalsError}
-					<p class="mt-4 text-danger">{approvalsError}</p>
-				{:else if !approvals}
+					<p class="mt-3 text-sm text-danger" role="alert">{approvalsError}</p>
+				{/if}
+				{#if !approvals}
 					<ul class="mt-4 space-y-2" aria-hidden="true">
 						{#each [0, 1, 2] as i (i)}<li
 								class="h-16 animate-pulse rounded-xl bg-surface-2"
@@ -228,10 +270,9 @@
 						{#each approvals.slice(0, SHOWN) as item, i (item.booking.id)}
 							{@const b = item.booking}
 							{@const tile = dayTile(b.start)}
-							<li class="rise" style="--i: {i + 3}">
-								<a
-									href="/approvals"
-									class="lift flex items-center gap-3 rounded-xl border border-transparent p-2.5 hover:border-glass-border hover:bg-glass-strong"
+							<li class="rise" style="--i: {i + 3}" data-approval={b.ref}>
+								<div
+									class="lift flex flex-wrap items-center gap-3 rounded-xl border border-transparent p-2.5 hover:border-glass-border hover:bg-glass-strong"
 								>
 									<span
 										class="grid w-12 shrink-0 place-items-center rounded-lg bg-warning/15 py-1 leading-tight text-warning"
@@ -239,14 +280,59 @@
 										<span class="text-lg font-semibold">{tile.day}</span>
 										<span class="text-xs uppercase">{tile.month}</span>
 									</span>
-									<span class="min-w-0 flex-1">
+									<a href="/bookings/{b.id}" class="min-w-0 flex-1 hover:text-accent">
 										<span class="block truncate font-medium">{b.title}</span>
 										<span class="block text-sm text-muted">
-											{b.requester} · {b.venue.code} · {whenText(b.start, b.end)}
+											{b.requester} · {b.venue.code} · {whenText(b.start, b.end)} · you approve
+											{STEP[item.step] ?? ''}
 										</span>
-									</span>
-									<span class="hidden text-xs text-muted sm:block">{STEP[item.step] ?? ''}</span>
-								</a>
+									</a>
+									{#if rejecting !== b.id}
+										<div class="flex shrink-0 gap-2">
+											<button
+												class="btn-cta inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium"
+												disabled={deciding === b.id}
+												onclick={() => decide(b, 'approve')}
+												aria-label="Approve {b.ref}"><Icon name="check" size={16} /> Approve</button
+											>
+											<button
+												class="press rounded-lg border border-danger/40 px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger/10"
+												disabled={deciding === b.id}
+												onclick={() => {
+													rejecting = b.id;
+													reason = '';
+												}}
+												aria-label="Reject {b.ref}">Reject</button
+											>
+										</div>
+									{/if}
+								</div>
+								{#if rejecting === b.id}
+									<form
+										class="pop mt-2 flex flex-wrap items-center gap-2 pl-[3.75rem]"
+										onsubmit={(e) => {
+											e.preventDefault();
+											decide(b, 'reject');
+										}}
+									>
+										<label class="sr-only" for="reason-{b.id}">Reason for rejecting {b.ref}</label>
+										<input
+											id="reason-{b.id}"
+											bind:value={reason}
+											placeholder="Reason (the requester sees this)"
+											class="min-w-0 flex-1 rounded-lg border border-border bg-glass-strong px-3 py-1.5 text-sm focus:border-accent focus:outline-none"
+										/>
+										<button
+											class="press rounded-lg bg-danger px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60"
+											disabled={!reason.trim() || deciding === b.id}>Reject {b.ref}</button
+										>
+										<button
+											type="button"
+											class="press rounded-lg px-2 py-1.5 text-sm text-muted hover:text-fg"
+											onclick={() => (rejecting = null)}>Cancel</button
+										>
+									</form>
+								{/if}
 							</li>
 						{/each}
 					</ul>

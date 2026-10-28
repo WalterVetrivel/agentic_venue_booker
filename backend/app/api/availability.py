@@ -1,11 +1,20 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.venues import split_csv, venue_or_404
 from app.db import get_db
-from app.schemas import BlockOut, CheckOut, DayAvailabilityOut, NoticeOut, VenueDayOut, VenueOut
+from app.schemas import (
+    BlockOut,
+    CheckOut,
+    DayAvailabilityOut,
+    NoticeOut,
+    VenueDayOut,
+    VenueOut,
+    VenueRangeDayOut,
+    VenueRangeOut,
+)
 from app.services import availability
 from app.services.venues import find_venues
 
@@ -51,6 +60,40 @@ def day_availability(
         slot_minutes=availability.SLOT_MINUTES,
         venues=out,
     )
+
+
+MAX_RANGE_DAYS = 45  # a month view with its leading and trailing days
+
+
+@router.get("/venue/{code}", response_model=VenueRangeOut)
+def venue_range(
+    code: str,
+    start: date,
+    end: date,
+    db: Session = Depends(get_db),
+) -> VenueRangeOut:
+    """One venue's classes, bookings and closures for each day from `start` to `end`."""
+    v = venue_or_404(db, code)
+    if end < start:
+        raise HTTPException(422, "end must not be before start")
+    if (end - start).days + 1 > MAX_RANGE_DAYS:
+        raise HTTPException(422, f"Choose at most {MAX_RANGE_DAYS} days")
+    days = []
+    day = start
+    while day <= end:
+        view = availability.venue_day(db, v, day)
+        hours = availability.OPEN_HOURS[day.weekday()]
+        days.append(
+            VenueRangeDayOut(
+                date=day,
+                open_from=hours[0] if hours else None,
+                open_to=hours[1] if hours else None,
+                blocks=[block_out(b) for b in view.blocks],
+                warnings=[notice_out(n) for n in view.warnings],
+            )
+        )
+        day += timedelta(days=1)
+    return VenueRangeOut(code=v.code, name=v.name, days=days)
 
 
 @router.get("/check", response_model=CheckOut)

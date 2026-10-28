@@ -1085,7 +1085,7 @@ def review_timetable_upload(db: Session, user: User | None, args: UploadArgs) ->
 
 
 class ReportArgs(Args):
-    start: Day | None = Field(None, description="First day; leave out for the term so far")
+    start: Day | None = Field(None, description="First day; leave out for the semester so far")
     end: Day | None = Field(None, description="Last day; leave out for today")
     venue: str | None = Field(None, description="One venue code to focus on, e.g. CC5")
 

@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -89,3 +89,21 @@ def test_free_venues(client):
         },
     ).json()
     assert {v["code"] for v in halls} == {"DSH", "ESH", "MBASH"}
+
+
+def test_venue_range_endpoint(client):
+    start = MONDAY
+    end = MONDAY + timedelta(days=6)
+    body = client.get(
+        "/api/availability/venue/CC1", params={"start": start.isoformat(), "end": end.isoformat()}
+    ).json()
+    assert body["code"] == "CC1" and len(body["days"]) == 7
+    sunday = body["days"][6]
+    assert sunday["open_from"] is None and sunday["blocks"][0]["kind"] == "closed"
+    assert body["days"][0]["open_from"] == "08:00:00"
+
+    too_long = {"start": start.isoformat(), "end": (start + timedelta(days=60)).isoformat()}
+    assert client.get("/api/availability/venue/CC1", params=too_long).status_code == 422
+    backwards = {"start": end.isoformat(), "end": start.isoformat()}
+    assert client.get("/api/availability/venue/CC1", params=backwards).status_code == 422
+    assert client.get("/api/availability/venue/NOPE", params=backwards).status_code == 404
