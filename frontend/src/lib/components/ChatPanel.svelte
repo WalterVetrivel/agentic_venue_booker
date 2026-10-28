@@ -139,7 +139,7 @@
 				</button>
 				{#if historyOpen}
 					<div
-						class="absolute top-full left-0 z-10 mt-2 w-80 max-w-[calc(100vw-2rem)] pop glass-strong rounded-xl border p-3"
+						class="pop absolute top-full left-0 z-10 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-surface p-3 shadow-lg"
 					>
 						<button
 							class="mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 font-medium hover:bg-surface-2"
@@ -227,7 +227,7 @@
 				>
 				{#if modelOpen && chat.providers}
 					<div
-						class="absolute top-full right-0 z-10 mt-2 w-72 pop glass-strong rounded-xl border p-3"
+						class="pop absolute top-full right-0 z-10 mt-2 w-72 rounded-xl border border-border bg-surface p-3 shadow-lg"
 					>
 						{#if chat.providers.demo}
 							<p class="text-sm text-muted">
@@ -332,7 +332,7 @@
 								{#if c.kind === 'draft' && c.href}
 									<a
 										href={c.href}
-										class="mt-3 inline-block rounded-lg bg-accent px-4 py-2 font-medium text-accent-fg"
+										class="btn-cta mt-3 inline-block rounded-lg px-4 py-2 font-medium"
 										onclick={closeOnSmallScreens}>{c.button ?? 'Open'}</a
 									>
 								{:else if c.kind === 'confirm'}
@@ -349,7 +349,7 @@
 											<button
 												class="rounded-lg px-4 py-2 font-medium {c.danger
 													? 'bg-danger text-white'
-													: 'bg-accent text-accent-fg'}"
+													: 'btn-cta'}"
 												onclick={() => chat.confirm(m, ci)}>{c.button ?? 'Confirm'}</button
 											>
 											<button
@@ -478,7 +478,7 @@
 					<button
 						type="submit"
 						disabled={!draft.trim()}
-						class="press rounded-lg bg-accent p-3 text-accent-fg shadow-sm hover:shadow-md disabled:opacity-50"
+						class="btn-cta rounded-lg p-3 disabled:opacity-50"
 						aria-label="Send"
 					>
 						<Icon name="send" />

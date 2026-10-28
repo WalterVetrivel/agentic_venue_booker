@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { api } from '#lib/api.ts';
+	import Icon from '#lib/components/Icon.svelte';
+
 	import StatusBadge from '#lib/components/StatusBadge.svelte';
+	import RecordTable from '#lib/components/RecordTable.svelte';
+	import ViewToggle, { savedView } from '#lib/components/ViewToggle.svelte';
+
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { nowLocal, whenText } from '#lib/time.ts';
 	import { btnPrimary, card } from '#lib/ui.ts';
@@ -8,6 +13,13 @@
 
 	let bookings = $state<Booking[] | null>(null);
 	let error = $state('');
+	let layout = $state(savedView('bookings', ['cards', 'table'] as const, 'cards'));
+
+	function when(b: Booking) {
+		const o = b.occurrences[0];
+		const more = b.occurrences.length - 1;
+		return whenText(o.start, o.end) + (more ? ` (+${more} more day${more === 1 ? '' : 's'})` : '');
+	}
 
 	$effect(() => {
 		if (session.user)
@@ -26,7 +38,20 @@
 
 <div class="flex flex-wrap items-center justify-between gap-3">
 	<h1 class="text-2xl font-semibold">My bookings</h1>
-	{#if session.can('book')}<a href="/book" class={btnPrimary}>Book a venue</a>{/if}
+	<div class="flex flex-wrap items-center gap-3">
+		<ViewToggle
+			bind:value={layout}
+			key="bookings"
+			label="Layout"
+			options={[
+				{ value: 'cards', label: 'Cards', icon: 'list' },
+				{ value: 'table', label: 'Table', icon: 'table' }
+			]}
+		/>
+		{#if session.can('book')}<a href="/book" class="{btnPrimary} inline-flex items-center gap-2"
+				><Icon name="plus" size={18} /> Book a venue</a
+			>{/if}
+	</div>
 </div>
 
 {#if !session.loaded || (session.user && !bookings && !error)}
@@ -44,6 +69,21 @@
 				<p class="mt-2 text-muted">
 					{heading === 'Upcoming' ? 'Nothing booked yet.' : 'Nothing here yet.'}
 				</p>
+			{:else if layout === 'table'}
+				<div class="mt-3">
+					<RecordTable
+						label="{heading} bookings"
+						rows={items.map((b) => ({
+							key: b.id,
+							href: `/bookings/${b.id}`,
+							title: b.title,
+							sub: b.ref,
+							venue: b.venue.code,
+							when: when(b),
+							status: b.status
+						}))}
+					/>
+				</div>
 			{:else}
 				<ul class="mt-3 space-y-3">
 					{#each items as b (b.id)}
@@ -60,10 +100,7 @@
 									<StatusBadge status={b.status} />
 								</div>
 								<p class="mt-1 text-muted">
-									{b.venue.code} · {whenText(b.occurrences[0].start, b.occurrences[0].end)}{b
-										.occurrences.length > 1
-										? ` (+${b.occurrences.length - 1} more days)`
-										: ''} · {b.ref}
+									{b.venue.code} · {when(b)} · {b.ref}
 								</p>
 								{#if b.status === 'waitlisted'}
 									<p class="mt-1 text-sm">Position {b.waitlist_position} on the waitlist.</p>

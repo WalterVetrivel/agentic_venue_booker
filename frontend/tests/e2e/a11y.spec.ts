@@ -9,6 +9,12 @@ const STAFF = ['/', '/book', '/bookings', '/approvals', '/documents', '/reports'
 async function check(page: import('@playwright/test').Page, path: string) {
 	await page.goto(path);
 	await page.waitForLoadState('networkidle');
+	// Let entrance fades finish so colours are checked as people see them.
+	await page.waitForFunction(() =>
+		document
+			.getAnimations()
+			.every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity)
+	);
 	const { violations } = await new AxeBuilder({ page })
 		.withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
 		.analyze();

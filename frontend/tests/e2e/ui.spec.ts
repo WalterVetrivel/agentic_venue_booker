@@ -115,3 +115,120 @@ test('buttons and links show a pointer', async ({ page }) => {
 	expect(await cursor('button')).toBe('pointer');
 	expect(await cursor('a[href]')).toBe('pointer');
 });
+
+test('the availability calendar shows a venue by day, week and month', async ({ page }) => {
+	await page.goto('/availability?view=calendar&venue=CC1&date=2027-02-10');
+	await expect(page.getByRole('combobox', { name: 'Venue' })).toHaveValue('CC1');
+	await page.getByRole('button', { name: 'Week', exact: true }).click();
+	await expect(page.getByRole('region', { name: /8 Feb – 13 Feb 2027 at CC1/ })).toBeVisible();
+	await page.getByRole('button', { name: 'Month', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'February 2027' })).toBeVisible();
+	await page.getByRole('button', { name: /^Wednesday, 10 February/ }).click();
+	await expect(page.getByRole('heading', { name: 'Wednesday, 10 February 2027' })).toBeVisible();
+	await page.getByRole('button', { name: 'Next day' }).click();
+	await expect(page).toHaveURL(/date=2027-02-11/);
+});
+
+test('the venue page shows its calendar', async ({ page }) => {
+	await page.goto('/venues/CC1');
+	await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible();
+	await expect(page.getByRole('region', { name: /at CC1$/ })).toBeVisible();
+	await page.getByRole('button', { name: 'Class timetable' }).click();
+	await expect(page.getByRole('heading', { name: 'Weekly class schedule' })).toBeVisible();
+});
+
+test('availability alerts start collapsed with a count', async ({ page }) => {
+	// Early January brings warnings about yearly events held in these venues.
+	await page.goto('/availability?date=2027-01-04');
+	const alerts = page.locator('details', { hasText: 'Alerts' });
+	await expect(alerts).toBeVisible();
+	await expect(alerts).not.toHaveAttribute('open');
+	await alerts.locator('summary').click();
+	await expect(alerts).toHaveAttribute('open');
+});
+
+test('bookings switch between cards and a table', async ({ page }) => {
+	await login(page, 'swvcse@kiot.ac.in');
+	await expect(page.getByRole('link', { name: 'Book a venue' }).first()).toBeVisible();
+	await page.goto('/bookings');
+	await page.getByRole('button', { name: 'Table' }).click();
+	const table = page.getByRole('table').first();
+	await expect(table.getByRole('columnheader')).toHaveText([
+		'Title',
+		'Venue',
+		'Date and time',
+		'Status'
+	]);
+	await page.reload();
+	await expect(page.getByRole('button', { name: 'Table' })).toHaveAttribute('aria-pressed', 'true');
+	await page.getByRole('button', { name: 'Cards' }).click();
+});
+
+test('an in-charge approves straight from the dashboard', async ({ page }, info) => {
+	const day = info.project.name === 'desktop' ? '2027-05-11' : '2027-05-12';
+	await login(page, 'tkcse@kiot.ac.in');
+	const res = await page.request.post('/api/bookings', {
+		data: {
+			venue: 'DSH',
+			title: 'Dashboard approval check',
+			event_type: 'Workshop',
+			expected_count: 60,
+			date_from: day,
+			start_time: '10:00',
+			end_time: '12:00'
+		}
+	});
+	expect(res.status()).toBe(201);
+	const { ref } = await res.json();
+
+	await page.getByRole('button', { name: /Account menu/ }).click();
+	await page.getByRole('menuitem', { name: 'Log out' }).click();
+	await login(page, 'sh.dblock@kiot.ac.in');
+	const row = page.locator(`[data-approval="${ref}"]`);
+	await row.getByRole('button', { name: `Approve ${ref}` }).click();
+	await expect(page.getByRole('status')).toHaveText(`${ref} approved and confirmed.`);
+	await expect(row).toHaveCount(0);
+});
+
+test('a draft from the chat fills a booking form that is already open', async ({ page }, info) => {
+	const day = info.project.name === 'desktop' ? '2027-03-16' : '2027-03-17';
+	await login(page, 'tkcse@kiot.ac.in');
+	await page.goto('/book');
+	await expect(page.getByLabel('Title')).toHaveValue('');
+	const chat = await openChat(page);
+	await chat.getByLabel('Message').fill(`Please book COE2 on ${day} 14:00 to 16:00`);
+	await chat.getByLabel('Message').press('Enter');
+	await chat.locator('[data-card="draft"]').getByRole('link', { name: 'Review & submit' }).click();
+	await expect(page.getByLabel('Title')).toHaveValue('Python workshop');
+	await expect(page.getByLabel('Expected attendance')).toHaveValue('30');
+});
+
+test('the account menu links to the dashboard and bookings', async ({ page }) => {
+	await login(page, 'tkcse@kiot.ac.in');
+	await page.goto('/venues');
+	await page.getByRole('button', { name: /Account menu/ }).click();
+	const menu = page.getByRole('menu', { name: 'Account' });
+	await expect(menu.getByRole('menuitem')).toHaveText(['Dashboard', 'My bookings', 'Log out']);
+	await menu.getByRole('menuitem', { name: 'My bookings' }).click();
+	await expect(page).toHaveURL(/\/bookings$/);
+	await expect(menu).toHaveCount(0);
+});
+
+test('the side menu collapses to icons and opens on hover', async ({ page }, info) => {
+	test.skip(info.project.name === 'mobile', 'The side menu is a drawer on phones');
+	await page.goto('/venues');
+	const nav = page.getByRole('navigation', { name: 'Main' });
+	await nav.getByRole('button', { name: 'Collapse the menu' }).click();
+	await page.mouse.move(900, 500);
+	await expect.poll(async () => (await nav.boundingBox())!.width).toBeLessThan(100);
+	await nav.hover();
+	await expect.poll(async () => (await nav.boundingBox())!.width).toBeGreaterThan(200);
+	await page.mouse.move(900, 500);
+	await expect.poll(async () => (await nav.boundingBox())!.width).toBeLessThan(100);
+	await page.reload();
+	await page.mouse.move(900, 500);
+	await expect.poll(async () => (await nav.boundingBox())!.width).toBeLessThan(100);
+	await nav.getByRole('button', { name: 'Keep the menu open' }).click();
+	await page.mouse.move(900, 500);
+	await expect.poll(async () => (await nav.boundingBox())!.width).toBeGreaterThan(200);
+});

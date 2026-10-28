@@ -78,7 +78,7 @@
 	};
 
 	const PRESETS = [
-		{ key: 'term', label: 'Term so far' },
+		{ key: 'term', label: 'Semester so far' },
 		{ key: '30', label: 'Last 30 days' },
 		{ key: 'month', label: 'This month' },
 		{ key: 'last-month', label: 'Last month' },

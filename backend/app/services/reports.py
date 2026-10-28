@@ -86,12 +86,12 @@ def scope_for(db: Session, user: User | None) -> Scope:
 
 
 def default_period(db: Session, today: date) -> tuple[date, date, str]:
-    """The current term up to today, or the last 90 days outside term time."""
+    """The current semester up to today, or the last 90 days outside the semester."""
     term = db.scalar(
         select(AcademicTerm).where(AcademicTerm.valid_from <= today, AcademicTerm.valid_to >= today)
     )
     if term is not None:
-        return term.valid_from, today, f"{term.name} term so far"
+        return term.valid_from, today, f"{term.name} semester so far"
     return today - timedelta(days=89), today, "Last 90 days"
 
 

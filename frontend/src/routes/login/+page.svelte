@@ -56,7 +56,7 @@
 		<button
 			type="submit"
 			disabled={busy}
-			class="w-full rounded-lg bg-accent px-4 py-2.5 font-medium text-accent-fg hover:opacity-90 disabled:opacity-60"
+			class="btn-cta w-full rounded-lg px-4 py-2.5 font-medium disabled:opacity-60"
 		>
 			{busy ? 'Logging in…' : 'Log in'}
 		</button>

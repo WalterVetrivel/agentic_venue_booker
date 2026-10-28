@@ -3,16 +3,12 @@
 	import Notifications from './Notifications.svelte';
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { ui } from '#lib/stores/ui.svelte.ts';
-	import { ROLE_LABELS } from '#lib/types.ts';
-	import { goto } from '$app/navigation';
-
-	async function logout() {
-		await session.logout();
-		goto('/');
-	}
+	import UserMenu from './UserMenu.svelte';
 </script>
 
-<header class="glass-bar sticky top-0 z-30 flex h-16 items-center gap-3 border-b px-4 md:px-6">
+<header
+	class="topbar sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border px-4 md:px-6"
+>
 	<button
 		class="press rounded-lg p-2 hover:bg-surface-2 lg:hidden"
 		aria-label="Open menu"
@@ -35,6 +31,14 @@
 	</a>
 
 	<div class="ml-auto flex items-center gap-2">
+		{#if session.can('book')}
+			<a
+				href="/book"
+				class="mr-1 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-2 font-medium hover:border-accent/40 hover:bg-surface-2 hover:text-accent sm:px-4"
+				aria-label="Book a venue"
+				><Icon name="plus" size={18} /><span class="hidden sm:inline">Book a venue</span></a
+			>
+		{/if}
 		<button
 			class="press rounded-lg p-2.5 hover:bg-surface-2"
 			aria-label={ui.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -54,26 +58,9 @@
 
 		{#if session.user}
 			<Notifications />
-			<div class="hidden text-right leading-tight md:block">
-				<div class="font-medium">{session.user.name}</div>
-				<div class="text-sm text-muted">
-					{session.user.roles.map((r) => ROLE_LABELS[r] ?? r).join(' · ')}
-				</div>
-			</div>
-			<button
-				class="press rounded-lg p-2.5 hover:bg-surface-2"
-				aria-label="Log out"
-				title="Log out"
-				onclick={logout}
-			>
-				<Icon name="logout" />
-			</button>
+			<UserMenu />
 		{:else if session.loaded}
-			<a
-				href="/login"
-				class="press rounded-lg bg-accent px-4 py-2 font-medium text-accent-fg shadow-sm hover:opacity-90"
-				>Staff login</a
-			>
+			<a href="/login" class="btn-cta rounded-lg px-4 py-2 font-medium">Staff login</a>
 		{/if}
 	</div>
 </header>

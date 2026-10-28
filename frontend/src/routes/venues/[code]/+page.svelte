@@ -1,13 +1,20 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { api } from '#lib/api.ts';
+	import Icon from '#lib/components/Icon.svelte';
+
 	import { session } from '#lib/stores/session.svelte.ts';
 	import VenueForm from '#lib/components/VenueForm.svelte';
 	import WeekSchedule from '#lib/components/WeekSchedule.svelte';
+	import Calendar from '#lib/components/Calendar.svelte';
+	import ViewToggle, { savedView } from '#lib/components/ViewToggle.svelte';
 	import { btnDanger, btnPrimary, btnSecondary, card, field, label } from '#lib/ui.ts';
 	import { MONTHS, type ClassSlot, type Equipment, type VenueFull } from '#lib/types.ts';
 
 	let venue = $state<VenueFull | null>(null);
+	let scheduleView = $state(
+		savedView('venue-schedule', ['calendar', 'timetable'] as const, 'calendar')
+	);
 	let classes = $state<ClassSlot[]>([]);
 	let error = $state('');
 	let editing = $state(false);
@@ -108,7 +115,9 @@
 		<div class="flex gap-3">
 			<a href="/availability?type={v.type}" class={btnSecondary}>Availability</a>
 			{#if session.can('book')}
-				<a href="/book?venue={v.code}" class={btnPrimary}>Book this venue</a>
+				<a href="/book?venue={v.code}" class="{btnPrimary} inline-flex items-center gap-2"
+					><Icon name="plus" size={18} /> Book this venue</a
+				>
 			{/if}
 			{#if v.can_edit && !editing}
 				<button class={btnPrimary} onclick={() => (editing = true)}>Edit details</button>
@@ -159,12 +168,32 @@
 		</dl>
 	{/if}
 
-	{#if v.type !== 'seminar_hall' || classes.length}
-		<section class="mt-10">
-			<h2 class="text-lg font-semibold">Weekly class schedule</h2>
-			<WeekSchedule slots={classes} show="venue" />
-		</section>
-	{/if}
+	{@const hasTimetable = v.type !== 'seminar_hall' || classes.length > 0}
+	<section class="mt-10">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<h2 class="text-lg font-semibold">
+				{scheduleView === 'calendar' || !hasTimetable ? 'Schedule' : 'Weekly class schedule'}
+			</h2>
+			{#if hasTimetable}
+				<ViewToggle
+					bind:value={scheduleView}
+					key="venue-schedule"
+					label="Schedule"
+					options={[
+						{ value: 'calendar', label: 'Calendar', icon: 'calendar' },
+						{ value: 'timetable', label: 'Class timetable', icon: 'table' }
+					]}
+				/>
+			{/if}
+		</div>
+		<div class="mt-4">
+			{#if scheduleView === 'calendar' || !hasTimetable}
+				<Calendar venue={v.code} pickVenue={false} />
+			{:else}
+				<WeekSchedule slots={classes} show="venue" />
+			{/if}
+		</div>
+	</section>
 
 	<!-- Status periods -->
 	<section class="mt-10">

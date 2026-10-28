@@ -21,6 +21,8 @@ class Ui {
 	// Docked chat on large screens remembers whether it was closed.
 	chatOpen = $state(read('chatOpen') !== 'false' && window.innerWidth >= 1280);
 	navOpen = $state(false);
+	/** On large screens the side nav can shrink to icons (remembered on this device). */
+	navCollapsed = $state(read('navCollapsed') === 'true');
 	/** A detail page's own name for the last breadcrumb (cleared on every navigation). */
 	crumb = $state('');
 
@@ -28,6 +30,11 @@ class Ui {
 		this.theme = this.theme === 'dark' ? 'light' : 'dark';
 		document.documentElement.dataset.theme = this.theme;
 		write('theme', this.theme);
+	}
+
+	toggleNav() {
+		this.navCollapsed = !this.navCollapsed;
+		write('navCollapsed', String(this.navCollapsed));
 	}
 
 	setChat(open: boolean) {

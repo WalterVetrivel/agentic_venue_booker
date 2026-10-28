@@ -4,6 +4,8 @@
 	import { whenText } from '#lib/time.ts';
 	import { btnPrimary, btnSecondary, card, field } from '#lib/ui.ts';
 	import StatusBadge from '#lib/components/StatusBadge.svelte';
+	import RecordTable from '#lib/components/RecordTable.svelte';
+	import ViewToggle, { savedView } from '#lib/components/ViewToggle.svelte';
 	import type { ApprovalItem, Booking, DecisionHistory } from '#lib/types.ts';
 
 	let items = $state<ApprovalItem[] | null>(null);
@@ -12,6 +14,7 @@
 	let busy = $state<number | null>(null);
 	let done = $state<{ ref: string; title: string; status: string }[]>([]);
 	let history = $state<DecisionHistory[] | null>(null);
+	let layout = $state(savedView('approvals', ['cards', 'table'] as const, 'cards'));
 
 	async function load() {
 		try {
@@ -47,7 +50,20 @@
 	const STEP: Record<string, string> = { incharge: 'as venue in-charge', hod: 'as HOD' };
 </script>
 
-<h1 class="text-2xl font-semibold">Approvals</h1>
+<div class="flex flex-wrap items-center justify-between gap-3">
+	<h1 class="text-2xl font-semibold">Approvals</h1>
+	{#if session.user}
+		<ViewToggle
+			bind:value={layout}
+			key="approvals"
+			label="Layout"
+			options={[
+				{ value: 'cards', label: 'Cards', icon: 'list' },
+				{ value: 'table', label: 'Table', icon: 'table' }
+			]}
+		/>
+	{/if}
+</div>
 {#if !session.loaded}
 	<p class="mt-6 text-muted">Loading…</p>
 {:else if !session.user}
@@ -73,6 +89,28 @@
 		<p class="mt-6 text-muted">Loading…</p>
 	{:else if items.length === 0}
 		<p class="mt-6 {card} text-muted">Nothing is waiting for you.</p>
+	{:else if layout === 'table'}
+		<div class="mt-6">
+			<RecordTable
+				label="Requests waiting for you"
+				extraLabel="Requested by"
+				statusLabel="You approve"
+				rows={items.map((item) => ({
+					key: item.booking.id,
+					href: `/bookings/${item.booking.id}`,
+					title: item.booking.title,
+					sub: item.booking.ref,
+					venue: item.booking.venue.code,
+					when: whenText(item.booking.start, item.booking.end),
+					extra: item.booking.requester,
+					statusText: STEP[item.step] ?? item.step,
+					statusTone: 'bg-warning/20 text-warning'
+				}))}
+			/>
+			<p class="mt-2 text-sm text-muted">
+				Open a request, or switch to cards, to approve or reject it.
+			</p>
+		</div>
 	{:else}
 		<ul class="mt-6 space-y-4">
 			{#each items as item (item.booking.id)}
@@ -129,6 +167,24 @@
 			<p class="mt-2 text-muted">Loading…</p>
 		{:else if history.length === 0}
 			<p class="mt-2 text-muted">You haven't approved or rejected anything yet.</p>
+		{:else if layout === 'table'}
+			<div class="mt-3">
+				<RecordTable
+					label="Your past decisions"
+					extraLabel="Your decision"
+					statusLabel="Now"
+					rows={history.map((h, i) => ({
+						key: `${h.booking.id}-${h.step}-${i}`,
+						href: `/bookings/${h.booking.id}`,
+						title: h.booking.title,
+						sub: h.booking.ref,
+						venue: h.booking.venue.code,
+						when: whenText(h.booking.start, h.booking.end),
+						extra: `${h.decision === 'approved' ? 'Approved' : 'Rejected'} ${STEP[h.step] ?? ''}`,
+						status: h.booking.status
+					}))}
+				/>
+			</div>
 		{:else}
 			<ul class="mt-3 space-y-2">
 				{#each history as h, i (`${h.booking.id}-${h.step}-${i}`)}

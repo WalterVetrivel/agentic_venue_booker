@@ -2,8 +2,7 @@
 export const field =
 	'w-full rounded-lg border border-border bg-glass-strong px-3 py-2.5 transition focus:border-accent focus:ring-3 focus:ring-accent/15 focus:outline-none';
 export const label = 'mb-1.5 block font-medium';
-export const btnPrimary =
-	'press rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-fg shadow-sm hover:opacity-90 hover:shadow-md disabled:opacity-60';
+export const btnPrimary = 'btn-cta rounded-lg px-5 py-2.5 font-medium disabled:opacity-60';
 export const btnSecondary =
 	'press rounded-lg border border-border bg-glass px-4 py-2.5 font-medium hover:bg-surface-2 disabled:opacity-60';
 export const btnDanger =
