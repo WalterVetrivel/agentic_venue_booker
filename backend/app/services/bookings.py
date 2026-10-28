@@ -565,6 +565,9 @@ def submit(
         )
     else:
         _route(db, booking, None, now)
+        from app.services import drafts  # drafts builds on this module
+
+        drafts.notify_taken(db, booking)
     audit.record(
         db,
         user,

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import Icon from '#lib/components/Icon.svelte';
 	import { session } from '#lib/stores/session.svelte.ts';
 
 	let email = $state('');
@@ -64,8 +65,9 @@
 		<button
 			type="submit"
 			disabled={busy}
-			class="btn-cta w-full rounded-lg px-4 py-2.5 font-medium disabled:opacity-60"
+			class="btn-cta inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-medium disabled:opacity-60"
 		>
+			<Icon name="login" size={18} />
 			{busy ? 'Logging in…' : 'Log in'}
 		</button>
 	</form>
