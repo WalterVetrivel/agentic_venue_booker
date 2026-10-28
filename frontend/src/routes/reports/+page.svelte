@@ -245,27 +245,27 @@
 		{@const w = report.waitlist}
 		<div aria-busy={loading} class={loading ? 'opacity-60' : ''}>
 			<dl class="mt-6 grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
-				<div class="rounded-xl border border-border bg-surface p-4">
+				<div class="glass rounded-2xl border p-4">
 					<dt class="text-sm text-muted">Venues in use</dt>
 					<dd class="text-2xl font-semibold">{report.utilisation.total.used_pct}%</dd>
 					<dd class="text-sm text-muted">of open hours</dd>
 				</div>
-				<div class="rounded-xl border border-border bg-surface p-4">
+				<div class="glass rounded-2xl border p-4">
 					<dt class="text-sm text-muted">Events</dt>
 					<dd class="text-2xl font-semibold">{report.events.count}</dd>
 					<dd class="text-sm text-muted">{report.utilisation.total.event_hours} hours</dd>
 				</div>
-				<div class="rounded-xl border border-border bg-surface p-4">
+				<div class="glass rounded-2xl border p-4">
 					<dt class="text-sm text-muted">Typical approval</dt>
 					<dd class="text-2xl font-semibold">{hours(t.median_hours)}</dd>
 					<dd class="text-sm text-muted">median per step</dd>
 				</div>
-				<div class="rounded-xl border border-border bg-surface p-4">
+				<div class="glass rounded-2xl border p-4">
 					<dt class="text-sm text-muted">Waitlist</dt>
 					<dd class="text-2xl font-semibold">{w.converted} of {w.count}</dd>
 					<dd class="text-sm text-muted">got the venue</dd>
 				</div>
-				<div class="rounded-xl border border-border bg-surface p-4">
+				<div class="glass rounded-2xl border p-4">
 					<dt class="text-sm text-muted">Equipment out</dt>
 					<dd class="text-2xl font-semibold">{report.equipment.out_of_service.length}</dd>
 					<dd class="text-sm text-muted">{plural(report.equipment.count, 'fault')} reported</dd>
@@ -409,7 +409,7 @@
 						</summary>
 						<div class="mt-3 max-h-96 overflow-auto">
 							<table class="w-full text-left text-sm">
-								<thead class="sticky top-0 bg-surface text-muted">
+								<thead class="sticky top-0 bg-glass-strong backdrop-blur-md text-muted">
 									<tr class="border-b border-border">
 										<th scope="col" class="py-2 pr-3 font-medium">Date</th>
 										<th scope="col" class="py-2 pr-3 font-medium">Event</th>

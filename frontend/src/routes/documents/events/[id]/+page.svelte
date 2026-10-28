@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { api } from '#lib/api.ts';
 	import { session } from '#lib/stores/session.svelte.ts';
+	import { ui } from '#lib/stores/ui.svelte.ts';
 	import { dateRangeText } from '#lib/time.ts';
 	import { btnPrimary, btnSecondary, card, field, label } from '#lib/ui.ts';
 	import type { EventFacets, PastEvent, Venue } from '#lib/types.ts';
@@ -31,7 +32,10 @@
 	$effect(() => {
 		if (!session.user) return;
 		api<PastEvent>(`/events/${id}`)
-			.then((e) => (event = e))
+			.then((e) => {
+				event = e;
+				ui.crumb = e.title;
+			})
 			.catch((e) => (error = e.message));
 	});
 
@@ -92,7 +96,6 @@
 	const hm = (t: string | null) => t?.slice(0, 5) ?? '?';
 </script>
 
-<a href="/documents?tab=events" class="text-sm text-accent">← Past events</a>
 {#if error}
 	<p class="mt-6 text-danger">{error}</p>
 {:else if !event}

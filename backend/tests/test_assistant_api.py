@@ -169,6 +169,52 @@ def test_saved_history_is_sent_to_the_model(client, login, monkeypatch):
     ]
 
 
+@pytest.mark.writes_db
+def test_regenerate_replaces_the_last_reply(client, login, monkeypatch):
+    model = fake.ScriptedLLM(
+        [Reply("First answer."), Reply("Rate limited."), Reply("Better answer.")]
+    )
+    monkeypatch.setattr(chat_api, "make_llm", lambda cfg, p=None, m=None: model)
+    login("tkcse@kiot.ac.in")
+    conv = events(client.post("/api/chat", json={"message": "Question one"}))[0]
+    ask = {"message": "Question two", "conversation_id": conv["id"]}
+    client.post("/api/chat", json=ask)
+    client.post("/api/chat", json={**ask, "regenerate": True})
+
+    # The rerun sees the first turn only, not the reply it replaces.
+    roles = [(m["role"], m["content"]) for m in model.seen[2][1:]]
+    assert roles == [
+        ("user", "Question one"),
+        ("assistant", "First answer."),
+        ("user", "Question two"),
+    ]
+    saved = client.get(f"/api/chat/conversations/{conv['id']}").json()["messages"]
+    assert [m["content"] for m in saved] == [
+        "Question one",
+        "First answer.",
+        "Question two",
+        "Better answer.",
+    ]
+
+
+@pytest.mark.writes_db
+def test_regenerate_after_a_lost_reply_keeps_one_question(client, login, monkeypatch, db):
+    from app.models import ChatMessage
+
+    model = fake.ScriptedLLM([Reply("First answer."), Reply("Second answer.")])
+    monkeypatch.setattr(chat_api, "make_llm", lambda cfg, p=None, m=None: model)
+    login("tkcse@kiot.ac.in")
+    conv = events(client.post("/api/chat", json={"message": "Question one"}))[0]
+    # The reply never arrived (the stream was cut): only the question was saved.
+    reply = db.scalars(select(ChatMessage).where(ChatMessage.content == "First answer.")).one()
+    db.delete(reply)
+    db.commit()
+    body = {"message": "Question one", "conversation_id": conv["id"], "regenerate": True}
+    client.post("/api/chat", json=body)
+    saved = client.get(f"/api/chat/conversations/{conv['id']}").json()["messages"]
+    assert [m["content"] for m in saved] == ["Question one", "Second answer."]
+
+
 def test_missing_groq_key_is_explained(client, monkeypatch):
     monkeypatch.setattr(get_settings(), "groq_api_key", "")
     monkeypatch.setattr(get_settings(), "llm_fake", False)

@@ -59,7 +59,7 @@
 			onclick={() => (open = false)}
 		></button>
 		<div
-			class="fixed inset-x-3 top-16 z-50 max-h-[70vh] overflow-y-auto rounded-xl border border-border bg-surface shadow-lg sm:absolute sm:inset-x-auto sm:top-12 sm:right-0 sm:w-96"
+			class="fixed inset-x-3 top-16 z-50 max-h-[70vh] overflow-y-auto pop glass-strong rounded-xl border sm:absolute sm:inset-x-auto sm:top-12 sm:right-0 sm:w-96"
 			role="dialog"
 			aria-label="Notifications"
 		>

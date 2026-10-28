@@ -233,7 +233,7 @@
 			</p>
 			<ol class="mt-3 space-y-3">
 				{#each result.hits as h (h.document.id)}
-					<li class="rounded-xl border border-border bg-surface p-4">
+					<li class="glass rounded-2xl border p-4">
 						<div class="flex flex-wrap items-baseline justify-between gap-2">
 							{#if h.event}
 								<a href="/documents/events/{h.event.id}" class="font-semibold hover:text-accent"
@@ -302,7 +302,7 @@
 				<li>
 					<a
 						href="/documents/events/{e.id}"
-						class="block rounded-lg border border-border bg-surface px-4 py-3 hover:border-accent"
+						class="block lift glass rounded-xl border px-4 py-3 hover:border-accent/50"
 					>
 						<span class="flex flex-wrap items-baseline justify-between gap-2">
 							<strong>{e.title}</strong>
@@ -376,7 +376,7 @@
 		{/if}
 
 		<h2 class="mt-8 text-lg font-semibold">Documents ({documents.length})</h2>
-		<ul class="mt-3 divide-y divide-border rounded-xl border border-border bg-surface">
+		<ul class="mt-3 divide-y divide-border glass rounded-2xl border">
 			{#each documents as d (d.id)}
 				<li class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
 					<span class="min-w-0">

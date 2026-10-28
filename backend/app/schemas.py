@@ -418,6 +418,14 @@ class ApprovalItemOut(BaseModel):
     waiting_behind: int
 
 
+class DecisionHistoryOut(BaseModel):
+    booking: BookingOut
+    step: str
+    decision: str
+    comment: str | None
+    decided_at: datetime
+
+
 class DecisionIn(BaseModel):
     comment: str | None = Field(default=None, max_length=2000)
 
@@ -571,6 +579,8 @@ class ChatIn(BaseModel):
     model: str | None = Field(None, max_length=80)
     history: list[ChatTurn] = Field(default_factory=list, max_length=20)  # visitors only
     attachment: AttachmentOut | None = None
+    # Run the last message again: its earlier reply (if any) is replaced, not kept.
+    regenerate: bool = False
 
 
 class ConversationBrief(BaseModel):

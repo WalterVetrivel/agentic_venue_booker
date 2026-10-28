@@ -100,7 +100,7 @@
 					<li>
 						<a
 							href="/timetables/{u.id}"
-							class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3 hover:border-accent"
+							class="flex flex-wrap items-center justify-between gap-2 lift glass rounded-xl border px-4 py-3 hover:border-accent/50"
 						>
 							<span><strong>{u.section ?? u.filename}</strong> · {u.slots} lab slots</span>
 							<span
@@ -124,7 +124,7 @@
 				{#each sections as s (s.id)}
 					<a
 						href="/timetables/sections/{s.id}"
-						class="rounded-xl border border-border bg-surface p-4 hover:border-accent"
+						class="lift glass rounded-2xl border p-4 hover:border-accent/50"
 					>
 						<span class="block font-semibold">{s.label}</span>
 						<span class="text-sm text-muted">{s.lab_slots} lab slots a week</span>

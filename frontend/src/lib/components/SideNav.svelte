@@ -22,7 +22,7 @@
 {/if}
 
 <nav
-	class="fixed top-16 bottom-0 left-0 z-40 w-64 overflow-y-auto border-r border-border bg-surface p-4 transition-transform lg:sticky lg:z-0 lg:h-[calc(100vh-4rem)] lg:translate-x-0 {ui.navOpen
+	class="fixed top-16 bottom-0 left-0 z-40 w-64 overflow-y-auto glass-bar border-r p-4 transition-transform lg:sticky lg:z-0 lg:h-[calc(100vh-4rem)] lg:translate-x-0 {ui.navOpen
 		? 'translate-x-0'
 		: '-translate-x-full'}"
 	aria-label="Main"
@@ -33,19 +33,21 @@
 				<a
 					href={item.href}
 					onclick={() => (ui.navOpen = false)}
-					class="flex items-center gap-3 rounded-lg px-3 py-2.5 {active(item.href)
-						? 'bg-accent-soft font-semibold text-accent'
+					class="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {active(
+						item.href
+					)
+						? 'bg-accent-soft font-semibold text-accent shadow-sm'
 						: 'hover:bg-surface-2'}"
 					aria-current={active(item.href) ? 'page' : undefined}
 				>
-					<Icon name={item.icon} />
+					<Icon name={item.icon} class="transition-transform duration-200 group-hover:scale-110" />
 					<span>{item.label}</span>
 				</a>
 			</li>
 		{/each}
 	</ul>
 	{#if !session.user && session.loaded}
-		<p class="mt-6 rounded-lg bg-surface-2 p-3 text-sm text-muted">
+		<p class="mt-6 rounded-xl bg-surface-2 p-3 text-sm text-muted">
 			Students can browse venues and availability without logging in. Staff log in to book.
 		</p>
 	{/if}

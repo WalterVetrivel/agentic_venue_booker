@@ -26,7 +26,7 @@
 	<h1 class="text-2xl font-semibold">Staff login</h1>
 	<p class="mt-2 text-muted">Students don't need to log in to check availability.</p>
 
-	<form class="mt-8 space-y-5 rounded-xl border border-border bg-surface p-6" onsubmit={submit}>
+	<form class="mt-8 space-y-5 glass rounded-2xl border p-6" onsubmit={submit}>
 		<div>
 			<label for="email" class="mb-1.5 block font-medium">Email</label>
 			<input

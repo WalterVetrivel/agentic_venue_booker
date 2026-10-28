@@ -5,7 +5,6 @@
 	import { card } from '#lib/ui.ts';
 </script>
 
-<a href="/venues" class="text-accent">← All venues</a>
 <h1 class="mt-4 text-2xl font-semibold">Add a venue</h1>
 {#if session.can('create_venue')}
 	<div class="mt-6 {card}">

@@ -46,8 +46,12 @@ def test_book_approve_and_see_it_on_the_grid(client, login):
     assert client.post("/api/notifications/read", json={}).status_code == 204
     assert client.get("/api/notifications").json()[0]["read_at"] is not None
 
+    assert client.get("/api/approvals/history").json() == []
     res = client.post(f"/api/bookings/{b['id']}/approve", json={"comment": "OK"})
     assert res.json()["status"] == "confirmed"
+    (decided,) = client.get("/api/approvals/history").json()
+    assert decided["decision"] == "approved" and decided["comment"] == "OK"
+    assert decided["booking"]["ref"] == b["ref"] and decided["step"] == "incharge"
 
     grid = client.get("/api/availability", params={"date": DAY, "type": "seminar_hall"}).json()
     dsh = next(v for v in grid["venues"] if v["code"] == "DSH")

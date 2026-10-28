@@ -3,17 +3,22 @@
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { whenText } from '#lib/time.ts';
 	import { btnPrimary, btnSecondary, card, field } from '#lib/ui.ts';
-	import type { ApprovalItem, Booking } from '#lib/types.ts';
+	import StatusBadge from '#lib/components/StatusBadge.svelte';
+	import type { ApprovalItem, Booking, DecisionHistory } from '#lib/types.ts';
 
 	let items = $state<ApprovalItem[] | null>(null);
 	let error = $state('');
 	let comments = $state<Record<number, string>>({});
 	let busy = $state<number | null>(null);
 	let done = $state<{ ref: string; title: string; status: string }[]>([]);
+	let history = $state<DecisionHistory[] | null>(null);
 
 	async function load() {
 		try {
-			items = await api<ApprovalItem[]>('/approvals');
+			[items, history] = await Promise.all([
+				api<ApprovalItem[]>('/approvals'),
+				api<DecisionHistory[]>('/approvals/history')
+			]);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Could not load';
 		}
@@ -115,4 +120,38 @@
 			{/each}
 		</ul>
 	{/if}
+
+	<section class="mt-10">
+		<h2 class="text-lg font-semibold">
+			Your past decisions{history ? ` (${history.length})` : ''}
+		</h2>
+		{#if !history}
+			<p class="mt-2 text-muted">Loading…</p>
+		{:else if history.length === 0}
+			<p class="mt-2 text-muted">You haven't approved or rejected anything yet.</p>
+		{:else}
+			<ul class="mt-3 space-y-2">
+				{#each history as h, i (`${h.booking.id}-${h.step}-${i}`)}
+					<li>
+						<a
+							href="/bookings/{h.booking.id}"
+							class="lift glass flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-3 hover:border-accent/50"
+						>
+							<span class="min-w-0">
+								<span class="block font-medium">{h.booking.title}</span>
+								<span class="block text-sm text-muted">
+									{h.booking.ref} · {h.booking.venue.code} · {whenText(
+										h.booking.start,
+										h.booking.end
+									)} · you {h.decision}
+									{STEP[h.step]}{h.comment ? `: “${h.comment}”` : ''}
+								</span>
+							</span>
+							<StatusBadge status={h.booking.status} />
+						</a>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
 {/if}

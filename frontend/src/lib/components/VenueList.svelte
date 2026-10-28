@@ -16,7 +16,7 @@
 				{#each list.filter((v) => v.type === type) as v (v.id)}
 					<a
 						href="/venues/{v.code}"
-						class="block rounded-xl border border-border bg-surface p-5 transition hover:border-accent"
+						class="block lift glass rounded-2xl border p-5 transition hover:border-accent/50"
 					>
 						<div class="flex items-baseline justify-between gap-2">
 							<span class="font-semibold">{v.name}</span>

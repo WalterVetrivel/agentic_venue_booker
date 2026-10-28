@@ -97,7 +97,6 @@
 	}
 </script>
 
-<a href="/venues" class="text-accent">← All venues</a>
 {#if error}
 	<p class="mt-6 text-danger">{error}</p>
 {:else if !venue}
@@ -176,7 +175,7 @@
 			<ul class="mt-3 space-y-2">
 				{#each v.status_periods as p (p.id)}
 					<li
-						class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3"
+						class="flex flex-wrap items-center justify-between gap-2 glass rounded-xl border px-4 py-3"
 					>
 						<span
 							><strong class="capitalize">{p.status}</strong> · {fmt(p.from_date)} to {fmt(
@@ -239,7 +238,7 @@
 			<ul class="mt-3 space-y-2">
 				{#each v.seasonal_rules as r (r.id)}
 					<li
-						class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface px-4 py-3"
+						class="flex flex-wrap items-center justify-between gap-2 glass rounded-xl border px-4 py-3"
 					>
 						<span
 							><strong>{MONTHS[r.start_month - 1]}–{MONTHS[r.end_month - 1]}</strong> · {r.kind ===
@@ -301,9 +300,7 @@
 				<h3 class="mt-6 font-semibold text-muted">{title}</h3>
 				<ul class="mt-2 grid gap-2 sm:grid-cols-2">
 					{#each items as e (e.id)}
-						<li
-							class="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-2.5"
-						>
+						<li class="flex items-center justify-between gap-3 glass rounded-xl border px-4 py-2.5">
 							<span class="min-w-0">
 								{e.name}
 								{#if e.quantity > 1}<span class="text-sm whitespace-nowrap text-muted">

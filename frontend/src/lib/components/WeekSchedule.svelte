@@ -10,7 +10,7 @@
 {:else}
 	<div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 		{#each days as day (day)}
-			<div class="rounded-xl border border-border bg-surface p-4">
+			<div class="glass rounded-2xl border p-4">
 				<h3 class="font-semibold">{day}</h3>
 				<ul class="mt-2 space-y-2">
 					{#each slots.filter((s) => s.weekday === day) as s (s.id)}

@@ -20,18 +20,30 @@
 	--color-warning: var(--warning);
 	--color-series-1: var(--series-1);
 	--color-series-2: var(--series-2);
+	--color-glass: var(--glass);
+	--color-glass-strong: var(--glass-strong);
+	--color-glass-border: var(--glass-border);
 }
 
 :root {
-	--bg: #f6f7fb;
+	--bg: #f7f8f3;
 	--surface: #ffffff;
-	--surface-2: #eef1f7;
-	--border: #d9dee8;
+	--surface-2: rgb(236 240 232 / 0.75);
+	--border: rgb(23 32 51 / 0.12);
 	--fg: #172033;
-	--muted: #556079;
-	--accent: #1f5fbf;
+	--muted: #4f5a70;
+	/* KIOT blue, from the college logo. */
+	--accent: #22409a;
 	--accent-fg: #ffffff;
-	--accent-soft: #e3ecfa;
+	--accent-soft: rgb(34 64 154 / 0.1);
+	--glass: rgb(255 255 255 / 0.55);
+	--glass-strong: rgb(255 255 255 / 0.82);
+	--glass-border: rgb(255 255 255 / 0.7);
+	--glow-green: #b8e6c5;
+	--glow-orange: #fcd3a8;
+	--glow-mint: #d4f0dc;
+	--glow-peach: #ffe2c7;
+	--shadow-glass: 0 8px 32px rgb(31 50 81 / 0.08);
 	--danger: #b42318;
 	--success: #11734b;
 	--warning: #9a6200;
@@ -42,15 +54,23 @@
 }
 
 :root[data-theme='dark'] {
-	--bg: #0f1420;
+	--bg: #0d1219;
 	--surface: #171e2d;
-	--surface-2: #212a3d;
-	--border: #2e3a52;
+	--surface-2: rgb(255 255 255 / 0.07);
+	--border: rgb(255 255 255 / 0.12);
 	--fg: #e7ebf3;
 	--muted: #a3adc2;
-	--accent: #7aa7ff;
+	--accent: #a8bcff;
 	--accent-fg: #0b1220;
-	--accent-soft: #1d2b47;
+	--accent-soft: rgb(168 188 255 / 0.12);
+	--glass: rgb(23 30 45 / 0.55);
+	--glass-strong: rgb(23 30 45 / 0.88);
+	--glass-border: rgb(255 255 255 / 0.09);
+	--glow-green: #1d4a33;
+	--glow-orange: #5a3418;
+	--glow-mint: #163a2c;
+	--glow-peach: #4a2c16;
+	--shadow-glass: 0 8px 32px rgb(0 0 0 / 0.35);
 	--danger: #ff8a80;
 	--success: #5fd3a0;
 	--warning: #f5c26b;
@@ -65,6 +85,7 @@ html {
 
 body {
 	background: var(--bg);
+	min-height: 100vh;
 	color: var(--fg);
 	font-family: var(--font-sans);
 	line-height: 1.6;
@@ -75,4 +96,211 @@ body {
 	outline: 3px solid var(--accent);
 	outline-offset: 2px;
 	border-radius: 6px;
+}
+
+/* Pointer cursor on everything clickable; Tailwind's reset leaves buttons with the arrow. */
+a[href],
+button:not(:disabled),
+[role='button'],
+summary,
+select,
+label:has(> input[type='checkbox']),
+label:has(> input[type='radio']),
+input[type='checkbox'],
+input[type='radio'],
+input[type='file'] {
+	cursor: pointer;
+}
+button:disabled {
+	cursor: not-allowed;
+}
+
+/* Soft pastel glow behind the app: green and orange blobs, blurred. */
+.backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	overflow: hidden;
+	pointer-events: none;
+	background: var(--bg);
+}
+.backdrop span {
+	position: absolute;
+	border-radius: 9999px;
+	filter: blur(90px);
+	opacity: 0.75;
+	animation: drift 28s ease-in-out infinite alternate;
+}
+.backdrop span:nth-child(1) {
+	top: -12%;
+	left: -8%;
+	width: 48vw;
+	height: 48vw;
+	background: var(--glow-green);
+}
+.backdrop span:nth-child(2) {
+	top: 8%;
+	right: -14%;
+	width: 42vw;
+	height: 42vw;
+	background: var(--glow-orange);
+	animation-duration: 34s;
+	animation-delay: -6s;
+}
+.backdrop span:nth-child(3) {
+	bottom: -18%;
+	left: 22%;
+	width: 50vw;
+	height: 40vw;
+	background: var(--glow-peach);
+	animation-duration: 40s;
+	animation-delay: -12s;
+}
+.backdrop span:nth-child(4) {
+	bottom: 10%;
+	left: -10%;
+	width: 30vw;
+	height: 30vw;
+	background: var(--glow-mint);
+	animation-duration: 30s;
+	animation-delay: -18s;
+}
+@keyframes drift {
+	from {
+		transform: translate3d(0, 0, 0) scale(1);
+	}
+	to {
+		transform: translate3d(4vw, 3vh, 0) scale(1.12);
+	}
+}
+
+/* Frosted glass panels. */
+.glass {
+	background: var(--glass);
+	border-color: var(--glass-border);
+	box-shadow: var(--shadow-glass);
+	backdrop-filter: blur(16px) saturate(160%);
+	-webkit-backdrop-filter: blur(16px) saturate(160%);
+}
+.glass-strong {
+	background: var(--glass-strong);
+	border-color: var(--glass-border);
+	box-shadow: var(--shadow-glass);
+	backdrop-filter: blur(20px) saturate(160%);
+	-webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+/* For bars that hold fixed-position popups: blur on a layer behind, so the bar does not
+   become the popups' containing block. */
+.glass-bar {
+	isolation: isolate;
+	background: transparent;
+	border-color: var(--glass-border);
+}
+.glass-bar::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background: var(--glass-strong);
+	backdrop-filter: blur(20px) saturate(160%);
+	-webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+/* Cards and list rows that lift a little on hover. */
+.lift {
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease,
+		border-color 0.2s ease,
+		background-color 0.2s ease;
+}
+.lift:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 14px 36px rgb(31 50 81 / 0.12);
+}
+.press {
+	transition:
+		transform 0.12s ease,
+		opacity 0.15s ease,
+		background-color 0.15s ease;
+}
+.press:active:not(:disabled) {
+	transform: scale(0.97);
+}
+
+/* Content fades up as a page opens; lists stagger with --i. */
+.rise {
+	animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+	animation-delay: calc(var(--i, 0) * 45ms);
+}
+@keyframes rise {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+.pop {
+	animation: pop 0.18s ease-out backwards;
+}
+@keyframes pop {
+	from {
+		opacity: 0;
+		transform: translateY(-4px) scale(0.98);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+.spin {
+	animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+.typing span {
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	margin-right: 4px;
+	border-radius: 9999px;
+	background: currentColor;
+	animation: blink 1.2s infinite ease-in-out;
+}
+.typing span:nth-child(2) {
+	animation-delay: 0.15s;
+}
+.typing span:nth-child(3) {
+	animation-delay: 0.3s;
+}
+@keyframes blink {
+	0%,
+	80%,
+	100% {
+		opacity: 0.25;
+		transform: translateY(0);
+	}
+	40% {
+		opacity: 1;
+		transform: translateY(-2px);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+	.lift:hover {
+		transform: none;
+	}
 }
