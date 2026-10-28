@@ -4,6 +4,7 @@
 	import { api } from '#lib/api.ts';
 	import WeekSchedule from '#lib/components/WeekSchedule.svelte';
 	import { session } from '#lib/stores/session.svelte.ts';
+	import { ui } from '#lib/stores/ui.svelte.ts';
 	import { btnSecondary } from '#lib/ui.ts';
 	import type { ClassSlot, Section } from '#lib/types.ts';
 
@@ -12,9 +13,10 @@
 	let slots = $state<ClassSlot[]>([]);
 
 	$effect(() => {
-		api<Section[]>('/timetables/sections').then(
-			(all) => (section = all.find((s) => s.id === id) ?? null)
-		);
+		api<Section[]>('/timetables/sections').then((all) => {
+			section = all.find((s) => s.id === id) ?? null;
+			if (section) ui.crumb = section.label;
+		});
 		api<ClassSlot[]>(`/timetables/slots?section_id=${id}`).then((s) => (slots = s));
 	});
 
@@ -26,7 +28,6 @@
 	}
 </script>
 
-<a href="/timetables" class="text-accent">← Timetables</a>
 <div class="mt-4 flex flex-wrap items-start justify-between gap-3">
 	<div>
 		<h1 class="text-2xl font-semibold">{section?.label ?? 'Class'} lab schedule</h1>

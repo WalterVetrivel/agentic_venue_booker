@@ -73,7 +73,7 @@
 <p class="mt-2 text-muted">See which labs, Centres of Excellence and seminar halls are free.</p>
 
 <form
-	class="mt-6 grid gap-4 rounded-xl border border-border bg-surface p-5 sm:grid-cols-2 lg:grid-cols-3"
+	class="mt-6 grid gap-4 glass rounded-2xl border p-5 sm:grid-cols-2 lg:grid-cols-3"
 	onsubmit={(e) => {
 		e.preventDefault();
 		load();
@@ -145,7 +145,7 @@
 {:else if !shown}
 	<p class="mt-4 text-muted">Loading…</p>
 {:else if shown.venues.length === 0}
-	<p class="mt-4 rounded-xl border border-border bg-surface p-6 text-muted">
+	<p class="mt-4 glass rounded-2xl border p-6 text-muted">
 		No venue matches these filters. Try fewer requirements or a different time.
 	</p>
 {:else}

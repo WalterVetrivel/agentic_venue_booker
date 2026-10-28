@@ -64,6 +64,19 @@ def _title(message: str) -> str:
     return text if len(text) <= 60 else text[:57].rstrip() + "…"
 
 
+def _drop_last_turn(db: Session, conversation: Conversation, message: str) -> None:
+    """Forget the last question and its reply (if one was saved) before asking it again."""
+    trail = list(conversation.messages[-2:])
+    if trail and trail[-1].role == "assistant":
+        reply = trail.pop()
+        conversation.messages.remove(reply)
+        db.delete(reply)
+    if trail and trail[-1].role == "user" and trail[-1].content == message:
+        conversation.messages.remove(trail[-1])
+        db.delete(trail[-1])
+    db.flush()
+
+
 @router.post("")
 async def chat(body: ChatIn, request: Request) -> StreamingResponse:
     """Answer one message. The reply streams as `data: {json}` events (see app.agent.runtime)."""
@@ -85,6 +98,8 @@ async def chat(body: ChatIn, request: Request) -> StreamingResponse:
                     if conversation is None or conversation.user_id != me.id:
                         yield _sse({"type": "error", "message": "That conversation was not found."})
                         return
+                    if body.regenerate:
+                        _drop_last_turn(db, conversation, body.message)
                     history = [
                         {"role": m.role, "content": m.content} for m in conversation.messages
                     ]

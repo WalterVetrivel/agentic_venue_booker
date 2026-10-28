@@ -63,7 +63,7 @@
 	</ul>
 	{#if tip}
 		<div
-			class="pointer-events-none absolute z-10 rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm whitespace-nowrap shadow-lg"
+			class="pointer-events-none absolute z-10 glass-strong rounded-md border px-2.5 py-1.5 text-sm whitespace-nowrap"
 			style="left: {tip.x + 12}px; top: {tip.y - 36}px"
 			aria-hidden="true"
 		>

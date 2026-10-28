@@ -50,7 +50,7 @@
 						<li>
 							<a
 								href="/bookings/{b.id}"
-								class="block rounded-xl border bg-surface p-5 hover:border-accent {b.status ===
+								class="block lift glass rounded-2xl border p-5 hover:border-accent/50 {b.status ===
 								'offered'
 									? 'border-accent'
 									: 'border-border'}"

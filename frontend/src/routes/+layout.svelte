@@ -1,22 +1,29 @@
 <script lang="ts">
 	import './layout.css';
-	import favicon from '#lib/assets/favicon.svg';
 	import type { LayoutProps } from './$types';
 	import TopBar from '#lib/components/TopBar.svelte';
 	import SideNav from '#lib/components/SideNav.svelte';
 	import ChatPanel from '#lib/components/ChatPanel.svelte';
+	import Breadcrumbs from '#lib/components/Breadcrumbs.svelte';
+	import { beforeNavigate } from '$app/navigation';
+	import { page } from '$app/state';
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { ui } from '#lib/stores/ui.svelte.ts';
 
 	let { children }: LayoutProps = $props();
 
 	session.load();
+
+	beforeNavigate(({ from, to }) => {
+		if (from?.url.pathname !== to?.url.pathname) ui.crumb = '';
+	});
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" type="image/png" href="/favicon.png" />
 </svelte:head>
 
+<div class="backdrop" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
 <TopBar />
 <div class="flex">
 	<SideNav />
@@ -25,7 +32,12 @@
 	>
 		<div class="mx-auto max-w-5xl">
 			{#if session.loaded}
-				{@render children()}
+				{#if page.url.pathname !== '/'}<Breadcrumbs />{/if}
+				{#key page.url.pathname}
+					<div class="rise">
+						{@render children()}
+					</div>
+				{/key}
 			{/if}
 		</div>
 	</main>

@@ -2,6 +2,7 @@
 	import { tick, untrack } from 'svelte';
 	import Icon from './Icon.svelte';
 	import { renderMarkdown } from '#lib/markdown.ts';
+	import { yesNoReplies } from '#lib/replies.ts';
 	import { chat } from '#lib/stores/chat.svelte.ts';
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { ui } from '#lib/stores/ui.svelte.ts';
@@ -101,6 +102,15 @@
 	function cardDone(m: ChatMessage, i: number) {
 		return m.cards[i].state === 'done' || m.cards[i].state === 'dismissed';
 	}
+
+	const lastIndex = $derived(chat.messages.length - 1);
+	// Yes/no chips under the last reply, unless a card is already asking for a decision.
+	const quickReplies = $derived.by(() => {
+		const m = chat.messages.at(-1);
+		if (!m || m.role !== 'assistant' || m.streaming || m.error || chat.busy) return [];
+		if (m.cards.some((c, i) => c.kind === 'confirm' && !cardDone(m, i))) return [];
+		return yesNoReplies(m.content);
+	});
 </script>
 
 {#if ui.chatOpen}
@@ -112,7 +122,7 @@
 	></button>
 
 	<aside
-		class="fixed inset-0 z-50 flex flex-col border-l border-border bg-surface md:left-auto md:w-[26rem] xl:top-16 xl:z-20"
+		class="glass-strong fixed inset-0 z-50 flex flex-col border-l md:left-auto md:w-[26rem] xl:top-16 xl:z-20"
 		aria-label="AI assistant"
 	>
 		<div class="flex h-16 shrink-0 items-center gap-1 border-b border-border px-3">
@@ -123,13 +133,13 @@
 					aria-haspopup="menu"
 					onclick={openHistory}
 				>
-					<Icon name="history" size={18} />
+					<Icon name="history" size={18} class="shrink-0" />
 					<span class="truncate">{chat.title}</span>
-					<Icon name="chevron" size={16} />
+					<Icon name="chevron" size={16} class="shrink-0" />
 				</button>
 				{#if historyOpen}
 					<div
-						class="absolute top-full left-0 z-10 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-surface p-3 shadow-lg"
+						class="absolute top-full left-0 z-10 mt-2 w-80 max-w-[calc(100vw-2rem)] pop glass-strong rounded-xl border p-3"
 					>
 						<button
 							class="mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 font-medium hover:bg-surface-2"
@@ -217,7 +227,7 @@
 				>
 				{#if modelOpen && chat.providers}
 					<div
-						class="absolute top-full right-0 z-10 mt-2 w-72 rounded-xl border border-border bg-surface p-3 shadow-lg"
+						class="absolute top-full right-0 z-10 mt-2 w-72 pop glass-strong rounded-xl border p-3"
 					>
 						{#if chat.providers.demo}
 							<p class="text-sm text-muted">
@@ -258,7 +268,7 @@
 
 		<div class="flex-1 space-y-4 overflow-y-auto p-5" bind:this={scroller} aria-live="polite">
 			{#if isEmpty}
-				<div class="rounded-xl bg-surface-2 p-4">
+				<div class="rounded-2xl bg-gradient-to-br from-accent-soft to-surface-2 p-4">
 					<p class="font-medium">
 						Hi{session.user ? `, ${session.user.name}` : ''}! I can check availability, recommend
 						venues and help with bookings.
@@ -273,7 +283,7 @@
 					<p class="text-sm font-medium text-muted">Try asking</p>
 					{#each suggestions as s (s)}
 						<button
-							class="block w-full rounded-lg border border-border px-4 py-2.5 text-left hover:bg-surface-2"
+							class="press lift glass block w-full rounded-xl border px-4 py-2.5 text-left hover:border-accent/50"
 							onclick={() => (draft = s)}>{s}</button
 						>
 					{/each}
@@ -282,14 +292,17 @@
 
 			{#each chat.messages as m, mi (mi)}
 				{#if m.role === 'user'}
-					<div class="ml-8 rounded-xl bg-accent px-4 py-2.5 text-accent-fg" data-role="user">
+					<div
+						class="pop ml-8 rounded-2xl rounded-br-md bg-gradient-to-br from-accent to-accent/85 px-4 py-2.5 text-accent-fg shadow-sm"
+						data-role="user"
+					>
 						{#each m.cards as f, i (i)}
 							<p class="mb-1 text-sm opacity-90">📎 {f.title}</p>
 						{/each}
 						<p class="whitespace-pre-wrap">{m.content}</p>
 					</div>
 				{:else}
-					<div class="space-y-2" data-role="assistant">
+					<div class="group/msg space-y-2" data-role="assistant">
 						{#if m.steps.length}
 							<ul class="space-y-0.5 text-sm text-muted">
 								{#each m.steps as s (s.id)}
@@ -303,7 +316,9 @@
 						{#if m.content}
 							<div class="chat-md space-y-2">{@html renderMarkdown(m.content)}</div>
 						{:else if m.streaming}
-							<p class="text-muted">Thinking…</p>
+							<p class="typing flex items-center py-1 text-muted" aria-label="Thinking">
+								<span></span><span></span><span></span>
+							</p>
 						{/if}
 						{#each m.cards as c, ci (ci)}
 							<div
@@ -348,13 +363,52 @@
 							</div>
 						{/each}
 						{#if m.error}
-							<p class="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
-								{m.error}
-							</p>
+							<div
+								class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger"
+								role="alert"
+							>
+								<span>{m.error}</span>
+								{#if mi === lastIndex && !chat.busy}
+									<button
+										class="press inline-flex items-center gap-1.5 rounded-md bg-danger/10 px-2.5 py-1 font-medium hover:bg-danger/20"
+										onclick={() => chat.rerun()}
+									>
+										<Icon name="retry" size={14} /> Try again
+									</button>
+								{/if}
+							</div>
+						{/if}
+						{#if mi === lastIndex && !m.streaming && !chat.busy}
+							<div class="flex items-center gap-1 text-muted">
+								<button
+									class="press group/rerun rounded-md p-1.5 hover:bg-surface-2 hover:text-fg"
+									aria-label="Rerun"
+									title="Run the same prompt again"
+									onclick={() => chat.rerun()}
+								>
+									<Icon
+										name="retry"
+										size={16}
+										class="transition-transform duration-500 group-hover/rerun:rotate-180"
+									/>
+								</button>
+							</div>
 						{/if}
 					</div>
 				{/if}
 			{/each}
+
+			{#if quickReplies.length}
+				<div class="flex flex-wrap gap-2" aria-label="Quick replies" role="group">
+					{#each quickReplies as q, i (q)}
+						<button
+							class="press pop rounded-full border border-accent/40 bg-accent-soft px-4 py-1.5 text-sm font-medium text-accent hover:bg-accent hover:text-accent-fg"
+							style="animation-delay: {i * 60}ms"
+							onclick={() => chat.send(q)}>{q}</button
+						>
+					{/each}
+				</div>
+			{/if}
 		</div>
 
 		<form class="border-t border-border p-4" onsubmit={submit}>
@@ -409,12 +463,12 @@
 					bind:value={draft}
 					onkeydown={onKey}
 					placeholder="Ask about venues, availability or bookings…"
-					class="min-h-12 flex-1 resize-none rounded-lg border border-border bg-bg px-3 py-2.5 focus:border-accent focus:outline-none"
+					class="min-h-12 flex-1 resize-none rounded-lg border border-border bg-glass px-3 py-2.5 transition focus:border-accent focus:ring-3 focus:ring-accent/15 focus:outline-none"
 				></textarea>
 				{#if chat.busy}
 					<button
 						type="button"
-						class="rounded-lg bg-surface-2 p-3"
+						class="press rounded-lg bg-surface-2 p-3"
 						aria-label="Stop"
 						onclick={() => chat.stop()}
 					>
@@ -424,7 +478,7 @@
 					<button
 						type="submit"
 						disabled={!draft.trim()}
-						class="rounded-lg bg-accent p-3 text-accent-fg disabled:opacity-50"
+						class="press rounded-lg bg-accent p-3 text-accent-fg shadow-sm hover:shadow-md disabled:opacity-50"
 						aria-label="Send"
 					>
 						<Icon name="send" />
@@ -435,7 +489,7 @@
 	</aside>
 {:else}
 	<button
-		class="fixed right-5 bottom-5 z-30 flex items-center gap-2 rounded-full bg-accent px-5 py-3.5 font-medium text-accent-fg shadow-lg hover:opacity-90"
+		class="press pop fixed right-5 bottom-5 z-30 flex items-center gap-2 rounded-full bg-gradient-to-br from-accent to-accent/80 px-5 py-3.5 font-medium text-accent-fg shadow-lg transition-shadow hover:shadow-xl hover:shadow-accent/30"
 		onclick={() => ui.setChat(true)}
 	>
 		<Icon name="chat" /> Ask the assistant

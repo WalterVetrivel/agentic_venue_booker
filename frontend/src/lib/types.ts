@@ -276,6 +276,14 @@ export type ApprovalItem = {
 	waiting_behind: number;
 };
 
+export type DecisionHistory = {
+	booking: Booking;
+	step: string;
+	decision: 'approved' | 'rejected';
+	comment: string | null;
+	decided_at: string;
+};
+
 export type AppNotification = {
 	id: number;
 	kind: string;
@@ -418,6 +426,8 @@ export type ChatMessage = {
 	cards: ChatCard[];
 	error?: string;
 	streaming?: boolean;
+	/** The PDF sent with a question in this session, kept so the question can be rerun. */
+	attachment?: Attachment | null;
 };
 
 export type ConversationBrief = {

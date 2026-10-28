@@ -127,17 +127,31 @@ class Chat {
 		this.controller?.abort();
 	}
 
-	async send(text: string) {
+	/** Ask the last question again, replacing its reply (after a timeout or rate limit, say). */
+	async rerun() {
+		if (this.busy) return;
+		const at = this.messages.findLastIndex((m) => m.role === 'user');
+		if (at < 0) return;
+		const question = this.messages[at];
+		this.messages.splice(at);
+		await this.send(question.content, { regenerate: true, attachment: question.attachment });
+	}
+
+	async send(text: string, opts: { regenerate?: boolean; attachment?: Attachment | null } = {}) {
 		text = text.trim();
 		if (!text || this.busy) return;
 		const history = session.user
 			? []
 			: this.messages.slice(-10).map((m) => ({ role: m.role, content: m.content }));
-		const attachment = this.attachment;
-		this.attachment = null;
+		let attachment: Attachment | null | undefined = opts.attachment;
+		if (!opts.regenerate) {
+			attachment = this.attachment;
+			this.attachment = null;
+		}
 		this.messages.push({
 			role: 'user',
 			content: text,
+			attachment,
 			steps: [],
 			cards: attachment ? [{ kind: 'file', title: attachment.title, href: attachment.link }] : []
 		});
@@ -157,7 +171,8 @@ class Chat {
 					provider: this.provider || null,
 					model: this.model || null,
 					history,
-					attachment
+					attachment,
+					regenerate: !!opts.regenerate && this.conversationId !== null
 				})
 			});
 			if (!res.ok || !res.body) {

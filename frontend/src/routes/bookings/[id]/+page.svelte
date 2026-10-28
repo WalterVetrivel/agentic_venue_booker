@@ -3,6 +3,7 @@
 	import { api } from '#lib/api.ts';
 	import StatusBadge from '#lib/components/StatusBadge.svelte';
 	import { session } from '#lib/stores/session.svelte.ts';
+	import { ui } from '#lib/stores/ui.svelte.ts';
 	import { dateTimeText, whenText } from '#lib/time.ts';
 	import { btnPrimary, btnSecondary, card, field, label } from '#lib/ui.ts';
 	import type { Booking } from '#lib/types.ts';
@@ -20,7 +21,10 @@
 	$effect(() => {
 		if (!session.user) return;
 		api<Booking>(`/bookings/${id}`)
-			.then((b) => (booking = b))
+			.then((b) => {
+				booking = b;
+				ui.crumb = b.title;
+			})
 			.catch((e) => (error = e.message));
 	});
 

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.availability import block_out, notice_out
 from app.auth import get_current_user, get_via, require
 from app.db import get_db
-from app.models import Booking, Notification, User
+from app.models import Approval, Booking, Notification, User
 from app.schemas import (
     ApprovalItemOut,
     ApprovalOut,
@@ -17,6 +17,7 @@ from app.schemas import (
     BookingSubmitIn,
     CancelIn,
     ClassClashOut,
+    DecisionHistoryOut,
     DecisionIn,
     MoveOut,
     NotificationOut,
@@ -294,6 +295,29 @@ def approval_queue(
         )
         for b in pending
         if svc.can_act(user, b)
+    ]
+
+
+@router.get("/approvals/history", response_model=list[DecisionHistoryOut])
+def decision_history(
+    limit: int = 100, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+) -> list[DecisionHistoryOut]:
+    """Requests this person has already approved or rejected, newest first."""
+    decided = db.scalars(
+        select(Approval)
+        .where(Approval.approver_id == user.id)
+        .order_by(Approval.decided_at.desc(), Approval.id.desc())
+        .limit(min(max(limit, 1), 500))
+    ).all()
+    return [
+        DecisionHistoryOut(
+            booking=booking_out(db, a.booking, user),
+            step=a.step,
+            decision=a.decision,
+            comment=a.comment,
+            decided_at=a.decided_at,
+        )
+        for a in decided
     ]
 
 

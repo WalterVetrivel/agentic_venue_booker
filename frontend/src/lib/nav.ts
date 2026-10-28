@@ -8,6 +8,14 @@ export type NavItem = {
 	blurb: string;
 };
 
+/** Capabilities that put someone in an approval queue (venue in-charges, HOD, Director). */
+export const APPROVER_CAPABILITIES = [
+	'approve_own_venues',
+	'approve_cse_venues',
+	'approve_all',
+	'approve_displacement'
+];
+
 export const NAV: NavItem[] = [
 	{ href: '/', label: 'Home', icon: 'home', blurb: '', anyOf: [] },
 	{
@@ -43,7 +51,7 @@ export const NAV: NavItem[] = [
 		label: 'Approvals',
 		icon: 'check',
 		blurb: 'Requests waiting for your decision',
-		anyOf: ['approve_own_venues', 'approve_cse_venues', 'approve_all', 'approve_displacement']
+		anyOf: APPROVER_CAPABILITIES
 	},
 	{
 		href: '/timetables',

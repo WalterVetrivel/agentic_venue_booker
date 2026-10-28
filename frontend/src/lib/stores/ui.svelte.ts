@@ -21,6 +21,8 @@ class Ui {
 	// Docked chat on large screens remembers whether it was closed.
 	chatOpen = $state(read('chatOpen') !== 'false' && window.innerWidth >= 1280);
 	navOpen = $state(false);
+	/** A detail page's own name for the last breadcrumb (cleared on every navigation). */
+	crumb = $state('');
 
 	toggleTheme() {
 		this.theme = this.theme === 'dark' ? 'light' : 'dark';

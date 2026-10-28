@@ -60,12 +60,12 @@
 </script>
 
 <!-- Desktop / tablet: time grid -->
-<div class="hidden overflow-x-auto rounded-xl border border-border bg-surface md:block">
+<div class="hidden overflow-x-auto glass rounded-2xl border md:block">
 	<table class="w-full border-collapse text-sm">
 		<thead>
 			<tr>
 				<th
-					class="sticky left-0 z-10 min-w-28 border-b border-border bg-surface px-4 py-3 text-left font-semibold"
+					class="sticky left-0 z-10 min-w-28 border-b border-border bg-glass-strong backdrop-blur-md px-4 py-3 text-left font-semibold"
 					>Venue</th
 				>
 				{#each slots as s (s)}
@@ -84,7 +84,9 @@
 		<tbody>
 			{#each data.venues as v (v.code)}
 				<tr class="border-b border-border last:border-0">
-					<th class="sticky left-0 z-10 bg-surface px-4 py-2 text-left font-normal">
+					<th
+						class="sticky left-0 z-10 bg-glass-strong backdrop-blur-md px-4 py-2 text-left font-normal"
+					>
 						<a href="/venues/{v.code}" class="font-medium hover:text-accent">{v.code}</a>
 						<span class="block text-xs text-muted">{v.capacity} seats{v.byod ? ' · BYOD' : ''}</span
 						>
@@ -115,7 +117,7 @@
 <ul class="space-y-3 md:hidden">
 	{#each data.venues as v (v.code)}
 		{@const hard = v.blocks}
-		<li class="rounded-xl border border-border bg-surface p-4">
+		<li class="glass rounded-2xl border p-4">
 			<div class="flex items-baseline justify-between">
 				<a href="/venues/{v.code}" class="font-semibold">{v.name}</a>
 				<span class="text-sm text-muted">{v.capacity} seats</span>

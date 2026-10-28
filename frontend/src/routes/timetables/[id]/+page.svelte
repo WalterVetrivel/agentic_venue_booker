@@ -79,7 +79,6 @@
 	const small = 'block w-full rounded-md border border-border bg-bg px-2 py-1.5 text-fg';
 </script>
 
-<a href="/timetables" class="text-accent">← Timetables</a>
 {#if !upload}
 	<p class="mt-6 {error ? 'text-danger' : 'text-muted'}">{error || 'Loading…'}</p>
 {:else}
@@ -189,7 +188,7 @@
 	<ul class="mt-3 space-y-3">
 		{#each upload.slots as s, i (i)}
 			<li
-				class="rounded-xl border bg-surface p-4 {s.issues?.length
+				class="glass rounded-2xl border p-4 {s.issues?.length
 					? 'border-danger/50 bg-danger/5'
 					: 'border-border'}"
 				oninput={() => (dirty = true)}
