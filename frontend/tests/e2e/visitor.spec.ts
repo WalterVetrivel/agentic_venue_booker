@@ -30,10 +30,12 @@ test('faculty on the student form log in and land on the booking form', async ({
 	const note = page.getByRole('complementary', { name: 'For faculty and staff' });
 	await expect(note).toContainText('Faculty member?');
 	await note.getByRole('link', { name: 'Log in to book' }).click();
+	await expect(page.getByRole('heading', { name: 'Staff login' })).toBeVisible();
+	await expect(page).toHaveURL(/\/login\?next=%2Fbook$|\/login\?next=\/book$/);
 	await page.getByLabel('Email').fill('tkcse@kiot.ac.in');
 	await page.getByLabel('Password').fill('password');
 	await page.getByRole('button', { name: 'Log in' }).click();
-	await expect(page).toHaveURL(/\/book$/);
+	await expect(page).toHaveURL((url) => url.pathname === '/book');
 	await expect(page.getByRole('heading', { name: 'Book a venue', level: 1 })).toBeVisible();
 });
 
