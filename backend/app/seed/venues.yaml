@@ -1,4 +1,5 @@
 # Seed data for venues. Edit freely; re-run `python -m app.seed --reset` to reload.
+# projector: false for the few labs without a projector and screen (they have a smart board).
 # in_charge: login email of the venue in-charge (faculty initials + cse@kiot.ac.in, or a hall account).
 
 software_profiles:
@@ -11,22 +12,21 @@ software_profiles:
 
 
 venues:
-  - {code: CC1,  name: Computer Centre 1,  type: lab, block: CSE Block, capacity: 60, software: programming,      pcs: 60, in_charge: gbcse@kiot.ac.in}
-  - {code: CC2,  name: Computer Centre 2,  type: lab, block: CSE Block, capacity: 60, software: programming,      pcs: 60, in_charge: kgcse@kiot.ac.in}
-  - {code: CC3,  name: Computer Centre 3,  type: lab, block: CSE Block, capacity: 40, software: programming,      pcs: 40, in_charge: pnkcse@kiot.ac.in}
-  - {code: CC4,  name: Computer Centre 4,  type: lab, block: CSE Block, capacity: 40, software: programming,      pcs: 40, in_charge: kbcse@kiot.ac.in}
-  - {code: CC5,  name: Computer Centre 5,  type: lab, block: CSE Block, capacity: 40, software: data_ai,          pcs: 40, in_charge: mkscse@kiot.ac.in}
-  - {code: CC6,  name: Computer Centre 6,  type: lab, block: CSE Block, capacity: 40, software: data_ai,          pcs: 40, in_charge: tprcse@kiot.ac.in}
-  - {code: CC7,  name: Computer Centre 7,  type: lab, block: CSE Block, capacity: 40, software: data_ai,          pcs: 40, in_charge: rscse@kiot.ac.in}
-  - {code: CC8,  name: Computer Centre 8,  type: lab, block: CSE Block, capacity: 40, software: data_ai,          pcs: 40, in_charge: nscse@kiot.ac.in}
-  - {code: CC9,  name: Computer Centre 9,  type: lab, block: CSE Block, capacity: 40, software: web_cloud,        pcs: 40, in_charge: drcse@kiot.ac.in}
-  - {code: CC10, name: Computer Centre 10, type: lab, block: CSE Block, capacity: 40, software: web_cloud,        pcs: 40, in_charge: swvcse@kiot.ac.in}
-  - {code: CC11, name: Computer Centre 11, type: lab, block: CSE Block, capacity: 40, software: network_security, pcs: 40, in_charge: pgncse@kiot.ac.in}
-  - {code: CC12, name: Computer Centre 12, type: lab, block: CSE Block, capacity: 40, software: network_security, pcs: 40, in_charge: cscse@kiot.ac.in}
+  - {code: CC1,  name: Computer Centre 1,  type: lab, capacity: 60, software: programming,      pcs: 60, in_charge: gbcse@kiot.ac.in}
+  - {code: CC2,  name: Computer Centre 2,  type: lab, capacity: 60, software: programming,      pcs: 60, in_charge: kgcse@kiot.ac.in}
+  - {code: CC3,  name: Computer Centre 3,  type: lab, capacity: 40, software: programming,      pcs: 40, in_charge: pnkcse@kiot.ac.in}
+  - {code: CC4,  name: Computer Centre 4,  type: lab, capacity: 40, software: programming,      pcs: 40, in_charge: kbcse@kiot.ac.in}
+  - {code: CC5,  name: Computer Centre 5,  type: lab, capacity: 40, software: data_ai,          pcs: 40, in_charge: mkscse@kiot.ac.in}
+  - {code: CC6,  name: Computer Centre 6,  type: lab, capacity: 40, software: data_ai,          pcs: 40, in_charge: tprcse@kiot.ac.in}
+  - {code: CC7,  name: Computer Centre 7,  type: lab, capacity: 40, software: data_ai,          pcs: 40, in_charge: rscse@kiot.ac.in}
+  - {code: CC8,  name: Computer Centre 8,  type: lab, capacity: 40, software: data_ai,          pcs: 40, in_charge: nscse@kiot.ac.in}
+  - {code: CC9,  projector: false, name: Computer Centre 9,  type: lab, capacity: 40, software: web_cloud,        pcs: 40, in_charge: drcse@kiot.ac.in}
+  - {code: CC10, projector: false, name: Computer Centre 10, type: lab, capacity: 40, software: web_cloud,        pcs: 40, in_charge: swvcse@kiot.ac.in}
+  - {code: CC11, name: Computer Centre 11, type: lab, capacity: 40, software: network_security, pcs: 40, in_charge: pgncse@kiot.ac.in}
+  - {code: CC12, name: Computer Centre 12, type: lab, capacity: 40, software: network_security, pcs: 40, in_charge: cscse@kiot.ac.in}
   - code: PGLAB
     name: PG Lab
     type: lab
-    block: CSE Block
     capacity: 40
     software: research
     pcs: 40
@@ -34,31 +34,30 @@ venues:
     in_charge: rkcse@kiot.ac.in
   - code: IOTLAB
     name: IoT Lab
+    projector: false
     type: lab
-    block: CSE Block
     capacity: 40
     software: iot
     pcs: 40
     extra_hardware: [Arduino Uno kits x30, Raspberry Pi 5 kits x15, Sensor kits x20, Soldering stations x6]
     in_charge: ircse@kiot.ac.in
-  - {code: COE1, name: Centre of Excellence 1, type: coe, block: CSE Block, capacity: 30, byod: true, in_charge: mskcse@kiot.ac.in}
-  - {code: COE2, name: Centre of Excellence 2, type: coe, block: CSE Block, capacity: 30, byod: true, in_charge: kprcse@kiot.ac.in}
-  - {code: COE3, name: Centre of Excellence 3, type: coe, block: CSE Block, capacity: 30, byod: true, in_charge: rsgcse@kiot.ac.in}
-  - {code: COE4, name: Centre of Excellence 4, type: coe, block: CSE Block, capacity: 30, byod: true, in_charge: sdcse@kiot.ac.in}
-  - {code: CSEPGSH, name: CSE PG Seminar Hall, type: seminar_hall, block: CSE Block, capacity: 80, in_charge: pvcse@kiot.ac.in, aliases: [CSE PG SH, PG Seminar Hall]}
+  - {code: COE1, name: Centre of Excellence 1, type: coe, capacity: 30, byod: true, in_charge: mskcse@kiot.ac.in}
+  - {code: COE2, name: Centre of Excellence 2, type: coe, capacity: 30, byod: true, in_charge: kprcse@kiot.ac.in}
+  - {code: COE3, name: Centre of Excellence 3, type: coe, capacity: 30, byod: true, in_charge: rsgcse@kiot.ac.in}
+  - {code: COE4, name: Centre of Excellence 4, type: coe, capacity: 30, byod: true, in_charge: sdcse@kiot.ac.in}
+  - {code: CSEPGSH, name: CSE PG Seminar Hall, type: seminar_hall, capacity: 80, in_charge: pvcse@kiot.ac.in, aliases: [CSE PG SH, PG Seminar Hall]}
   - code: ASH
     name: A Block Seminar Hall
     type: seminar_hall
-    block: A Block
     department: Admin
     capacity: 100
     in_charge: sh.ablock@kiot.ac.in
     aliases: [A Block SH, A-Block Seminar Hall]
     seasonal_rules:
       - {start_month: 3, end_month: 7, kind: blocked, reason: Reserved for admission counselling and spot registration (March to July)}
-  - {code: DSH,   name: D Block Seminar Hall, type: seminar_hall, block: D Block, department: Admin, capacity: 300, in_charge: sh.dblock@kiot.ac.in, aliases: [D Block SH, D-Block Seminar Hall]}
-  - {code: ESH,   name: E Block Seminar Hall, type: seminar_hall, block: E Block, department: Admin, capacity: 300, in_charge: sh.eblock@kiot.ac.in, aliases: [E Block SH, E-Block Seminar Hall]}
-  - {code: MBASH, name: MBA Seminar Hall,     type: seminar_hall, block: MBA Block, department: MBA, capacity: 100, in_charge: sh.mba@kiot.ac.in, aliases: [MBA SH]}
+  - {code: DSH,   name: D Block Seminar Hall, type: seminar_hall, department: Admin, capacity: 300, in_charge: sh.dblock@kiot.ac.in, aliases: [D Block SH, D-Block Seminar Hall]}
+  - {code: ESH,   name: E Block Seminar Hall, type: seminar_hall, department: Admin, capacity: 300, in_charge: sh.eblock@kiot.ac.in, aliases: [E Block SH, E-Block Seminar Hall]}
+  - {code: MBASH, name: MBA Seminar Hall,     type: seminar_hall, department: MBA, capacity: 100, in_charge: sh.mba@kiot.ac.in, aliases: [MBA SH]}
 
 # Accounts for in-charges of halls outside CSE (not in the faculty sheet).
 hall_incharges:

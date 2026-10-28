@@ -63,8 +63,8 @@ moves.
 
 ## 5. Equipment (1 min)
 
-Log in as `swvcse@kiot.ac.in` (CC10 in-charge). On **Venues › CC10**, mark the projector
-faulty. 🤖 Or ask *"Mark the projector in CC10 as faulty"* and confirm the card; the audit log
+Log in as `swvcse@kiot.ac.in` (CC10 in-charge). On **Venues › CC10**, mark the smart board
+faulty. 🤖 Or ask *"Mark the smart board in CC10 as faulty"* and confirm the card; the audit log
 records it as done through the assistant.
 
 ## 6. The OA uploads timetables and documents (3 min)

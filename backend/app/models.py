@@ -65,7 +65,6 @@ class Venue(Base):
     code: Mapped[str] = mapped_column(String(30), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(120))
     type: Mapped[str] = mapped_column(String(20))  # lab | seminar_hall | coe
-    block: Mapped[str | None] = mapped_column(String(30))
     department: Mapped[str | None] = mapped_column(String(30))
     capacity: Mapped[int] = mapped_column(Integer)
     byod: Mapped[bool] = mapped_column(Boolean, default=False)
