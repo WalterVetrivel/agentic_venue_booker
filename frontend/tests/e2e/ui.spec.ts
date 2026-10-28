@@ -218,7 +218,7 @@ test('the side menu collapses to icons and opens on hover', async ({ page }, inf
 	test.skip(info.project.name === 'mobile', 'The side menu is a drawer on phones');
 	await page.goto('/venues');
 	const nav = page.getByRole('navigation', { name: 'Main' });
-	await nav.getByRole('button', { name: 'Collapse the menu' }).click();
+	await page.getByRole('button', { name: 'Collapse the menu' }).click();
 	await page.mouse.move(900, 500);
 	await expect.poll(async () => (await nav.boundingBox())!.width).toBeLessThan(100);
 	await nav.hover();
@@ -228,7 +228,53 @@ test('the side menu collapses to icons and opens on hover', async ({ page }, inf
 	await page.reload();
 	await page.mouse.move(900, 500);
 	await expect.poll(async () => (await nav.boundingBox())!.width).toBeLessThan(100);
-	await nav.getByRole('button', { name: 'Keep the menu open' }).click();
+	await page.getByRole('button', { name: 'Keep the menu open' }).click();
 	await page.mouse.move(900, 500);
 	await expect.poll(async () => (await nav.boundingBox())!.width).toBeGreaterThan(200);
+});
+
+test('a submitted draft shows as submitted, also when the chat is reopened', async ({
+	page
+}, info) => {
+	const day = info.project.name === 'desktop' ? '2027-03-23' : '2027-03-24';
+	const prompt = `Please book COE2 on ${day} 14:00 to 16:00`;
+	await login(page, 'tkcse@kiot.ac.in');
+	let chat = await openChat(page);
+	await chat.getByLabel('Message').fill(prompt);
+	await chat.getByLabel('Message').press('Enter');
+	await chat.locator('[data-card="draft"]').getByRole('link', { name: 'Review & submit' }).click();
+	await page.getByRole('button', { name: 'Submit request' }).click();
+	await expect(page.getByRole('heading', { name: 'Python workshop' })).toBeVisible();
+
+	chat = await openChat(page);
+	const draft = chat.locator('[data-card="draft"]');
+	await expect(draft.getByRole('button', { name: 'Submitted' })).toBeDisabled();
+	await expect(draft.getByRole('link', { name: 'Review & submit' })).toHaveCount(0);
+
+	// The saved chat remembers it too.
+	await page.reload();
+	chat = await openChat(page);
+	await chat.getByRole('button', { name: /New chat/ }).click();
+	await chat.getByRole('button', { name: prompt, exact: true }).click();
+	await expect(
+		chat.locator('[data-card="draft"]').getByRole('button', { name: 'Submitted' })
+	).toBeDisabled();
+});
+
+test('the chat history menu closes when clicking outside it', async ({ page }) => {
+	await page.goto('/');
+	const chat = await openChat(page);
+	const history = chat.locator('button[aria-haspopup="menu"]').first();
+	await history.click();
+	await expect(history).toHaveAttribute('aria-expanded', 'true');
+	await expect(chat.getByRole('button', { name: 'New chat', exact: true })).toHaveCount(2);
+	await chat.getByLabel('Message').click();
+	await expect(history).toHaveAttribute('aria-expanded', 'false');
+	await expect(chat.getByRole('button', { name: 'New chat', exact: true })).toHaveCount(1);
+});
+
+test('the assistant starts closed', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.getByRole('button', { name: 'Ask the assistant' })).toBeVisible();
+	await expect(page.getByRole('complementary', { name: 'AI assistant' })).toHaveCount(0);
 });

@@ -10,6 +10,28 @@
 
 	let historyOpen = $state(false);
 	let modelOpen = $state(false);
+	let historyMenu = $state<HTMLDivElement>();
+	let modelMenu = $state<HTMLDivElement>();
+
+	// Clicking anywhere outside an open menu closes it.
+	function onWindowClick(e: MouseEvent) {
+		const target = e.target as Node;
+		if (historyOpen && historyMenu && !historyMenu.contains(target)) historyOpen = false;
+		if (modelOpen && modelMenu && !modelMenu.contains(target)) modelOpen = false;
+	}
+
+	function onWindowKey(e: KeyboardEvent) {
+		if (e.key === 'Escape') historyOpen = modelOpen = false;
+	}
+
+	/** A draft's form link, tagged so the form can mark the card once it's submitted. */
+	function draftHref(m: ChatMessage, ci: number, href: string) {
+		if (!m.id) return href;
+		const url = new URL(href, window.location.origin);
+		url.searchParams.set('from_msg', String(m.id));
+		url.searchParams.set('from_card', String(ci));
+		return url.pathname + url.search;
+	}
 	let draft = $state('');
 	let search = $state('');
 	let renaming = $state<number | null>(null);
@@ -113,6 +135,8 @@
 	});
 </script>
 
+<svelte:window onclick={onWindowClick} onkeydown={onWindowKey} />
+
 {#if ui.chatOpen}
 	<!-- Backdrop only when the chat overlays content (below xl). -->
 	<button
@@ -126,7 +150,7 @@
 		aria-label="AI assistant"
 	>
 		<div class="flex h-16 shrink-0 items-center gap-1 border-b border-border px-3">
-			<div class="relative min-w-0">
+			<div class="relative min-w-0" bind:this={historyMenu}>
 				<button
 					class="flex max-w-56 items-center gap-2 rounded-lg px-2 py-1.5 font-semibold hover:bg-surface-2"
 					aria-expanded={historyOpen}
@@ -142,7 +166,7 @@
 						class="pop absolute top-full left-0 z-10 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-surface p-3 shadow-lg"
 					>
 						<button
-							class="mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 font-medium hover:bg-surface-2"
+							class="mb-2 flex w-full items-center gap-2 rounded-lg bg-accent-soft px-3 py-2 font-medium text-accent hover:bg-accent/15"
 							onclick={() => {
 								chat.reset();
 								historyOpen = false;
@@ -214,7 +238,7 @@
 				{/if}
 			</div>
 
-			<div class="relative ml-auto">
+			<div class="relative ml-auto" bind:this={modelMenu}>
 				<button
 					class="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-muted hover:text-fg"
 					aria-haspopup="menu"
@@ -330,11 +354,22 @@
 									{#each c.lines ?? [] as line, li (li)}<li>{line}</li>{/each}
 								</ul>
 								{#if c.kind === 'draft' && c.href}
-									<a
-										href={c.href}
-										class="btn-cta mt-3 inline-block rounded-lg px-4 py-2 font-medium"
-										onclick={closeOnSmallScreens}>{c.button ?? 'Open'}</a
-									>
+									{#if c.state === 'done'}
+										<button
+											class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-success/10 px-4 py-2 font-medium text-success"
+											disabled
+											title={c.note ?? undefined}
+										>
+											<Icon name="check" size={16} /> Submitted
+										</button>
+										{#if c.note}<p class="mt-1 text-sm text-muted">{c.note}</p>{/if}
+									{:else}
+										<a
+											href={draftHref(m, ci, c.href)}
+											class="btn-cta mt-3 inline-block rounded-lg px-4 py-2 font-medium"
+											onclick={closeOnSmallScreens}>{c.button ?? 'Open'}</a
+										>
+									{/if}
 								{:else if c.kind === 'confirm'}
 									{#if cardDone(m, ci)}
 										<p

@@ -4,6 +4,7 @@
 	import { untrack } from 'svelte';
 	import { api } from '#lib/api.ts';
 	import { session } from '#lib/stores/session.svelte.ts';
+	import { chat } from '#lib/stores/chat.svelte.ts';
 	import { isoDate, prettyDate } from '#lib/time.ts';
 	import { btnPrimary, btnSecondary, card, field, label } from '#lib/ui.ts';
 	import type { Booking, BookingCheck, Move, Venue } from '#lib/types.ts';
@@ -17,6 +18,9 @@
 
 	// The assistant's drafts link here with the form filled in (and via=agent).
 	const fromAssistant = params.get('via') === 'agent';
+	// Which chat card the draft came from, so it can show as submitted.
+	const fromMessage = Number(params.get('from_msg')) || null;
+	const fromCard = Number(params.get('from_card') ?? -1);
 	let title = $state(params.get('title') ?? '');
 	let eventType = $state(params.get('type') ?? '');
 	let expected = $state<number | null>(Number(params.get('count')) || null);
@@ -141,6 +145,8 @@
 					reschedule_of: rescheduleId ? Number(rescheduleId) : null
 				})
 			});
+			if (fromMessage && fromCard >= 0)
+				await chat.draftSubmitted(fromMessage, fromCard, `Submitted as ${b.ref}.`);
 			goto(`/bookings/${b.id}`);
 		} catch (err) {
 			submitError = err instanceof Error ? err.message : 'Could not submit';

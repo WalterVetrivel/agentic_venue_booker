@@ -18,8 +18,8 @@ class Ui {
 	theme = $state<'light' | 'dark'>(
 		(document.documentElement.dataset.theme as 'light' | 'dark') ?? 'light'
 	);
-	// Docked chat on large screens remembers whether it was closed.
-	chatOpen = $state(read('chatOpen') !== 'false' && window.innerWidth >= 1280);
+	// Starts closed; on large screens it reopens docked if it was left open.
+	chatOpen = $state(read('chatOpen') === 'true' && window.innerWidth >= 1280);
 	navOpen = $state(false);
 	/** On large screens the side nav can shrink to icons (remembered on this device). */
 	navCollapsed = $state(read('navCollapsed') === 'true');

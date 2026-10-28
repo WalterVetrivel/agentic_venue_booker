@@ -259,6 +259,24 @@ class Chat {
 		await this.mark(message, index, 'done', card.done ?? 'Done.');
 	}
 
+	/** The booking form submitted a draft from this chat: show its card as submitted. */
+	async draftSubmitted(messageId: number, index: number, note: string) {
+		const message = this.messages.find((m) => m.id === messageId);
+		if (message?.cards[index]) {
+			await this.mark(message, index, 'done', note);
+			return;
+		}
+		// The chat isn't on screen (or was reset): still record it in the saved history.
+		try {
+			await api(`/chat/messages/${messageId}/cards/${index}`, {
+				method: 'POST',
+				body: JSON.stringify({ state: 'done', note })
+			});
+		} catch {
+			/* the booking itself went through; only the history note failed */
+		}
+	}
+
 	async mark(message: ChatMessage, index: number, state: 'done' | 'dismissed', note?: string) {
 		const card = message.cards[index];
 		card.state = state;
