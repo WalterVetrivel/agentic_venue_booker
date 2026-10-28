@@ -42,7 +42,10 @@ class LLM:
     provider = ""
     model = ""
 
-    def stream(self, messages: list[dict], tools: list[dict]) -> AsyncIterator[str | Reply]:
+    def stream(
+        self, messages: list[dict], tools: list[dict], force: str | None = None
+    ) -> AsyncIterator[str | Reply]:
+        """`force` names a tool the model must call in this reply."""
         raise NotImplementedError
 
 
@@ -139,12 +142,12 @@ class GroqLLM(LLM):
             )
         self.api_key, self.model, self.fallback = api_key, model, fallback
 
-    async def stream(self, messages, tools):
+    async def stream(self, messages, tools, force=None):
         # Each retry happens before anything was yielded, so the caller never sees a half reply.
         bad_tool_calls = 0
         for _ in range(4):
             try:
-                async for item in self._stream(self.model, messages, tools):
+                async for item in self._stream(self.model, messages, tools, force):
                     yield item
                 return
             except _ModelUnavailable:
@@ -171,11 +174,13 @@ class GroqLLM(LLM):
                     ) from None
         raise LLMError("Groq is busy. Try again in a minute.")
 
-    async def _stream(self, model, messages, tools):
+    async def _stream(self, model, messages, tools, force=None):
         body = {"model": model, "messages": messages, "stream": True, "temperature": 0.2}
         if tools:
             body["tools"] = tools
-            body["tool_choice"] = "auto"
+            body["tool_choice"] = (
+                {"type": "function", "function": {"name": force}} if force else "auto"
+            )
         headers = {"Authorization": f"Bearer {self.api_key}"}
         text, calls = [], {}
         try:
@@ -288,7 +293,9 @@ class OllamaLLM(LLM):
     def __init__(self, base_url: str, model: str, num_ctx: int = 8192):
         self.base_url, self.model, self.num_ctx = base_url.rstrip("/"), model, num_ctx
 
-    async def stream(self, messages, tools):
+    async def stream(self, messages, tools, force=None):
+        if force:  # Ollama has no tool_choice: offer only that tool
+            tools = [t for t in tools if t["function"]["name"] == force]
         body = {
             "model": self.model,
             "messages": [_to_ollama(m) for m in messages],

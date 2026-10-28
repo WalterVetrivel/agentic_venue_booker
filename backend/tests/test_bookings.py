@@ -182,6 +182,15 @@ def test_only_the_requester_or_director_can_cancel(db):
     assert b.status == "cancelled"
 
 
+def test_a_booking_that_has_started_cannot_be_cancelled(db):
+    b = book(db)
+    started = datetime.combine(TUESDAY, datetime.min.time()).replace(hour=10, minute=30)
+    assert svc.cancellable(b, NOW) and not svc.cancellable(b, started)
+    with pytest.raises(svc.BookingError, match="already started"):
+        svc.cancel(db, user(db, "tkcse@kiot.ac.in"), b, now=started)
+    assert b.status == "pending_incharge"
+
+
 # Reschedule -------------------------------------------------------------------------------------
 
 

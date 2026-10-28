@@ -288,6 +288,68 @@ def test_json_that_is_not_a_tool_call_is_still_shown(db):
     assert "".join(e["text"] for e in events if e["type"] == "text") == '{"note": "just data"}'
 
 
+@pytest.mark.parametrize(
+    ("message", "signed_in", "form", "tool"),
+    [
+        ("Book a lab tomorrow for 12 students", True, False, "draft_booking"),
+        ("I want to book a lab", True, False, "draft_booking"),
+        ("Can you reserve DSH on Friday?", True, False, "draft_booking"),
+        ("Add Arun and Divya from CSE II-D", True, True, "draft_booking"),
+        ("How do I book a seminar hall?", True, False, None),
+        ("Show my bookings", True, False, None),
+        ("Is CC5 free tomorrow?", True, False, None),
+        ("thanks!", True, True, None),
+        ("Book CC5 for our mini project", False, False, "draft_student_booking"),
+        ("I'm faculty, book DSH for a talk", False, False, None),
+    ],
+)
+def test_booking_requests_start_with_a_draft(db, message, signed_in, form, tool):
+    who = db.scalar(select(User).where(User.email == "tkcse@kiot.ac.in")) if signed_in else None
+    assert runtime.draft_tool(message, who, form) == tool
+
+
+def test_a_forced_draft_is_asked_for_on_the_first_step_only(db):
+    model = ScriptedLLM(
+        [Reply("", [ToolCall("c1", "draft_student_booking", {})]), Reply("Which lab?")]
+    )
+    messages = runtime.build_messages(db, None, model, [], "I want to book a lab")
+
+    async def go():
+        return [
+            e async for e in runtime.run(db, None, model, messages, force="draft_student_booking")
+        ]
+
+    events = asyncio.run(go())
+    assert model.forced == ["draft_student_booking", None]
+    card = next(e["card"] for e in events if e["type"] == "card")
+    assert card["href"] == "/book/student?via=agent"
+
+
+def test_a_model_that_cannot_be_forced_answers_freely(db):
+    class Picky(ScriptedLLM):
+        async def stream(self, messages, tools, force=None):
+            if force:
+                raise LLMError("tool_choice is not supported")
+            async for item in super().stream(messages, tools):
+                yield item
+
+    model = Picky([Reply("Which lab would you like?")])
+    messages = runtime.build_messages(db, None, model, [], "I want to book a lab")
+
+    async def go():
+        return [
+            e async for e in runtime.run(db, None, model, messages, force="draft_student_booking")
+        ]
+
+    assert asyncio.run(go())[-1]["content"] == "Which lab would you like?"
+
+
+def test_the_open_form_is_described_to_the_model():
+    note = runtime.form_note("student", {"venue": "CC5", "reason": "", "students": []})
+    assert "student request form is open" in note and '"venue": "CC5"' in note
+    assert "reason" not in note and "draft_student_booking" in note
+
+
 def test_groq_needs_a_key():
     with pytest.raises(LLMError, match="Settings"):
         gateway.GroqLLM("", "m")

@@ -67,6 +67,13 @@ EVENT_TYPES = [
 OFFER_HOURS = 24
 MAX_DAYS = 14
 OPEN_STATUSES = (*HOLDING_STATUSES, "waitlisted")  # the requester can still cancel these
+
+
+def cancellable(booking: Booking, now: datetime | None = None) -> bool:
+    """Open and not started yet: a booking whose time has come (or gone) can't be cancelled."""
+    return booking.status in OPEN_STATUSES and booking.start_dt > (now or datetime.now())
+
+
 STEP_LABELS = {"guide": "faculty guide", "incharge": "venue in-charge", "hod": "HOD"}
 STUDENT_EVENT_TYPE = "Student group work"
 
@@ -789,6 +796,8 @@ def cancel(
         raise BookingError("Only the person who booked can cancel this.", 403)
     if booking.status not in OPEN_STATUSES:
         raise BookingError(f"{booking.ref} is already {booking.status.replace('_', ' ')}.")
+    if booking.start_dt <= now:
+        raise BookingError(f"{booking.ref} has already started, so it can't be cancelled.")
     was_confirmed = booking.status == "confirmed"
     _release(db, booking, "cancelled", reason, now)
     if was_confirmed:

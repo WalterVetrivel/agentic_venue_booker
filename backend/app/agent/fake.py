@@ -29,8 +29,10 @@ class ScriptedLLM(LLM):
     def __init__(self, replies: list[Reply]):
         self.replies = list(replies)
         self.seen: list[list[dict]] = []  # the messages sent on each call
+        self.forced: list[str | None] = []  # the tool each call had to use, if any
 
-    async def stream(self, messages, tools):
+    async def stream(self, messages, tools, force=None):
+        self.forced.append(force)
         self.seen.append([dict(m) for m in messages])
         reply = self.replies.pop(0) if self.replies else Reply("(no more scripted replies)")
         for word in re.findall(r"\S+\s*", reply.text):
@@ -41,13 +43,17 @@ class ScriptedLLM(LLM):
 class DemoLLM(LLM):
     provider, model = "fake", "demo"
 
-    async def stream(self, messages, tools):
+    async def stream(self, messages, tools, force=None):
         names = {t["function"]["name"] for t in tools}
         last = messages[-1]
         if last["role"] == "tool":
             reply = Reply(_summarise(messages))
         else:
             reply = _plan(last["content"], names)
+            if force and not any(c.name == force for c in reply.tool_calls):
+                venue = VENUE.search(last["content"])
+                args = {"venue": venue.group(0).upper()} if venue else {}
+                reply = Reply("", [ToolCall("call_1", force, args)])
         for word in re.findall(r"\S+\s*", reply.text):
             yield word
         yield reply

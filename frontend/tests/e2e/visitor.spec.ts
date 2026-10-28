@@ -46,15 +46,30 @@ test('the assistant sends a signed-out faculty member to log in', async ({ page 
 	await expect(link).toHaveAttribute('href', '/login?next=/book');
 });
 
-test('a draft from the chat fills in the open form and keeps what was typed', async ({ page }) => {
+test('a draft from the chat fills in the open form; it can be sent once complete', async ({
+	page
+}, info) => {
+	const day = info.project.name === 'desktop' ? '2027-03-23' : '2027-03-24';
 	await page.goto('/book/student');
+	await expect(page.getByLabel('Register no.').first()).toBeVisible();
+	await expect(page.getByText('(optional)')).toHaveCount(0);
+	const send = page.getByRole('button', { name: 'Send the request' });
+	await expect(send).toBeDisabled();
 	await page.locator('#sname-0').fill('Arun K');
 	await page.locator('#reason').fill('Smart parking app');
-	const chat = await ask(page, 'Book CC7 tomorrow 14:00 to 16:00');
-	await expect(chat.getByText('Draft student request')).toBeVisible();
+
+	const chat = await ask(page, `Book CC7 on ${day} 14:00 to 16:00`);
+	const draft = chat.locator('[data-card="draft"]');
+	await expect(draft.getByText('Draft student request')).toBeVisible();
 	await expect(page.locator('#venue')).toHaveValue('CC7');
 	await expect(page.locator('#start')).toHaveValue('14:00');
 	// The assistant's reason replaces the typed one; the student it didn't mention stays.
 	await expect(page.locator('#reason')).toHaveValue('Mini project work');
 	await expect(page.locator('#sname-0')).toHaveValue('Arun K');
+
+	if (info.project.name === 'mobile')
+		await chat.getByRole('button', { name: 'Close assistant' }).first().click();
+	await page.locator('#guide').selectOption({ index: 1 });
+	await page.locator('#email').fill('team@example.com');
+	await expect(send).toBeDisabled(); // Arun has no class yet
 });

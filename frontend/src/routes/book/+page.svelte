@@ -235,6 +235,7 @@
 			});
 			if (fromMessage && fromCard >= 0)
 				await chat.draftSubmitted(fromMessage, fromCard, `Submitted as ${b.ref}.`);
+			chat.formSubmitted('/book', `Submitted as ${b.ref}.`);
 			goto(`/bookings/${b.id}`);
 		} catch (err) {
 			submitError = err instanceof Error ? err.message : 'Could not submit';
@@ -245,6 +246,31 @@
 	}
 
 	const selected = $derived(venues.find((v) => v.code === venue));
+	const complete = $derived(
+		!!(title.trim() && eventType && expected && venue && dateFrom && start && end) &&
+			(!multiDay || !!dateTo)
+	);
+
+	// Tell the assistant what is on the form, so "add …" in the chat means this form.
+	$effect(() => {
+		if (original) return;
+		chat.form = {
+			kind: 'staff',
+			fields: {
+				venue,
+				title,
+				event_type: eventType,
+				expected_count: expected,
+				date: dateFrom,
+				date_to: multiDay ? dateTo : null,
+				start,
+				end,
+				description,
+				requirements
+			}
+		};
+		return () => (chat.form = null);
+	});
 	const pct = (n: number) => `${Math.round(n * 100)}%`;
 </script>
 
@@ -276,30 +302,39 @@
 			: 'Availability is checked as you type. Requests go to the venue in-charge, and to the HOD for CSE venues or when a class has to move.'}
 	</p>
 
-	<form class="mt-6 space-y-6" onsubmit={submit}>
+	<p class="mt-2 text-sm text-muted">
+		Fields marked <span class="text-danger">*</span> are required.
+	</p>
+	<form class="mt-4 space-y-6" onsubmit={submit}>
 		<section class="{card} grid gap-4 sm:grid-cols-2">
 			<h2 class="text-lg font-semibold sm:col-span-2">Event</h2>
 			<div class="sm:col-span-2">
-				<label class={label} for="title">Title</label>
+				<label class={label} for="title"
+					>Title<span class="text-danger" aria-hidden="true"> *</span></label
+				>
 				<input id="title" required maxlength="200" bind:value={title} class={field} />
 			</div>
 			<div>
-				<label class={label} for="etype">Event type</label>
+				<label class={label} for="etype"
+					>Event type<span class="text-danger" aria-hidden="true"> *</span></label
+				>
 				<select id="etype" required bind:value={eventType} class={field}>
 					<option value="" disabled>Choose…</option>
 					{#each eventTypes as t (t)}<option>{t}</option>{/each}
 				</select>
 			</div>
 			<div>
-				<label class={label} for="count">Expected attendance</label>
+				<label class={label} for="count"
+					>Expected attendance<span class="text-danger" aria-hidden="true"> *</span></label
+				>
 				<input id="count" type="number" min="1" required bind:value={expected} class={field} />
 			</div>
 			<div class="sm:col-span-2">
-				<label class={label} for="desc">Description (optional)</label>
+				<label class={label} for="desc">Description</label>
 				<textarea id="desc" rows="3" bind:value={description} class={field}></textarea>
 			</div>
 			<div class="sm:col-span-2">
-				<label class={label} for="req">Requirements (optional)</label>
+				<label class={label} for="req">Requirements</label>
 				<input
 					id="req"
 					bind:value={requirements}
@@ -312,7 +347,9 @@
 		<section class="{card} grid gap-4 sm:grid-cols-2">
 			<h2 class="text-lg font-semibold sm:col-span-2">Venue and time</h2>
 			<div class="sm:col-span-2">
-				<label class={label} for="venue">Venue</label>
+				<label class={label} for="venue"
+					>Venue<span class="text-danger" aria-hidden="true"> *</span></label
+				>
 				<select id="venue" required bind:value={venue} class={field}>
 					<option value="" disabled>Choose a venue…</option>
 					{#each venues as v (v.code)}
@@ -321,7 +358,11 @@
 				</select>
 			</div>
 			<div>
-				<label class={label} for="from">{multiDay ? 'First day' : 'Date'}</label>
+				<label class={label} for="from"
+					>{multiDay ? 'First day' : 'Date'}<span class="text-danger" aria-hidden="true">
+						*</span
+					></label
+				>
 				<input id="from" type="date" required bind:value={dateFrom} class={field} />
 			</div>
 			<div>
@@ -334,11 +375,15 @@
 				</label>
 			</div>
 			<div>
-				<label class={label} for="start">Starts</label>
+				<label class={label} for="start"
+					>Starts<span class="text-danger" aria-hidden="true"> *</span></label
+				>
 				<input id="start" type="time" required bind:value={start} class={field} />
 			</div>
 			<div>
-				<label class={label} for="end">Ends</label>
+				<label class={label} for="end"
+					>Ends<span class="text-danger" aria-hidden="true"> *</span></label
+				>
 				<input id="end" type="time" required bind:value={end} class={field} />
 			</div>
 
@@ -461,7 +506,8 @@
 			<button
 				type="submit"
 				class={btnPrimary}
-				disabled={submitting || !check || check.outcome === 'blocked'}
+				disabled={submitting || !complete || !check || check.outcome === 'blocked'}
+				title={complete ? undefined : 'Fill in the fields marked *'}
 			>
 				{check?.outcome === 'waitlist'
 					? 'Join the waitlist'

@@ -6,6 +6,7 @@ import type {
 	ChatCard,
 	ChatMessage,
 	Conversation,
+	OpenForm,
 	ConversationBrief,
 	Providers
 } from '#lib/types.ts';
@@ -47,6 +48,8 @@ class Chat {
 	attachment = $state<Attachment | null>(null);
 	attaching = $state(false);
 	attachError = $state('');
+	/** The booking form on screen, as it stands, so the assistant can add to it. */
+	form = $state<OpenForm | null>(null);
 	private controller: AbortController | null = null;
 
 	async loadProviders() {
@@ -173,6 +176,7 @@ class Chat {
 					model: this.model || null,
 					history,
 					attachment,
+					form: this.form,
 					regenerate: !!opts.regenerate && this.conversationId !== null
 				})
 			});
@@ -220,13 +224,13 @@ class Chat {
 		return url.pathname + url.search;
 	}
 
-	/** If the person is already on the form a new draft is for, fill it in straight away. */
+	/** A reply drafted a booking: open its form, or fill in the one already on screen. */
 	private refillOpenForm(reply: ChatMessage) {
 		const index = reply.cards.findLastIndex((c) => c.kind === 'draft' && c.href);
 		if (index < 0) return;
 		const href = this.draftHref(reply, index, reply.cards[index].href!);
-		if (href.split('?')[0] === window.location.pathname)
-			goto(href, { replace: true, reset: false });
+		const here = href.split('?')[0] === window.location.pathname;
+		goto(href, here ? { replace: true, reset: false } : {});
 	}
 
 	private apply(reply: ChatMessage, e: ChatEvent) {
@@ -295,6 +299,15 @@ class Chat {
 		} catch {
 			/* the booking itself went through; only the history note failed */
 		}
+	}
+
+	/** A booking form was submitted: every open draft card for that form shows as submitted. */
+	formSubmitted(path: string, note: string) {
+		for (const m of this.messages)
+			m.cards.forEach((c, i) => {
+				if (c.kind === 'draft' && c.href?.split('?')[0] === path && c.state !== 'done')
+					this.mark(m, i, 'done', note);
+			});
 	}
 
 	async mark(message: ChatMessage, index: number, state: 'done' | 'dismissed', note?: string) {

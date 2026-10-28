@@ -17,7 +17,7 @@ test('a saved draft whose slot is booked meanwhile can only join the waitlist', 
 	await expect(page).toHaveURL(/\/book\?draft=\d+$/);
 	await page.getByLabel('Event type').selectOption('Guest lecture');
 	await page.getByLabel('Expected attendance').fill('80');
-	await page.getByLabel('Venue', { exact: true }).selectOption('ESH');
+	await page.locator('#venue').selectOption('ESH');
 	await page.getByLabel('Date').fill(day);
 	await page.getByLabel('Starts').fill('10:00');
 	await page.getByLabel('Ends').fill('12:00');
@@ -58,4 +58,31 @@ test('a saved draft whose slot is booked meanwhile can only join the waitlist', 
 
 	await page.goto('/bookings');
 	await expect(page.getByTestId('draft').filter({ hasText: title })).toHaveCount(0);
+});
+
+test('asking to book opens the filled-in form, and its chat card shows when it is sent', async ({
+	page
+}, info) => {
+	const day = info.project.name === 'desktop' ? '2027-05-11' : '2027-05-12';
+	await login(page, 'tkcse@kiot.ac.in');
+	const opener = page.getByRole('button', { name: 'Ask the assistant' });
+	if (await opener.isVisible()) await opener.click();
+	const chat = page.getByRole('complementary', { name: 'AI assistant' });
+	await chat.getByLabel('Message').fill(`Book COE2 on ${day} 10:00 to 12:00`);
+	await chat.getByLabel('Message').press('Enter');
+
+	// The form opens by itself with the details.
+	await expect(page).toHaveURL(/\/book\?/);
+	await expect(page.locator('#venue')).toHaveValue('COE2');
+	await expect(page.getByLabel('Title')).toHaveValue('Python workshop');
+	if (info.project.name === 'mobile')
+		await chat.getByRole('button', { name: 'Close assistant' }).first().click();
+	await expect(page.getByText('COE2 is free')).toBeVisible();
+	await page.getByRole('button', { name: 'Submit request' }).click();
+	await expect(page).toHaveURL(/\/bookings\/\d+$/);
+
+	if (await opener.isVisible()) await opener.click();
+	await expect(
+		chat.locator('[data-card="draft"]').getByRole('button', { name: 'Submitted' })
+	).toBeDisabled();
 });
