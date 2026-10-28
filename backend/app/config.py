@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     public_url: str = "http://localhost:5173"
     # Only accept student contact emails on this domain, e.g. "kiot.ac.in". Empty accepts any.
     student_email_domain: str = ""
+    # Our own limits on visitors: chat questions per IP, student requests per IP and per email.
+    # Off for the prototype demo; turn on (RATE_LIMITS=true) before real use. Groq's own limits
+    # still apply either way.
+    rate_limits: bool = False
 
     upload_dir: Path = BACKEND_DIR / "storage" / "uploads"
     outbox_dir: Path = BACKEND_DIR / "storage" / "outbox"

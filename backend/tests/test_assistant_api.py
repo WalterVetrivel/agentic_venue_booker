@@ -113,12 +113,19 @@ def test_visitors_chat_without_saving(client, demo):
     assert client.get("/api/chat/conversations").status_code == 401
 
 
-def test_visitors_are_rate_limited(client, demo, monkeypatch):
+def test_visitors_are_rate_limited(client, demo, monkeypatch, rate_limits):
     monkeypatch.setattr(chat_api, "VISITOR_LIMIT", 2)
     monkeypatch.setattr(chat_api, "_visits", chat_api.defaultdict(chat_api.deque))
     for _ in range(2):
         assert client.post("/api/chat", json={"message": "hi"}).status_code == 200
     assert client.post("/api/chat", json={"message": "hi"}).status_code == 429
+
+
+def test_visitor_limits_are_off_by_default(client, demo, monkeypatch):
+    monkeypatch.setattr(chat_api, "VISITOR_LIMIT", 2)
+    monkeypatch.setattr(chat_api, "_visits", chat_api.defaultdict(chat_api.deque))
+    for _ in range(3):
+        assert client.post("/api/chat", json={"message": "hi"}).status_code == 200
 
 
 @pytest.mark.writes_db
@@ -363,3 +370,12 @@ def test_demo_model_answers_scripted_questions():
             },
         )
     ]
+
+
+def test_signed_out_staff_are_sent_to_log_in(client, demo):
+    from app.agent.prompts import LOGIN_LINK, system_prompt
+
+    assert LOGIN_LINK in system_prompt(None, None)
+    res = client.post("/api/chat", json={"message": "I'm faculty, book DSH tomorrow 10 to 12"})
+    done = events(res)[-1]
+    assert done["type"] == "done" and "/login?next=/book" in done["content"]

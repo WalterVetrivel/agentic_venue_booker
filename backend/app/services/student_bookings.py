@@ -121,7 +121,7 @@ def _check_email(db: Session, email: str, now: datetime) -> str:
             Booking.contact_email == email, Booking.created_at >= now - timedelta(days=1)
         )
     )
-    if recent >= EMAILS_PER_DAY:
+    if recent >= EMAILS_PER_DAY and get_settings().rate_limits:
         raise BookingError(
             f"This email has sent {EMAILS_PER_DAY} requests today. Try again tomorrow.", 429
         )

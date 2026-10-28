@@ -157,7 +157,7 @@ def test_students_cannot_move_a_class(db, classes):
         student_svc.submit_student(db, req, now=NOW)
 
 
-def test_one_email_sends_at_most_three_requests_a_day(db, classes):
+def test_one_email_sends_at_most_three_requests_a_day(db, classes, rate_limits):
     for day in (4, 5, 6):
         submit(db, classes, day=date(2026, 11, day), day_to=date(2026, 11, day))
     with pytest.raises(svc.BookingError, match="3 requests today") as e:

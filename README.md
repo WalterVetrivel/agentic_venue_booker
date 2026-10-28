@@ -104,7 +104,9 @@ Open the chat panel (docked on wide screens, **Ask the assistant** on phones). I
 - **Drafts**: "Book COE1 next Tuesday 10 to 12 for a Python workshop, 30 students" gives a card that opens the booking form already filled in. You check it and submit.
 - **Proposals**: cancelling a booking, approving or rejecting a request, and marking equipment faulty come back as a card with a button. Pressing it calls the normal API, and the audit log records it as `via=agent`.
 - **Attachments** (logged in): drop a PDF in the chat. The OA's timetables go to review, circulars and reports from people who upload documents go into **Past events**, and anything else is just read so you can ask about it.
-- Staff chats are saved: the title menu lists them, with search, rename and delete. Students can use the read-only tools without logging in (20 questions per 10 minutes); their chats aren't saved.
+- Staff chats are saved: the title menu lists them, with search, rename and delete. Students can use the visitor tools without logging in; their chats aren't saved. If a student says they are faculty, or asks for something only staff can do, the assistant links them to the login page and back to the booking form.
+
+**Rate limits.** The app's own limits on visitors (20 chat questions per 10 minutes per IP, 5 student requests an hour per IP, 3 a day per email) are off for the prototype. Set `RATE_LIMITS=true` in `backend/.env` to turn them on before real use. Groq's own limits apply either way.
 
 **Choosing the model.** The Director sets the default in **Settings**: Groq (online; get a free key at console.groq.com/keys) or Ollama (local). People can switch in the chat panel's model menu. On Ollama, `qwen3.5:4b` works on 8 GB RAM without a GPU but is slow and makes more mistakes; use Groq for demos. If Groq retires the model, the fallback model is used.
 

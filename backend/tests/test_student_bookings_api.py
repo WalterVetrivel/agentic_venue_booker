@@ -96,7 +96,7 @@ def test_submit_track_and_cancel(client, session_factory, sections, sent_mail):
     assert "cancelled" in sent_mail[-1]["Subject"]
 
 
-def test_submissions_are_rate_limited_by_ip(client, session_factory, sections):
+def test_submissions_are_rate_limited_by_ip(client, session_factory, sections, rate_limits):
     for i in range(5):
         day = (date.fromisoformat(DAY) + timedelta(days=i + 1)).isoformat()
         res = client.post(

@@ -35,6 +35,7 @@ class Case:
     tools: set[str] = field(default_factory=set)  # one of these must be called
     card: str | None = None  # "draft" / "confirm" expected, or "none" for no card
     day: str | None = None  # the tools must be called with the date this phrase means
+    says: str | None = None  # the answer must contain this (e.g. a link)
 
 
 CASES = [
@@ -62,6 +63,13 @@ CASES = [
         {"check_clashes", "check_availability", "recommend_venues"},
     ),
     Case("Book CC5 next Monday.", FACULTY, set(), card="none"),
+    Case(
+        "I'm a faculty member. Book DSH for a guest lecture next Friday, 10 to 12, 150 people.",
+        None,
+        set(),
+        card="none",
+        says="/login",
+    ),
     Case("What is waiting for my approval?", "hod.cse@kiot.ac.in", {"list_pending_approvals"}),
     Case(
         "Mark the smart board in CC10 as faulty.",
@@ -122,6 +130,8 @@ async def run_case(db, case: Case, provider: str | None, model: str | None) -> t
         sent = {_day(s["args"]["date"]) for s in outcome.steps if s["args"].get("date")}
         if sent != {want}:
             problems.append(f"{case.day} is {want}, but the tools got {sorted(sent) or 'no date'}")
+    if case.says and case.says not in answer:
+        problems.append(f"answer doesn't mention {case.says}")
     if not answer.strip() and not error:
         problems.append("empty answer")
     detail = f"tools={used or '-'}"

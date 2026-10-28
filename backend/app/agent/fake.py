@@ -10,10 +10,16 @@ import re
 from datetime import date, timedelta
 
 from app.agent.llm import LLM, Reply, ToolCall
+from app.agent.prompts import LOGIN_LINK
 
 VENUE = re.compile(r"\b(CC\d{1,2}|COE\d|PGLAB|IOTLAB|CSEPGSH|ASH|DSH|ESH|MBASH)\b", re.I)
 TIME = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b", re.I)
 BOOKING = re.compile(r"\bBK-\d{4}-\d+\b", re.I)
+STAFF = re.compile(
+    r"\b(faculty|staff|professor|teacher|lecturer|hod|in-?charge)\b|\bmy bookings\b|\bapprov",
+    re.I,
+)
+HALL = re.compile(r"\b(ASH|DSH|ESH|MBASH|CSEPGSH)\b|seminar hall", re.I)
 TRACKING = re.compile(r"\bST-[A-Z0-9]{4}-[A-Z0-9]{4}\b", re.I)
 
 
@@ -57,6 +63,13 @@ def _plan(text: str, tools: set[str]) -> Reply:
         call = ("propose_cancel", {"booking": ref.group(0).upper()})
     elif (code := TRACKING.search(text)) and "track_student_booking" in tools:
         call = ("track_student_booking", {"tracking_number": code.group(0).upper()})
+    elif "draft_booking" not in tools and (
+        STAFF.search(text) or ("book" in lower and HALL.search(text))
+    ):
+        return Reply(
+            f"Staff need to log in to book: {LOGIN_LINK}. You'll come back to the booking form "
+            "after. Students can request a lab without logging in."
+        )
     elif venue and "book" in lower and "draft_student_booking" in tools:
         call = (
             "draft_student_booking",
