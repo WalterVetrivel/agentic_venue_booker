@@ -11,14 +11,25 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from urllib.parse import urlencode
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.agent.dates import resolve
+from app.agent.formats import (
+    DATE_HINT,
+    TIME_HINT,
+    Clock,
+    Count,
+    Day,
+    Words,
+    choice,
+    closest,
+    drop_empty,
+)
 from app.models import (
     Booking,
     ClassSection,
@@ -104,10 +115,63 @@ class Tool:
         return any(c in caps for c in self.any_of)
 
     def schema(self) -> dict:
-        return _clean_schema(self.args.model_json_schema())
+        return _strip_hints(_clean_schema(self.args.model_json_schema()))
 
 
 REGISTRY: dict[str, Tool] = {}
+
+
+class Args(BaseModel):
+    """Tool arguments: a number where text is expected (a year, a booking number) is fine."""
+
+    model_config = ConfigDict(coerce_numbers_to_str=True)
+
+
+VenueType = Annotated[
+    Literal["lab", "coe", "seminar_hall"],
+    BeforeValidator(
+        choice(
+            {
+                "lab": "lab",
+                "computer_lab": "lab",
+                "coe": "coe",
+                "centre_of_excellence": "coe",
+                "center_of_excellence": "coe",
+                "seminar_hall": "seminar_hall",
+                "hall": "seminar_hall",
+                "seminar": "seminar_hall",
+                "auditorium": "seminar_hall",
+            }
+        )
+    ),
+]
+Decision = Annotated[
+    Literal["approve", "reject"],
+    BeforeValidator(
+        choice(
+            {"approve": "approve", "approved": "approve", "reject": "reject", "rejected": "reject"}
+        )
+    ),
+]
+EquipmentStatus = Annotated[
+    Literal["working", "faulty", "under_repair"],
+    BeforeValidator(
+        choice(
+            {
+                "working": "working",
+                "ok": "working",
+                "fixed": "working",
+                "faulty": "faulty",
+                "broken": "faulty",
+                "not_working": "faulty",
+                "under_repair": "under_repair",
+                "in_repair": "under_repair",
+                "repair": "under_repair",
+            }
+        )
+    ),
+]
+EventType = Annotated[str, BeforeValidator(closest(booking_svc.EVENT_TYPES))]
 
 
 def tool(name: str, description: str, *, label: str, **options) -> Callable:
@@ -130,7 +194,7 @@ def call(db: Session, user: User | None, name: str, raw: dict | None) -> ToolRes
     if not t.allowed(user):
         raise ToolError("You don't have access to that." if user else "Please log in for that.")
     try:
-        args = t.args.model_validate(raw or {})
+        args = t.args.model_validate(drop_empty(raw or {}))
     except ValidationError as e:
         problems = "; ".join(
             f"{'.'.join(map(str, x['loc'])) or 'input'}: {x['msg']}" for x in e.errors()
@@ -154,24 +218,39 @@ def _clean_schema(schema: dict) -> dict:
             node = {k: walk(v) for k, v in node.items() if k not in ("title", "properties")}
             if props is not None:  # property names aren't keywords: a field may be called "title"
                 node["properties"] = {name: walk(p) for name, p in props.items()}
-            # Groq checks "format": "time" as RFC 3339 (HH:MM:SS+zone), which models don't
-            # write. The tools accept HH:MM, so say that instead.
-            if node.get("format") == "time":
-                node.pop("format")
-                node.setdefault("description", "24-hour time, HH:MM")
-                node["pattern"] = r"^\d{2}:\d{2}(:\d{2})?$"
             # `x: str | None` becomes anyOf [str, null]; keep just the real type.
             options = [o for o in node.get("anyOf", []) if o.get("type") != "null"]
             if "anyOf" in node and len(options) == 1:
                 node.pop("anyOf")
                 node.pop("default", None)
-                node = {**options[0], **node}  # the field's own description wins
+                inner, own = options[0], node.get("description")
+                node = {**inner, **node}  # the field's own description wins...
+                if inner.get("hint") and own:  # ...but keeps the format
+                    node["description"] = f"{own} ({inner['hint']})"
+            # Providers may enforce "format" strictly (Groq reads "time" as RFC 3339, which
+            # models don't write), and models handle a described format better anyway. The
+            # tools read many ways of writing dates and times (see formats.py).
+            hint = {"date": DATE_HINT, "time": TIME_HINT}.get(node.pop("format", ""))
+            if hint:
+                described = node.get("description")
+                node["description"] = f"{described} ({hint})" if described else hint
+                node["hint"] = hint  # read by the Optional merge above, removed below
+            if "ge" in node:  # a constraint on an Annotated type leaks out under its own name
+                node["minimum"] = node.pop("ge")
             return node
         if isinstance(node, list):
             return [walk(x) for x in node]
         return node
 
     return walk(schema)
+
+
+def _strip_hints(node):
+    if isinstance(node, dict):
+        return {k: _strip_hints(v) for k, v in node.items() if k != "hint"}
+    if isinstance(node, list):
+        return [_strip_hints(x) for x in node]
+    return node
 
 
 # Small helpers ----------------------------------------------------------------------------------
@@ -242,8 +321,8 @@ def _booking_brief(b: Booking) -> dict:
 # Dates (everyone) ---------------------------------------------------------------------------------
 
 
-class DatesArgs(BaseModel):
-    phrases: list[str] = Field(
+class DatesArgs(Args):
+    phrases: Words = Field(
         min_length=1,
         max_length=10,
         description="Words for days, e.g. ['next Saturday', 'Friday after next', '3 Nov']",
@@ -272,12 +351,12 @@ def resolve_dates(db: Session, user: User | None, args: DatesArgs) -> ToolResult
 # Venues and availability (everyone) -------------------------------------------------------------
 
 
-class ListVenuesArgs(BaseModel):
-    type: Literal["lab", "coe", "seminar_hall"] | None = Field(
+class ListVenuesArgs(Args):
+    type: VenueType | None = Field(
         None, description="lab = computer lab, coe = centre of excellence"
     )
-    min_capacity: int | None = Field(None, ge=1)
-    needs: list[str] | None = Field(
+    min_capacity: Count | None = Field(None, ge=1)
+    needs: Words | None = Field(
         None, description="Software or equipment the venue must have, e.g. ['Power BI', 'Docker']"
     )
 
@@ -290,10 +369,10 @@ class ListVenuesArgs(BaseModel):
 )
 def list_venues(db: Session, user: User | None, args: ListVenuesArgs) -> ToolResult:
     venues = find_venues(db, type=args.type, min_capacity=args.min_capacity, needs=args.needs)
-    return ToolResult([{**_venue_brief(v), "block": v.block} for v in venues])
+    return ToolResult([_venue_brief(v) for v in venues])
 
 
-class VenueArgs(BaseModel):
+class VenueArgs(Args):
     venue: str = Field(description="Venue code such as CC5, COE1 or DSH, or its name")
 
 
@@ -309,7 +388,6 @@ def get_venue_details(db: Session, user: User | None, args: VenueArgs) -> ToolRe
     return ToolResult(
         {
             **_venue_brief(v),
-            "block": v.block,
             "byod": v.byod,
             "in_charge": v.in_charge.name if v.in_charge else None,
             "equipment": [
@@ -329,11 +407,11 @@ def get_venue_details(db: Session, user: User | None, args: VenueArgs) -> ToolRe
     )
 
 
-class AvailabilityArgs(BaseModel):
+class AvailabilityArgs(Args):
     venue: str
-    date: date
-    start: time | None = Field(None, description="HH:MM; leave out to see the whole day")
-    end: time | None = None
+    date: Day
+    start: Clock | None = Field(None, description="Leave out to see the whole day")
+    end: Clock | None = None
 
 
 @tool(
@@ -373,14 +451,14 @@ def check_availability(db: Session, user: User | None, args: AvailabilityArgs) -
     )
 
 
-class FreeVenuesArgs(BaseModel):
-    date: date
-    start: time
-    end: time
-    date_to: date | None = Field(None, description="Last day, for an event over several days")
-    min_capacity: int | None = Field(None, ge=1)
-    needs: list[str] | None = Field(None, description="Software or equipment, e.g. ['Power BI']")
-    type: Literal["lab", "coe", "seminar_hall"] | None = None
+class FreeVenuesArgs(Args):
+    date: Day
+    start: Clock
+    end: Clock
+    date_to: Day | None = Field(None, description="Last day, for an event over several days")
+    min_capacity: Count | None = Field(None, ge=1)
+    needs: Words | None = Field(None, description="Software or equipment, e.g. ['Power BI']")
+    type: VenueType | None = None
 
 
 @tool(
@@ -426,7 +504,7 @@ def _days(first: date, last: date | None) -> list[date]:
     ]
 
 
-class TimetableArgs(BaseModel):
+class TimetableArgs(Args):
     section: str | None = Field(None, description="Class, e.g. 'CSE III-B' or 'III B'")
     venue: str | None = Field(None, description="Venue code, to see which classes use it")
 
@@ -499,10 +577,10 @@ def _section(db: Session, text: str) -> ClassSection:
 # Past events (staff) ----------------------------------------------------------------------------
 
 
-class SearchArgs(BaseModel):
+class SearchArgs(Args):
     query: str = Field(min_length=2)
     venue: str | None = None
-    event_type: str | None = None
+    event_type: EventType | None = None
     year: str | None = Field(None, description="Academic year such as 2024-25")
 
 
@@ -539,14 +617,14 @@ def search_past_events(db: Session, user: User | None, args: SearchArgs) -> Tool
 # Booking help (people who can book) -------------------------------------------------------------
 
 
-class EventArgs(BaseModel):
-    event_type: str = Field(description=f"One of: {', '.join(booking_svc.EVENT_TYPES)}")
-    expected_count: int = Field(ge=1)
-    date: date
-    start: time
-    end: time
-    date_to: date | None = Field(None, description="Last day, for an event over several days")
-    needs: list[str] | None = Field(None, description="Software or equipment needed")
+class EventArgs(Args):
+    event_type: EventType = Field(description=f"One of: {', '.join(booking_svc.EVENT_TYPES)}")
+    expected_count: Count = Field(ge=1)
+    date: Day
+    start: Clock
+    end: Clock
+    date_to: Day | None = Field(None, description="Last day, for an event over several days")
+    needs: Words | None = Field(None, description="Software or equipment needed")
     title: str | None = None
 
 
@@ -745,7 +823,7 @@ def draft_booking(db: Session, user: User | None, args: DraftArgs) -> ToolResult
     )
 
 
-class NoArgs(BaseModel):
+class NoArgs(Args):
     pass
 
 
@@ -765,7 +843,7 @@ def list_my_bookings(db: Session, user: User | None, args: NoArgs) -> ToolResult
     return ToolResult([_booking_brief(b) for b in rows])
 
 
-class CancelArgs(BaseModel):
+class CancelArgs(Args):
     booking: str = Field(description="Booking reference such as BK-2026-0042")
     reason: str | None = None
 
@@ -829,7 +907,7 @@ def list_pending_approvals(db: Session, user: User | None, args: NoArgs) -> Tool
     )
 
 
-class BookingArgs(BaseModel):
+class BookingArgs(Args):
     booking: str = Field(description="Booking reference such as BK-2026-0042")
 
 
@@ -872,9 +950,9 @@ def assess_request(db: Session, user: User | None, args: BookingArgs) -> ToolRes
     )
 
 
-class DecisionArgs(BaseModel):
+class DecisionArgs(Args):
     booking: str
-    decision: Literal["approve", "reject"]
+    decision: Decision
     comment: str | None = Field(None, description="Required when rejecting")
 
 
@@ -918,10 +996,10 @@ def propose_decision(db: Session, user: User | None, args: DecisionArgs) -> Tool
 # Venue upkeep ------------------------------------------------------------------------------------
 
 
-class EquipmentArgs(BaseModel):
+class EquipmentArgs(Args):
     venue: str
     item: str = Field(description="Equipment name or part of it, e.g. 'projector'")
-    status: Literal["working", "faulty", "under_repair"]
+    status: EquipmentStatus
 
 
 @tool(
@@ -963,8 +1041,8 @@ def update_equipment_status(db: Session, user: User | None, args: EquipmentArgs)
 # Timetables --------------------------------------------------------------------------------------
 
 
-class UploadArgs(BaseModel):
-    upload_id: int
+class UploadArgs(Args):
+    upload_id: Count
 
 
 @tool(
@@ -1006,9 +1084,9 @@ def review_timetable_upload(db: Session, user: User | None, args: UploadArgs) ->
 # Reports ------------------------------------------------------------------------------------------
 
 
-class ReportArgs(BaseModel):
-    start: date | None = Field(None, description="First day; leave out for the term so far")
-    end: date | None = Field(None, description="Last day; leave out for today")
+class ReportArgs(Args):
+    start: Day | None = Field(None, description="First day; leave out for the term so far")
+    end: Day | None = Field(None, description="Last day; leave out for today")
     venue: str | None = Field(None, description="One venue code to focus on, e.g. CC5")
 
 

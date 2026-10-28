@@ -19,6 +19,7 @@ from sqlalchemy import select
 
 from app.agent import runtime
 from app.agent.dates import resolve
+from app.agent.formats import to_date
 from app.agent.llm import LLMError, make_llm
 from app.agent.settings import llm_settings
 from app.db import SessionLocal
@@ -63,7 +64,7 @@ CASES = [
     Case("Book CC5 next Monday.", FACULTY, set(), card="none"),
     Case("What is waiting for my approval?", "hod.cse@kiot.ac.in", {"list_pending_approvals"}),
     Case(
-        "Mark the projector in CC10 as faulty.",
+        "Mark the smart board in CC10 as faulty.",
         "swvcse@kiot.ac.in",
         {"update_equipment_status"},
         card="confirm",
@@ -83,6 +84,13 @@ CASES = [
         day="Friday after next",
     ),
 ]
+
+
+def _day(value) -> str:
+    try:
+        return to_date(value).isoformat()
+    except (ValueError, AttributeError):
+        return str(value)
 
 
 async def run_case(db, case: Case, provider: str | None, model: str | None) -> tuple[bool, str]:
@@ -111,7 +119,7 @@ async def run_case(db, case: Case, provider: str | None, model: str | None) -> t
         problems.append(f"no {case.card} card")
     if case.day:
         want = resolve(case.day, date.today())[0].isoformat()
-        sent = {s["args"].get("date") for s in outcome.steps if s["args"].get("date")}
+        sent = {_day(s["args"]["date"]) for s in outcome.steps if s["args"].get("date")}
         if sent != {want}:
             problems.append(f"{case.day} is {want}, but the tools got {sorted(sent) or 'no date'}")
     if not answer.strip() and not error:

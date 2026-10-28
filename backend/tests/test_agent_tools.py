@@ -68,14 +68,14 @@ def test_schemas_are_plain_for_small_models():
         assert "$defs" not in text and "anyOf" not in text, t.name
         assert all("title" not in p for p in t.schema()["properties"].values()), t.name
         assert t.schema()["type"] == "object"
-        # Groq rejects "10:00" against format "time", so times are plain HH:MM strings.
-        assert '"format": "time"' not in json.dumps(t.schema()), t.name
+        # Groq rejects "10:00" against format "time", so times are plain described strings.
+        assert '"format"' not in json.dumps(t.schema()), t.name
 
 
 def test_optional_times_keep_their_description():
     start = tools.REGISTRY["check_availability"].schema()["properties"]["start"]
-    assert start["type"] == "string" and "leave out" in start["description"]
-    assert "pattern" in start
+    assert start["type"] == "string" and "Leave out" in start["description"]
+    assert "HH:MM" in start["description"]
 
 
 def test_missing_timetable_lists_the_classes_that_have_one(db):
@@ -94,8 +94,8 @@ def test_calling_a_tool_you_cannot_see_is_refused(db):
 
 
 def test_bad_arguments_are_explained(db):
-    with pytest.raises(tools.ToolError, match="date"):
-        tools.call(db, None, "check_availability", {"venue": "CC5", "date": "next tuesday"})
+    with pytest.raises(tools.ToolError, match="YYYY-MM-DD"):
+        tools.call(db, None, "check_availability", {"venue": "CC5", "date": "someday"})
     with pytest.raises(tools.ToolError, match="No venue called"):
         tools.call(db, None, "check_availability", {"venue": "XYZ9", "date": DAY})
 
@@ -231,7 +231,7 @@ def test_equipment_proposals_only_for_own_venues(db):
         db,
         incharge,
         "update_equipment_status",
-        {"venue": "CC10", "item": "projector", "status": "faulty"},
+        {"venue": "CC10", "item": "smart board", "status": "faulty"},
     )
     assert result.card["action"]["method"] == "PATCH"
     assert result.card["action"]["body"] == {"status": "faulty"}

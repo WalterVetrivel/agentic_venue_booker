@@ -138,10 +138,6 @@
 				<dd class="font-medium">{v.capacity}{v.byod ? ' (BYOD)' : ''}</dd>
 			</div>
 			<div>
-				<dt class="text-sm text-muted">Location</dt>
-				<dd class="font-medium">{v.block ?? '—'}</dd>
-			</div>
-			<div>
 				<dt class="text-sm text-muted">Department</dt>
 				<dd class="font-medium">{v.department ?? '—'}</dd>
 			</div>

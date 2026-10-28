@@ -58,4 +58,5 @@ def test_upgrading_keeps_existing_rows(tmp_path):
     assert before == {"venues": 1, "equipment": 1, "venue_aliases": 1, "seasonal_rules": 1}
 
     run(url, "alembic", "upgrade", "head")
-    assert counts(url) == before
+    # Nothing lost; the hall gains the projection screen every venue now has.
+    assert counts(url) == {**before, "equipment": 2}

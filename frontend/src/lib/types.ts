@@ -21,7 +21,6 @@ export type Venue = {
 	code: string;
 	name: string;
 	type: 'lab' | 'coe' | 'seminar_hall';
-	block: string | null;
 	department: string | null;
 	capacity: number;
 	byod: boolean;

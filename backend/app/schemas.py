@@ -51,7 +51,6 @@ class VenueOut(BaseModel):
     code: str
     name: str
     type: str
-    block: str | None
     department: str | None
     capacity: int
     byod: bool
@@ -103,7 +102,6 @@ class VenueCreate(BaseModel):
     code: str = Field(min_length=1, max_length=30, pattern=r"^[A-Za-z0-9_-]+$")
     name: str = Field(min_length=1, max_length=120)
     type: VenueType
-    block: str | None = None
     department: str | None = "CSE"
     capacity: int = Field(gt=0, le=2000)
     byod: bool = False
@@ -116,7 +114,6 @@ class VenueCreate(BaseModel):
 class VenueUpdate(BaseModel):
     # Anyone who can edit the venue
     name: str | None = Field(default=None, min_length=1, max_length=120)
-    block: str | None = None
     notes: str | None = None
     byod: bool | None = None
     # Director only

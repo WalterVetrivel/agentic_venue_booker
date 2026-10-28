@@ -24,7 +24,6 @@
 		code: initial?.code ?? '',
 		name: initial?.name ?? '',
 		type: initial?.type ?? 'lab',
-		block: initial?.block ?? '',
 		department: initial?.department ?? 'CSE',
 		capacity: initial?.capacity ?? 40,
 		byod: initial?.byod ?? false,
@@ -47,7 +46,6 @@
 		busy = true;
 		const common = {
 			name: form.name,
-			block: form.block || null,
 			notes: form.notes || null,
 			byod: form.byod
 		};
@@ -88,10 +86,6 @@
 	<div class={venue ? 'sm:col-span-2' : ''}>
 		<label class={label} for="name">Name</label>
 		<input id="name" required bind:value={form.name} class={field} />
-	</div>
-	<div>
-		<label class={label} for="block">Location</label>
-		<input id="block" bind:value={form.block} placeholder="CSE Block" class={field} />
 	</div>
 	{#if restricted}
 		<div>

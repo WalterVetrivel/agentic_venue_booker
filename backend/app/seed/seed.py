@@ -133,7 +133,6 @@ def _seed_venue(db: Session, pw_hash: str, v: dict, profiles: dict[str, list[str
         code=v["code"],
         name=v["name"],
         type=v["type"],
-        block=v.get("block"),
         department=v.get("department", "CSE"),
         capacity=v["capacity"],
         byod=v.get("byod", False),
@@ -163,16 +162,12 @@ def _aliases(v: dict) -> list[VenueAlias]:
 
 def _equipment(v: dict, profiles: dict[str, list[str]]) -> list[Equipment]:
     items: list[Equipment] = []
+    # Every venue has a projector and screen, apart from a few labs marked `projector: false`.
+    av = ["Projector", "Projection screen"] if v.get("projector", True) else []
     if v["type"] == "seminar_hall":
-        av = [
-            "Projector",
-            "PA system",
-            "Podium microphone",
-            "Cordless microphones",
-            "Air conditioning",
-        ]
+        av += ["PA system", "Podium microphone", "Cordless microphones", "Air conditioning"]
     else:
-        av = ["Projector", "Smart board", "Air conditioning"]
+        av += ["Smart board", "Air conditioning"]
     items += [Equipment(name=n, category="av") for n in av]
     if v.get("pcs"):
         items.append(
