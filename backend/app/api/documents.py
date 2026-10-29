@@ -29,7 +29,6 @@ from app.schemas import (
 )
 from app.services import audit
 from app.services import documents as svc
-from app.services.embeddings import get_embedder
 from app.services.venues import get_venue
 
 router = APIRouter(prefix="/api", tags=["documents"])
@@ -238,7 +237,7 @@ def event_facets(
         events=db.scalar(select(func.count(PastEvent.id))),
         needs_review=db.scalar(select(func.count(PastEvent.id)).where(PastEvent.needs_review)),
         embedded=db.scalar(select(func.count(DocChunk.id)).where(DocChunk.embedding.is_not(None))),
-        embeddings="on" if get_embedder() else "off",
+        embeddings="on" if svc.embedder_for(db) else "off",
     )
 
 

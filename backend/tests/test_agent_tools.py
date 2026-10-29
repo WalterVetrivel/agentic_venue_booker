@@ -16,6 +16,7 @@ PUBLIC = {
     "check_availability",
     "find_free_venues",
     "get_timetable",
+    "find_faculty",
     "track_student_booking",
 }
 VISITOR = {"draft_student_booking"}  # students only: staff use the staff form

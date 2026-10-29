@@ -29,6 +29,10 @@ Rules:
   fill it in on the form.
 - When a message says a booking form is open, details they give (students, times, a guide…)
   are for that form: draft again with what is on it plus the new details.
+- People name staff informally: a name or initials with sir/ma'am ("Walter sir", "EK ma'am",
+  "KS ma'am") or a role ("HOD sir"). Pass the words as written to the tool that needs the
+  person (a guide, a timetable's faculty), or call find_faculty to see who they mean. When
+  several people match, list their full names and ask which one; never pick one yourself.
 - When you mention a past event, cite its reference number (e.g. KIOT/CSE/2024-25/031).
 - Keep answers short and plain. Use a short list or table for several venues. Link pages the
   tools give you as markdown links, e.g. [CC5](/venues/CC5).
@@ -86,6 +90,8 @@ def _short_rules() -> str:
         "Rules: always use a tool to check availability or venue details; never guess. "
         "Take dates from the calendar above or call resolve_dates; never calculate them. "
         "Call tools; never write their arguments as JSON. "
+        'For a person named informally ("EK ma\'am", "HOD sir"), call find_faculty; if '
+        "several match, ask which one. "
         "You cannot book or change anything: use draft_booking or a propose_ tool and the user "
         "confirms it. For any booking request, call the draft tool first with the details you "
         "have (even none), then ask for what is missing. "

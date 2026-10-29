@@ -58,6 +58,7 @@ def test_mcp_lists_public_tools_for_visitors(client):
         "check_availability",
         "find_free_venues",
         "get_timetable",
+        "find_faculty",
         "track_student_booking",
         "draft_student_booking",
     }

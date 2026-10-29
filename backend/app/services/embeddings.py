@@ -15,7 +15,13 @@ import httpx
 from app.config import get_settings
 
 log = logging.getLogger(__name__)
-RETRY_AFTER_SECONDS = 300
+# After a failure, search uses keywords alone for this long before trying Ollama again. Short,
+# so that starting Ollama after the backend takes effect within a minute.
+RETRY_AFTER_SECONDS = 60
+# The first call loads the model (several seconds on a laptop CPU) and a batch of documents
+# takes a while to embed; a search query is one short text, and someone is waiting for it.
+DOCUMENT_TIMEOUT = 120.0
+QUERY_TIMEOUT = 20.0
 
 
 class Embedder(Protocol):
@@ -25,11 +31,11 @@ class Embedder(Protocol):
 
 
 class OllamaEmbedder:
-    def __init__(self, base_url: str, model: str, timeout: float = 30.0):
+    def __init__(self, base_url: str, model: str):
         self.base_url = base_url.rstrip("/")
         self.model = model
-        self.timeout = timeout
         self._down_until = 0.0
+        self.last_error: str | None = None
 
     def embed(self, texts: list[str], *, query: bool = False) -> list[list[float]] | None:
         """None when Ollama can't be reached; we then wait a while before trying again."""
@@ -41,29 +47,45 @@ class OllamaEmbedder:
             res = httpx.post(
                 f"{self.base_url}/api/embed",
                 json={"model": self.model, "input": [prefix + t for t in texts]},
-                timeout=self.timeout,
+                timeout=QUERY_TIMEOUT if query else DOCUMENT_TIMEOUT,
             )
+            if res.status_code == 404:
+                raise LookupError(f"model {self.model!r} isn't installed: ollama pull {self.model}")
             res.raise_for_status()
-            return res.json()["embeddings"]
-        except (httpx.HTTPError, KeyError, ValueError) as exc:
-            log.warning("Embeddings unavailable (%s); using keyword search only", exc)
+            vectors = res.json()["embeddings"]
+        except (httpx.HTTPError, KeyError, ValueError, LookupError) as exc:
+            self.last_error = _describe(exc, self.base_url)
+            log.warning("Embeddings unavailable (%s); using keyword search only", self.last_error)
             self._down_until = time.monotonic() + RETRY_AFTER_SECONDS
             return None
+        self.last_error = None
+        return vectors
+
+
+def _describe(exc: Exception, base_url: str) -> str:
+    if isinstance(exc, httpx.ConnectError):
+        return f"Ollama isn't running at {base_url}"
+    if isinstance(exc, httpx.TimeoutException):
+        return f"Ollama at {base_url} took too long to answer"
+    return str(exc) or type(exc).__name__
 
 
 _embedder: Embedder | None = None
 _override: list[Embedder | None] = []  # set by tests
 
 
-def get_embedder() -> Embedder | None:
+def get_embedder(base_url: str | None = None) -> Embedder | None:
+    """The embedder, or None when embeddings are off. `base_url` is the Ollama address from the
+    Settings page, which wins over OLLAMA_BASE_URL in backend/.env (the chat uses it too)."""
     global _embedder
     if _override:
         return _override[0]
     settings = get_settings()
     if settings.embeddings.lower() != "ollama":
         return None
-    if _embedder is None:
-        _embedder = OllamaEmbedder(settings.ollama_base_url, settings.embed_model)
+    url = (base_url or settings.ollama_base_url).rstrip("/")
+    if not isinstance(_embedder, OllamaEmbedder) or _embedder.base_url != url:
+        _embedder = OllamaEmbedder(url, settings.embed_model)
     return _embedder
 
 

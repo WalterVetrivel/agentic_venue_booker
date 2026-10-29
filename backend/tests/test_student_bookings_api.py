@@ -219,7 +219,7 @@ def test_assistant_drafts_a_student_request(db, sections):
         tools.call(db, None, "draft_student_booking", args | {"venue": "CSEPGSH"})
     # A detail it can't use is left for the form, and the assistant is told why.
     unclear = tools.call(db, None, "draft_student_booking", args | {"guide": "Saranya"})
-    assert "Several faculty" in unclear.data["could_not_use"][0]
+    assert "3 people match" in unclear.data["could_not_use"][0]
     assert "guide" not in parse_qs(urlparse(unclear.card["href"]).query)
 
 

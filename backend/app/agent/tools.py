@@ -50,7 +50,7 @@ from app.services import documents as document_svc
 from app.services import reports as report_svc
 from app.services import student_bookings as student_svc
 from app.services.access import can, can_update_equipment
-from app.services.people import guides, name_key
+from app.services.people import find_people, guides, name_key, refers_to, staff
 from app.services.timetables import resolve_venue, review
 from app.services.venues import find_venues, get_venue
 
@@ -524,16 +524,36 @@ def _days(first: date, last: date | None) -> list[date]:
 class TimetableArgs(Args):
     section: str | None = Field(None, description="Class, e.g. 'CSE III-B' or 'III B'")
     venue: str | None = Field(None, description="Venue code, to see which classes use it")
+    faculty: str | None = Field(
+        None, description="A teacher, as the person wrote it, e.g. 'EK ma'am' or 'Walter sir'"
+    )
 
 
 @tool(
     "get_timetable",
-    "The weekly lab timetable of a class (section) or of a venue.",
+    "The weekly lab timetable of a class (section), a venue or a faculty member.",
     label="Reading the timetable",
 )
 def get_timetable(db: Session, user: User | None, args: TimetableArgs) -> ToolResult:
     query = select(TimetableSlot).order_by(TimetableSlot.weekday, TimetableSlot.start)
-    if args.venue:
+    if args.faculty:
+        people = find_people(staff(db), args.faculty)
+        if len(people) > 1:
+            raise ToolError(_several(args.faculty, people))
+        # The timetable spells names its own way, so match it to the person's full name.
+        who = people[0].name if people else args.faculty
+        ids = [
+            s.id
+            for s in db.scalars(
+                select(TimetableSlot).where(TimetableSlot.faculty_name.is_not(None))
+            )
+            if name_key(s.faculty_name) == name_key(who) or refers_to(who, s.faculty_name)
+        ]
+        if not people and not ids:
+            raise ToolError(_nobody(args.faculty))
+        query = query.where(TimetableSlot.id.in_(ids))
+        scope = who
+    elif args.venue:
         v = _venue(db, args.venue)
         query = query.where(TimetableSlot.venue_id == v.id)
         scope = v.code
@@ -542,7 +562,7 @@ def get_timetable(db: Session, user: User | None, args: TimetableArgs) -> ToolRe
         query = query.where(TimetableSlot.section_id == section.id)
         scope = section.label
     else:
-        raise ToolError("Give a section (e.g. CSE III-B) or a venue code.")
+        raise ToolError("Give a section (e.g. CSE III-B), a venue code or a faculty member.")
     slots = db.scalars(query).all()
     return ToolResult(
         {
@@ -586,6 +606,59 @@ def _section(db: Session, text: str) -> ClassSection:
         listed = ", ".join(s.label for s in known) or "none yet"
         raise ToolError(f"There is no class {dept} {year}-{sec}. The classes are: {listed}.")
     return section
+
+
+# People -----------------------------------------------------------------------------------------
+
+
+def _nobody(text: str) -> str:
+    return f"No one on the staff list matches {text!r}. Ask for their full name."
+
+
+def _several(text: str, people: list[User]) -> str:
+    names = "; ".join(f"{u.name} ({u.designation or 'staff'})" for u in people[:8])
+    return f"{len(people)} people match {text!r}: {names}. Ask which one they mean."
+
+
+def _one_person(users: list[User], text: str) -> User:
+    found = find_people(users, text)
+    if len(found) == 1:
+        return found[0]
+    raise ToolError(_several(text, found) if found else _nobody(text))
+
+
+class PersonArgs(Args):
+    who: str = Field(
+        min_length=2,
+        description="The person as written, e.g. 'Walter sir', 'EK ma'am', 'HOD sir', 'Saranya'",
+    )
+
+
+@tool(
+    "find_faculty",
+    "Find a faculty member or staff from how people refer to them: a name or part of it, "
+    "initials (EK, KS), or a role (HOD), with or without sir/ma'am. Returns everyone who "
+    "matches; when there are several, ask which one.",
+    label="Looking up the staff list",
+)
+def find_faculty(db: Session, user: User | None, args: PersonArgs) -> ToolResult:
+    people = find_people(staff(db), args.who)
+    out = [
+        {
+            "name": u.name,
+            "initials": u.initials,
+            "designation": u.designation,
+            "roles": u.role_keys,
+            **({"email": u.email} if user else {}),
+        }
+        for u in people
+    ]
+    note = None
+    if not people:
+        note = _nobody(args.who)
+    elif len(people) > 1:
+        note = "Several people match: ask which one they mean, giving their full names."
+    return ToolResult({"matches": out, "note": note})
 
 
 # Past events (staff) ----------------------------------------------------------------------------
@@ -960,17 +1033,7 @@ class StudentDraftArgs(Args):
 
 
 def _guide(db: Session, text: str) -> User:
-    everyone = guides(db)
-    key = name_key(text)
-    exact = [u for u in everyone if name_key(u.name) == key]
-    found = exact or [u for u in everyone if key and key in name_key(u.name)]
-    if len(found) == 1:
-        return found[0]
-    if not found:
-        raise ToolError(f"No faculty member called {text!r}. Ask for their full name.")
-    raise ToolError(
-        f"Several faculty match {text!r}: {', '.join(u.name for u in found[:6])}. Ask which one."
-    )
+    return _one_person(guides(db), text)
 
 
 @tool(

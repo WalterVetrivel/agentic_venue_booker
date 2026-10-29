@@ -15,6 +15,7 @@ from pathlib import Path
 from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
+from app.agent.settings import llm_settings
 from app.config import get_settings
 from app.ingest.doc_extractor import (
     ExtractedDoc,
@@ -278,9 +279,14 @@ def reindex_event(db: Session, event: PastEvent) -> None:
     embed_chunks(db, chunks)
 
 
+def embedder_for(db: Session):
+    """The embedder, using the Ollama address the assistant uses (Settings page, then .env)."""
+    return get_embedder(llm_settings(db).ollama_base_url)
+
+
 def embed_chunks(db: Session, chunks: list[DocChunk], batch: int = 16) -> int:
     """Store embeddings when Ollama is reachable. Returns how many were embedded."""
-    embedder = get_embedder()
+    embedder = embedder_for(db)
     if embedder is None:
         return 0
     done = 0
@@ -298,7 +304,7 @@ def embed_chunks(db: Session, chunks: list[DocChunk], batch: int = 16) -> int:
 
 def embed_missing(db: Session) -> int:
     """Embed documents added while Ollama was off (or with another model)."""
-    embedder = get_embedder()
+    embedder = embedder_for(db)
     if embedder is None:
         return 0
     chunks = db.scalars(
@@ -343,7 +349,7 @@ def _keyword_ranking(db: Session, query: str) -> list[tuple[int, str]]:
 
 
 def _vector_ranking(db: Session, query: str) -> list[int]:
-    embedder = get_embedder()
+    embedder = embedder_for(db)
     if embedder is None:
         return []
     vectors = embedder.embed([query], query=True)
