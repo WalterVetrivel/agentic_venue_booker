@@ -363,7 +363,21 @@
 										>
 									{/if}
 								{:else if c.kind === 'confirm'}
-									{#if cardDone(m, ci)}
+									{#if c.state === 'done' && c.booking_id && c.outcome}
+										<button
+											class="mt-3 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 font-medium {c.outcome ===
+											'Approved'
+												? 'bg-success/10 text-success'
+												: c.outcome === 'Rejected'
+													? 'bg-danger/10 text-danger'
+													: 'bg-surface-2 text-muted'}"
+											disabled
+										>
+											<Icon name={c.outcome === 'Approved' ? 'check' : 'close'} size={16} />
+											{c.outcome}
+										</button>
+										{#if c.note}<p class="mt-1 text-sm text-muted">{c.note}</p>{/if}
+									{:else if cardDone(m, ci)}
 										<p
 											class="mt-3 text-sm font-medium {c.state === 'done'
 												? 'text-success'

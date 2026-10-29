@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import select
 
 from app.agent import tools
-from app.models import User
+from app.models import User, Venue
 
 DAY = "2027-02-09"  # a Tuesday, far enough ahead
 
@@ -28,6 +28,7 @@ BOOKER = {
     "propose_cancel",
 }
 APPROVER = {"list_pending_approvals", "assess_request", "propose_decision"}
+STAFF = {"list_maintenance_issues"}  # anyone logged in
 
 
 def user(db, email):
@@ -47,16 +48,16 @@ def test_students_get_public_read_tools_and_the_student_draft():
 @pytest.mark.parametrize(
     "email,expected",
     [
-        ("tkcse@kiot.ac.in", PUBLIC | BOOKER),
+        ("tkcse@kiot.ac.in", PUBLIC | STAFF | BOOKER),
         (
             "swvcse@kiot.ac.in",
-            PUBLIC | BOOKER | APPROVER | {"update_equipment_status", "utilisation_report"},
+            PUBLIC | STAFF | BOOKER | APPROVER | {"update_equipment_status", "utilisation_report"},
         ),
         (
             "hod.cse@kiot.ac.in",
-            PUBLIC | BOOKER | APPROVER | {"review_timetable_upload", "utilisation_report"},
+            PUBLIC | STAFF | BOOKER | APPROVER | {"review_timetable_upload", "utilisation_report"},
         ),
-        ("cseoa@kiot.ac.in", PUBLIC | {"search_past_events", "review_timetable_upload"}),
+        ("cseoa@kiot.ac.in", PUBLIC | STAFF | {"search_past_events", "review_timetable_upload"}),
         ("dirim@kiot.ac.in", set(tools.REGISTRY) - VISITOR),
     ],
 )
@@ -250,3 +251,19 @@ def test_equipment_proposals_only_for_own_venues(db):
     )
     assert result.card["action"]["method"] == "PATCH"
     assert result.card["action"]["body"] == {"status": "faulty"}
+
+
+def test_maintenance_issues_and_any_size(db):
+    teacher = user(db, "tkcse@kiot.ac.in")
+    cc10 = db.scalar(select(Venue).where(Venue.code == "CC10"))
+    cc10.equipment[0].status = "faulty"
+    db.flush()
+    data = tools.call(db, teacher, "list_maintenance_issues", {}).data
+    assert {"venue": "CC10", "item": cc10.equipment[0].name}.items() <= next(
+        e for e in data["equipment_out_of_service"] if e["venue"] == "CC10"
+    ).items()
+    only = tools.call(db, teacher, "list_maintenance_issues", {"venue": "cc5"}).data
+    assert all(e["venue"] == "CC5" for e in only["equipment_out_of_service"])
+    # Models send a minimum of 0 for "any size"; that is no filter, not an error.
+    every = tools.call(db, teacher, "list_venues", {"min_capacity": 0}).data
+    assert len(every) == len(tools.call(db, teacher, "list_venues", {}).data)

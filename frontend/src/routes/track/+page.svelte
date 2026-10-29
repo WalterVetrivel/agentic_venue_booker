@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '#lib/components/Icon.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api, ApiError } from '#lib/api.ts';
@@ -84,7 +85,9 @@
 			class="{field} font-mono uppercase"
 		/>
 	</div>
-	<button class={btnPrimary} disabled={loading}>Look it up</button>
+	<button class="{btnPrimary} inline-flex items-center gap-2" disabled={loading}
+		><Icon name="search" size={18} /> Look it up</button
+	>
 </form>
 
 {#if error}<p class="mt-4 text-danger" role="alert">{error}</p>{/if}

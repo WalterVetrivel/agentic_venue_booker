@@ -38,7 +38,7 @@
 		</ul>
 	{/if}
 	<ul class="space-y-2" aria-label={label}>
-		{#each rows as row (row.label)}
+		{#each rows as row, ri (ri)}
 			<li class="grid grid-cols-[minmax(4.5rem,8rem)_minmax(4rem,1fr)_auto] items-center gap-3">
 				<span class="truncate font-medium">
 					{#if row.href}<a class="hover:text-accent hover:underline" href={row.href}>{row.label}</a

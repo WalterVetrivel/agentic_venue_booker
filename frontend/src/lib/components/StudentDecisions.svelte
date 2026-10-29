@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { chat } from '#lib/stores/chat.svelte.ts';
 	import { api } from '#lib/api.ts';
 	import { btnPrimary, btnSecondary, field } from '#lib/ui.ts';
 	import type { Booking } from '#lib/types.ts';
@@ -47,6 +48,7 @@
 					}))
 				})
 			});
+			chat.decided(res.id, res.status === 'rejected' ? 'Rejected' : 'Approved');
 			ondone?.(res);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Could not save';

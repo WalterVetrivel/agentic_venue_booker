@@ -45,7 +45,7 @@ export const NAV: NavItem[] = [
 	{
 		href: '/track',
 		label: 'Track a request',
-		icon: 'clock',
+		icon: 'search',
 		blurb: 'Check a student request by its tracking number',
 		anyOf: [],
 		visitors: true

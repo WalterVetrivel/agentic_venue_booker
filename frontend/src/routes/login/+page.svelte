@@ -44,7 +44,7 @@
 				autocomplete="username"
 				required
 				bind:value={email}
-				placeholder="swvcse@kiot.ac.in"
+				placeholder="name@kiot.ac.in"
 				class="w-full rounded-lg border border-border bg-bg px-3 py-2.5 focus:border-accent focus:outline-none"
 			/>
 		</div>
@@ -71,16 +71,4 @@
 			{busy ? 'Logging in…' : 'Log in'}
 		</button>
 	</form>
-
-	<details class="mt-6 rounded-xl bg-surface-2 p-4 text-sm">
-		<summary class="cursor-pointer font-medium">Demo accounts (password: password)</summary>
-		<ul class="mt-3 space-y-1 text-muted">
-			<li><code>swvcse@kiot.ac.in</code> · Faculty and CC10 in-charge</li>
-			<li><code>tkcse@kiot.ac.in</code> · Faculty</li>
-			<li><code>hod.cse@kiot.ac.in</code> · HOD</li>
-			<li><code>dirim@kiot.ac.in</code> · Director IM</li>
-			<li><code>cseoa@kiot.ac.in</code> · OA / DEO</li>
-			<li><code>sh.dblock@kiot.ac.in</code> · D Block Seminar Hall in-charge</li>
-		</ul>
-	</details>
 </div>

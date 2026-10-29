@@ -692,6 +692,7 @@ class ConversationRename(BaseModel):
 class CardStateIn(BaseModel):
     state: Literal["done", "dismissed"]
     note: str | None = Field(None, max_length=300)
+    outcome: str | None = Field(None, max_length=30)  # shown on the card, e.g. "Approved"
 
 
 class ProviderOut(BaseModel):

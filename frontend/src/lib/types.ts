@@ -495,6 +495,8 @@ export type ChatCard = {
 	action?: { method: string; url: string; body?: unknown };
 	danger?: boolean;
 	done?: string;
+	booking_id?: number; // an approve/reject card: the request it decides
+	outcome?: string; // shown on the card once done, e.g. "Approved"
 	state?: 'done' | 'dismissed';
 	note?: string | null;
 };

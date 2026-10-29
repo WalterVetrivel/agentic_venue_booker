@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '#lib/components/Icon.svelte';
 	import { page } from '$app/state';
 	import { goto, replaceState } from '$app/navigation';
 	import { untrack } from 'svelte';
@@ -505,10 +506,11 @@
 		<div class="flex flex-wrap items-center gap-3">
 			<button
 				type="submit"
-				class={btnPrimary}
+				class="{btnPrimary} inline-flex items-center gap-2"
 				disabled={submitting || !complete || !check || check.outcome === 'blocked'}
 				title={complete ? undefined : 'Fill in the fields marked *'}
 			>
+				<Icon name="send" size={18} />
 				{check?.outcome === 'waitlist'
 					? 'Join the waitlist'
 					: original

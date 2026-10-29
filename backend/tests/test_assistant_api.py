@@ -5,10 +5,10 @@ import pytest
 from sqlalchemy import select
 
 import app.api.chat as chat_api
-from app.agent import fake
+from app.agent import fake, tools
 from app.agent.llm import Reply, ToolCall
 from app.config import get_settings
-from app.models import AuditLog
+from app.models import AuditLog, ChatMessage, Conversation, User
 
 MCP_HEADERS = {
     "accept": "application/json, text/event-stream",
@@ -386,3 +386,43 @@ def test_signed_out_staff_are_sent_to_log_in(client, demo):
     res = client.post("/api/chat", json={"message": "I'm faculty, book DSH tomorrow 10 to 12"})
     done = events(res)[-1]
     assert done["type"] == "done" and "/login?next=/book" in done["content"]
+
+
+@pytest.mark.writes_db
+def test_decision_cards_show_how_the_request_ended(client, login, session_factory):
+    login("tkcse@kiot.ac.in")
+    body = {
+        "venue": "DSH",
+        "title": "Cloud workshop",
+        "event_type": "Workshop",
+        "expected_count": 100,
+        "date_from": "2027-02-10",
+        "start_time": "10:00",
+        "end_time": "12:00",
+    }
+    b = client.post("/api/bookings", json=body).json()
+    login("sh.dblock@kiot.ac.in")
+    with session_factory() as db:
+        incharge = db.scalar(select(User).where(User.email == "sh.dblock@kiot.ac.in"))
+        cards = [
+            tools.call(
+                db, incharge, "propose_decision", {"booking": b["ref"], "decision": d} | c
+            ).card
+            for d, c in (("approve", {}), ("reject", {"comment": "Clash"}))
+        ]
+        assert cards[0]["booking_id"] == b["id"] and cards[1]["outcome"] == "Rejected"
+        conv = Conversation(user_id=incharge.id, title="Approvals")
+        db.add(conv)
+        db.add(
+            ChatMessage(conversation=conv, role="assistant", content="", cards=json.dumps(cards))
+        )
+        db.commit()
+        conv_id = conv.id
+
+    def saved():
+        return client.get(f"/api/chat/conversations/{conv_id}").json()["messages"][0]["cards"]
+
+    assert all("state" not in c for c in saved())  # still waiting: the buttons stay
+    # Approved on the approvals page, not from the chat: both cards now say so.
+    assert client.post(f"/api/bookings/{b['id']}/approve", json={}).status_code == 200
+    assert [(c["state"], c["outcome"]) for c in saved()] == [("done", "Approved")] * 2
