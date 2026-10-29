@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { ui } from '#lib/stores/ui.svelte.ts';
 	import { visibleNav } from '#lib/nav.ts';
@@ -15,6 +16,12 @@
 		if (href === '/') return path === '/';
 		// "Book a venue" (/book) isn't active on the student form (/book/student).
 		return path.startsWith(href) && !(href === '/book' && path.startsWith('/book/student'));
+	}
+
+	async function signOut() {
+		ui.navOpen = false;
+		await session.logout();
+		goto('/');
 	}
 </script>
 
@@ -36,7 +43,7 @@
 	onmouseleave={() => (peek = false)}
 >
 	<nav
-		class="fixed top-16 bottom-0 left-0 z-40 w-64 overflow-x-hidden overflow-y-auto glass-bar border-r p-3 transition-[transform,width,box-shadow] duration-200 ease-in-out lg:sticky lg:h-[calc(100vh-4rem)] lg:translate-x-0 {ui.navOpen
+		class="fixed top-16 bottom-0 left-0 z-40 flex w-64 flex-col overflow-x-hidden overflow-y-auto glass-bar border-r p-3 transition-[transform,width,box-shadow] duration-200 ease-in-out lg:sticky lg:h-[calc(100vh-4rem)] lg:translate-x-0 {ui.navOpen
 			? 'translate-x-0'
 			: '-translate-x-full'} {slim ? 'lg:w-[4.5rem]' : 'lg:w-64'} {ui.navCollapsed && peek
 			? 'nav-peek lg:z-30'
@@ -77,6 +84,21 @@
 				Students don't need to log in: browse venues and availability, request a lab for group work,
 				and track it with its number. Staff log in to book.
 			</p>
+		{/if}
+		{#if session.user}
+			<button
+				class="group mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 whitespace-nowrap text-muted hover:bg-surface-2 hover:text-danger"
+				title={slim ? 'Sign out' : undefined}
+				onclick={signOut}
+			>
+				<Icon
+					name="logout"
+					class="shrink-0 transition-transform duration-200 ease-in-out group-hover:scale-110"
+				/>
+				<span class="transition-opacity duration-200 ease-in-out {slim ? 'lg:opacity-0' : ''}"
+					>Sign out</span
+				>
+			</button>
 		{/if}
 	</nav>
 	<!-- Edge chip: collapse to icons, or keep the menu open. -->

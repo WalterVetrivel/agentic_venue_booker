@@ -21,7 +21,7 @@ from app.auth import get_current_user, require, user_from_request
 from app.config import get_settings
 from app.db import get_db, session_for
 from app.ingest.doc_extractor import extract
-from app.models import ChatMessage, Conversation, User
+from app.models import Booking, ChatMessage, Conversation, User
 from app.schemas import (
     AttachmentOut,
     CardStateIn,
@@ -34,6 +34,7 @@ from app.schemas import (
     ProvidersOut,
 )
 from app.services import audit, timetables
+from app.services import bookings as booking_svc
 from app.services import documents as document_svc
 from app.services.access import can
 
@@ -204,13 +205,31 @@ def _own(db: Session, user: User, conversation_id: int) -> Conversation:
     return c
 
 
-def _message_out(m: ChatMessage) -> ChatMessageOut:
+def _settle(db: Session, user: User, card: dict) -> dict:
+    """An approve/reject card for a request that was decided since (here, on the approvals page
+    or by someone else) shows how it ended instead of offering the buttons again."""
+    if card.get("state") or not card.get("booking_id"):
+        return card
+    b = db.get(Booking, card["booking_id"])
+    if b is None or booking_svc.can_act(user, b):
+        return card
+    mine = [a for a in b.approvals if a.approver_id == user.id]
+    if mine:
+        outcome = "Approved" if mine[-1].decision == "approved" else "Rejected"
+        note = f"{b.ref} {outcome.lower()}."
+    else:
+        outcome = {"rejected": "Rejected", "cancelled": "Cancelled"}.get(b.status, "Closed")
+        note = f"{b.ref} is no longer waiting for your approval."
+    return card | {"state": "done", "outcome": outcome, "note": note}
+
+
+def _message_out(db: Session, user: User, m: ChatMessage) -> ChatMessageOut:
     return ChatMessageOut(
         id=m.id,
         role=m.role,
         content=m.content,
         steps=json.loads(m.steps),
-        cards=json.loads(m.cards),
+        cards=[_settle(db, user, c) for c in json.loads(m.cards)],
         created_at=m.created_at,
     )
 
@@ -244,7 +263,7 @@ def get_conversation(
     c = _own(db, user, conversation_id)
     return ConversationOut(
         **ConversationBrief.model_validate(c).model_dump(),
-        messages=[_message_out(m) for m in c.messages],
+        messages=[_message_out(db, user, m) for m in c.messages],
     )
 
 
@@ -288,6 +307,8 @@ def set_card_state(
     if not 0 <= index < len(cards):
         raise HTTPException(404, "Card not found")
     cards[index] |= {"state": body.state, "note": body.note}
+    if body.outcome:
+        cards[index]["outcome"] = body.outcome
     m.cards = json.dumps(cards)
     db.commit()
     return Response(status_code=204)

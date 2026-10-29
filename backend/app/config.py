@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = ""
     # Links in emails point here (the address students open the app at).
-    public_url: str = "http://localhost:5173"
+    public_url: str = "http://localhost:8080"
     # Only accept student contact emails on this domain, e.g. "kiot.ac.in". Empty accepts any.
     student_email_domain: str = ""
     # Our own limits on visitors: chat questions per IP, student requests per IP and per email.

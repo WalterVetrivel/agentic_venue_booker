@@ -174,8 +174,10 @@
 	const monthMax = $derived(Math.max(1, ...(report?.events.by_month ?? []).map((m) => m.count)));
 
 	function foldOther(counts: Count[], keep: number): BarRow[] {
-		const top = counts.slice(0, keep);
-		const rest = counts.slice(keep).reduce((n, c) => n + c.count, 0);
+		// "Other" is also a real event type, so it always goes into the folded row: two rows
+		// with the same label would break the chart.
+		const top = counts.filter((c) => c.name !== 'Other').slice(0, keep);
+		const rest = counts.filter((c) => !top.includes(c)).reduce((n, c) => n + c.count, 0);
 		const all = rest ? [...top, { name: 'Other', count: rest }] : top;
 		return all.map((c) => ({
 			label: c.name,
@@ -527,7 +529,7 @@
 							<p class="mt-2 text-muted">Everything is working.</p>
 						{:else}
 							<ul class="mt-2 space-y-2">
-								{#each report.equipment.out_of_service as e (e.venue + e.item)}
+								{#each report.equipment.out_of_service as e, i (i)}
 									<li
 										class="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-2"
 									>

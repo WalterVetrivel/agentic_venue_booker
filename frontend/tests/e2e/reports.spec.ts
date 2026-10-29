@@ -36,3 +36,24 @@ test('people without a reporting role are told so', async ({ page }) => {
 	await page.goto('/reports');
 	await expect(page.getByRole('alert')).toContainText("don't have access");
 });
+
+test('an event type called "Other" folds into the Other row', async ({ page }) => {
+	await page.route('**/api/reports/summary*', async (route) => {
+		const res = await route.fetch();
+		const data = await res.json();
+		const names = ['Workshop', 'Seminar', 'Hackathon', 'Meeting', 'Other', 'Coding contest'];
+		data.events.by_type = [...names, 'Conference', 'Guest lecture', 'Inauguration', 'Quiz'].map(
+			(name, i) => ({ name, count: 20 - i })
+		);
+		data.equipment.out_of_service = [
+			{ venue: 'CC5', item: 'Projector', status: 'faulty', since: null },
+			{ venue: 'CC5', item: 'Projector', status: 'under_repair', since: null }
+		];
+		await route.fulfill({ response: res, json: data });
+	});
+	await login(page, 'hod.cse@kiot.ac.in');
+	await page.goto('/reports');
+	const events = page.getByRole('region', { name: 'Events' });
+	await expect(events.getByText('Other', { exact: true })).toHaveCount(1);
+	await expect(page.getByText('Equipment out')).toBeVisible();
+});

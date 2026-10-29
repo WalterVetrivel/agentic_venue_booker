@@ -30,6 +30,7 @@ from app.agent.formats import (
     class_parts,
     closest,
     drop_empty,
+    to_int,
 )
 from app.models import (
     Booking,
@@ -179,6 +180,15 @@ EquipmentStatus = Annotated[
     ),
 ]
 EventType = Annotated[str, BeforeValidator(closest(booking_svc.EVENT_TYPES))]
+
+
+def _no_minimum(value: Any) -> Any:
+    """A minimum of 0 (or less) is no minimum at all; models send it for "any size"."""
+    value = to_int(value)
+    return None if isinstance(value, int) and value < 1 else value
+
+
+MinCapacity = Annotated[int | None, BeforeValidator(_no_minimum)]
 
 
 def tool(name: str, description: str, *, label: str, **options) -> Callable:
@@ -362,7 +372,7 @@ class ListVenuesArgs(Args):
     type: VenueType | None = Field(
         None, description="lab = computer lab, coe = centre of excellence"
     )
-    min_capacity: Count | None = Field(None, ge=1)
+    min_capacity: MinCapacity = None
     needs: Words | None = Field(
         None, description="Software or equipment the venue must have, e.g. ['Power BI', 'Docker']"
     )
@@ -463,7 +473,7 @@ class FreeVenuesArgs(Args):
     start: Clock
     end: Clock
     date_to: Day | None = Field(None, description="Last day, for an event over several days")
-    min_capacity: Count | None = Field(None, ge=1)
+    min_capacity: MinCapacity = None
     needs: Words | None = Field(None, description="Software or equipment, e.g. ['Power BI']")
     type: VenueType | None = None
 
@@ -1241,6 +1251,8 @@ def propose_decision(db: Session, user: User | None, args: DecisionArgs) -> Tool
         "button": verb,
         "danger": args.decision == "reject",
         "done": f"{b.ref} {'approved' if args.decision == 'approve' else 'rejected'}.",
+        "booking_id": b.id,
+        "outcome": "Approved" if args.decision == "approve" else "Rejected",
     }
     return ToolResult({"proposed": True, "booking": brief}, card)
 
@@ -1288,6 +1300,46 @@ def update_equipment_status(db: Session, user: User | None, args: EquipmentArgs)
         "done": f"{item.name} in {v.code} marked {label}.",
     }
     return ToolResult({"proposed": True, "item": item.name, "status": args.status}, card)
+
+
+class MaintenanceArgs(Args):
+    venue: str | None = Field(None, description="Only this venue; leave out for every venue")
+
+
+@tool(
+    "list_maintenance_issues",
+    "Outstanding maintenance: equipment that is faulty or under repair, and venues closed for "
+    "maintenance, renovation or other reasons now or later.",
+    label="Checking maintenance issues",
+    login=True,
+)
+def list_maintenance_issues(db: Session, user: User | None, args: MaintenanceArgs) -> ToolResult:
+    venues = [_venue(db, args.venue)] if args.venue else find_venues(db)
+    today = date.today()
+    equipment = [
+        {
+            "venue": v.code,
+            "item": e.name,
+            "status": e.status.replace("_", " "),
+            "since": e.updated_at.date().isoformat() if e.updated_at else None,
+        }
+        for v in venues
+        for e in v.equipment
+        if e.status in report_svc.OUT_OF_SERVICE
+    ]
+    closures = [
+        {
+            "venue": v.code,
+            "status": p.status,
+            "from": p.from_date.isoformat(),
+            "to": p.to_date.isoformat() if p.to_date else "until further notice",
+            "reason": p.reason,
+        }
+        for v in venues
+        for p in v.status_periods
+        if p.to_date is None or p.to_date >= today
+    ]
+    return ToolResult({"equipment_out_of_service": equipment, "venue_closures": closures})
 
 
 # Timetables --------------------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { chat } from '#lib/stores/chat.svelte.ts';
 	import { goto } from '$app/navigation';
 	import Icon from '#lib/components/Icon.svelte';
 	import StatusBadge from '#lib/components/StatusBadge.svelte';
@@ -66,6 +67,7 @@
 				method: 'POST',
 				body: JSON.stringify({ comment: decision === 'reject' ? reason.trim() : null })
 			});
+			chat.decided(b.id, decision === 'approve' ? 'Approved' : 'Rejected');
 			decided =
 				res.status === 'rejected'
 					? `${res.ref} rejected.`
@@ -166,7 +168,7 @@
 	<section class="{panel} rise mt-6 p-5 sm:p-6" style="--i: 1" aria-labelledby="track-h">
 		<h2 id="track-h" class="flex items-center gap-2 text-lg font-semibold">
 			<span class="rounded-lg bg-accent-soft p-1.5 text-accent"
-				><Icon name="clock" size={18} /></span
+				><Icon name="search" size={18} /></span
 			>
 			Track a request
 		</h2>
@@ -187,7 +189,9 @@
 				spellcheck="false"
 				class="{field} min-w-0 flex-1 font-mono uppercase sm:max-w-sm"
 			/>
-			<button class="{btnPrimary} inline-flex items-center gap-2">Track</button>
+			<button class="{btnPrimary} inline-flex items-center gap-2"
+				><Icon name="search" size={18} /> Track</button
+			>
 		</form>
 	</section>
 {/if}

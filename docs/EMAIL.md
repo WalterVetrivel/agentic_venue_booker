@@ -44,7 +44,7 @@ request sends 3 to 5 emails, so that is plenty for one department.
    `SMTP_USER=...`, `SMTP_PASSWORD=...`. Values saved on the Settings page win over `.env`.
 
 5. **Set the link address.** Emails link to the tracking page at `PUBLIC_URL` in
-   `backend/.env` (default `http://localhost:5173`). When students open the app at another
+   `backend/.env` (default `http://localhost:8080`, the built app served by `uvicorn --port 8080`). When students open the app at another
    address, for example `http://192.168.1.20:8000`, set `PUBLIC_URL` to that and restart the
    backend.
 

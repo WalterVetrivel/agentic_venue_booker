@@ -280,7 +280,19 @@ class Chat {
 			card.note = e instanceof Error ? e.message : 'That did not work';
 			return;
 		}
-		await this.mark(message, index, 'done', card.done ?? 'Done.');
+		if (card.booking_id && card.outcome) this.decided(card.booking_id, card.outcome);
+		else await this.mark(message, index, 'done', card.done ?? 'Done.');
+	}
+
+	/** A request was approved or rejected (from a card or a page): its cards show the outcome. */
+	decided(bookingId: number, outcome: string) {
+		for (const m of this.messages)
+			m.cards.forEach((c, i) => {
+				if (c.booking_id === bookingId && !c.state) {
+					const note = c.outcome === outcome && c.done ? c.done : null;
+					this.mark(m, i, 'done', note ?? undefined, outcome);
+				}
+			});
 	}
 
 	/** The booking form submitted a draft from this chat: show its card as submitted. */
@@ -310,15 +322,22 @@ class Chat {
 			});
 	}
 
-	async mark(message: ChatMessage, index: number, state: 'done' | 'dismissed', note?: string) {
+	async mark(
+		message: ChatMessage,
+		index: number,
+		state: 'done' | 'dismissed',
+		note?: string,
+		outcome?: string
+	) {
 		const card = message.cards[index];
 		card.state = state;
 		card.note = note ?? null;
+		if (outcome) card.outcome = outcome;
 		if (message.id && session.user) {
 			try {
 				await api(`/chat/messages/${message.id}/cards/${index}`, {
 					method: 'POST',
-					body: JSON.stringify({ state, note: card.note })
+					body: JSON.stringify({ state, note: card.note, outcome: outcome ?? null })
 				});
 			} catch {
 				/* the change itself went through; only the history note failed */

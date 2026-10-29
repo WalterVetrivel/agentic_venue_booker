@@ -231,7 +231,11 @@
 			to your faculty guide, then the venue in-charge, then the HOD.
 		</p>
 		<div class="mt-4 flex flex-wrap gap-3">
-			<a href="/track?code={submitted.tracking_code}" class={btnPrimary}>Track this request</a>
+			<a
+				href="/track?code={submitted.tracking_code}"
+				class="{btnPrimary} inline-flex items-center gap-2"
+				><Icon name="search" size={18} /> Track this request</a
+			>
 			<a href="/book/student" class={btnSecondary} data-sveltekit-reload>Send another request</a>
 		</div>
 	</section>
@@ -465,11 +469,11 @@
 		{#if submitError}<p class="text-danger" role="alert">{submitError}</p>{/if}
 		<button
 			type="submit"
-			class={btnPrimary}
+			class="{btnPrimary} inline-flex items-center gap-2"
 			disabled={submitting || !complete || !check?.ok}
 			title={complete ? undefined : 'Fill in the fields marked *'}
 		>
-			Send the request
+			<Icon name="send" size={18} /> Send the request
 		</button>
 	</form>
 {/if}

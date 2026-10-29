@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { chat } from '#lib/stores/chat.svelte.ts';
 	import { api } from '#lib/api.ts';
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { whenText } from '#lib/time.ts';
@@ -40,6 +41,7 @@
 				method: 'POST',
 				body: JSON.stringify({ comment: comments[b.id] || null })
 			});
+			chat.decided(b.id, decision === 'approve' ? 'Approved' : 'Rejected');
 			await decided(res);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Could not save';

@@ -278,3 +278,16 @@ test('the assistant starts closed', async ({ page }) => {
 	await expect(page.getByRole('button', { name: 'Ask the assistant' })).toBeVisible();
 	await expect(page.getByRole('complementary', { name: 'AI assistant' })).toHaveCount(0);
 });
+
+test('signed-in people can sign out from the bottom of the menu', async ({ page }) => {
+	await page.goto('/login');
+	await expect(page.getByText('Demo accounts')).toHaveCount(0);
+	await expect(page.getByLabel('Email')).toHaveAttribute('placeholder', 'name@kiot.ac.in');
+	await login(page, 'tkcse@kiot.ac.in');
+	const opener = page.getByRole('button', { name: 'Open menu' });
+	if (await opener.isVisible()) await opener.click();
+	const nav = page.getByRole('navigation', { name: 'Main' });
+	await nav.getByRole('button', { name: 'Sign out' }).click();
+	await expect(page).toHaveURL((url) => url.pathname === '/');
+	await expect(page.getByRole('link', { name: 'Log in' }).first()).toBeVisible();
+});
