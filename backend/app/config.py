@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # Embeddings for document search: "ollama" (nomic-embed-text) or "off" (keyword search only).
     embeddings: str = "ollama"
     embed_model: str = "nomic-embed-text"
+    # How long Ollama keeps the embedding model loaded after a search ("8h", "30m", or -1 for
+    # always), so a search after a quiet spell doesn't wait for it to load. Ollama's own default
+    # is 5 minutes. Only this model is kept; the chat model unloads as usual.
+    embed_keep_alive: str = "8h"
 
     # Email for student requests. With no SMTP host, emails are saved to `outbox_dir` instead.
     # The Director can also set these on the Settings page.

@@ -1,3 +1,4 @@
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -20,6 +21,7 @@ from app.api import (
     venues,
 )
 from app.config import get_settings
+from app.services import documents as documents_svc
 
 
 def create_app() -> FastAPI:
@@ -27,6 +29,8 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
+        # Load the search model in Ollama now rather than on the first search.
+        threading.Thread(target=documents_svc.warm_up, daemon=True).start()
         async with mcp.run():
             yield
 

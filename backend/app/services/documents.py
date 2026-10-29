@@ -7,6 +7,7 @@ reciprocal rank fusion. The assistant (Phase 5) cites the documents this finds.
 """
 
 import json
+import logging
 import re
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
@@ -30,6 +31,7 @@ from app.services.embeddings import cosine, get_embedder, pack, unpack
 from app.services.timetables import resolve_venue
 from app.services.venues import get_venue
 
+log = logging.getLogger(__name__)
 MATCH_DAYS = 7  # a report's date may differ a little from its circular's
 RRF_K = 60
 STOPWORDS = frozenset(
@@ -282,6 +284,22 @@ def reindex_event(db: Session, event: PastEvent) -> None:
 def embedder_for(db: Session):
     """The embedder, using the Ollama address the assistant uses (Settings page, then .env)."""
     return get_embedder(llm_settings(db).ollama_base_url)
+
+
+def warm_up() -> None:
+    """Load the embedding model in Ollama when the backend starts, so the first search after
+    starting doesn't wait for it. Runs in the background; does nothing if Ollama is off."""
+    if get_embedder() is None:
+        return
+    from app.db import SessionLocal
+
+    try:
+        with SessionLocal() as db:
+            embedder = embedder_for(db)
+        if embedder is not None and embedder.embed(["warm-up"]) is not None:
+            log.info("Embedding model %s is loaded in Ollama", embedder.model)
+    except Exception:  # never let a warm-up stop the backend (e.g. before migrations ran)
+        log.exception("Couldn't warm up the embedding model")
 
 
 def embed_chunks(db: Session, chunks: list[DocChunk], batch: int = 16) -> int:

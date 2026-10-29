@@ -6,6 +6,7 @@ never depends on it: when Ollama is off or unreachable, documents are found by k
 
 import logging
 import math
+import re
 import struct
 import time
 from typing import Protocol
@@ -31,9 +32,10 @@ class Embedder(Protocol):
 
 
 class OllamaEmbedder:
-    def __init__(self, base_url: str, model: str):
+    def __init__(self, base_url: str, model: str, keep_alive: str | None = None):
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.keep_alive = _keep_alive(keep_alive)
         self._down_until = 0.0
         self.last_error: str | None = None
 
@@ -46,7 +48,11 @@ class OllamaEmbedder:
         try:
             res = httpx.post(
                 f"{self.base_url}/api/embed",
-                json={"model": self.model, "input": [prefix + t for t in texts]},
+                json={
+                    "model": self.model,
+                    "input": [prefix + t for t in texts],
+                    **({"keep_alive": self.keep_alive} if self.keep_alive is not None else {}),
+                },
                 timeout=QUERY_TIMEOUT if query else DOCUMENT_TIMEOUT,
             )
             if res.status_code == 404:
@@ -60,6 +66,14 @@ class OllamaEmbedder:
             return None
         self.last_error = None
         return vectors
+
+
+def _keep_alive(value: str | None) -> str | int | None:
+    """Ollama takes a duration ("8h") or a number of seconds (-1 keeps the model loaded)."""
+    value = (value or "").strip()
+    if not value:
+        return None
+    return int(value) if re.fullmatch(r"-?\d+", value) else value
 
 
 def _describe(exc: Exception, base_url: str) -> str:
@@ -85,7 +99,7 @@ def get_embedder(base_url: str | None = None) -> Embedder | None:
         return None
     url = (base_url or settings.ollama_base_url).rstrip("/")
     if not isinstance(_embedder, OllamaEmbedder) or _embedder.base_url != url:
-        _embedder = OllamaEmbedder(url, settings.embed_model)
+        _embedder = OllamaEmbedder(url, settings.embed_model, settings.embed_keep_alive)
     return _embedder
 
 
