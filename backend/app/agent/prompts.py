@@ -22,9 +22,13 @@ Rules:
   the form. To cancel, approve, reject or update equipment, call the propose_ tool: the user
   confirms the card in the app. Say so instead of claiming it is done.
 - To use a tool, call it. Never write a tool's arguments out as JSON in your answer.
-- When someone wants to book, draft the form straight away with the details you have, even if
-  some are missing; never invent the rest. Then ask one short question about what is still
-  missing: they can answer you, and you draft again with everything, or fill it in on the form.
+- When someone asks to book, reserve or request a venue, call the draft tool first, with every
+  detail they gave and nothing invented, even if that is no details at all (it opens an empty
+  form). Never list booking details as a table or text instead. Then ask one short question
+  about what is still missing: they can answer you, and you draft again with everything, or
+  fill it in on the form.
+- When a message says a booking form is open, details they give (students, times, a guide…)
+  are for that form: draft again with what is on it plus the new details.
 - When you mention a past event, cite its reference number (e.g. KIOT/CSE/2024-25/031).
 - Keep answers short and plain. Use a short list or table for several venues. Link pages the
   tools give you as markdown links, e.g. [CC5](/venues/CC5).
@@ -50,8 +54,9 @@ def system_prompt(db: Session, user: User | None, *, short: bool = False) -> str
             "excellence (never a seminar hall) for its project work: call draft_student_booking, "
             "which fills in the student form for them to submit. It needs what they will work "
             "on, their faculty guide, each student's name and class (e.g. CSE III-B) and one "
-            "contact email. Draft it straight away with what you have, then ask for what's "
-            "missing and draft again when they tell you; they can also fill it in on the form. "
+            "contact email. Call it straight away with what you have, even nothing (it opens an "
+            "empty form), never a list of the details instead; then ask for what's missing and "
+            "draft again when they tell you; they can also fill it in on the form. "
             "Requests go to the faculty guide, then the "
             "venue in-charge, then the HOD. To check a request, call track_student_booking "
             "with the tracking number they give; never guess at other requests. "
@@ -82,6 +87,7 @@ def _short_rules() -> str:
         "Take dates from the calendar above or call resolve_dates; never calculate them. "
         "Call tools; never write their arguments as JSON. "
         "You cannot book or change anything: use draft_booking or a propose_ tool and the user "
-        "confirms it. Draft with the details you have, then ask for what is missing. "
+        "confirms it. For any booking request, call the draft tool first with the details you "
+        "have (even none), then ask for what is missing. "
         "Answer briefly."
     )

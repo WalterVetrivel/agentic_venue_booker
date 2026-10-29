@@ -72,7 +72,7 @@ def track_out(db: Session, b: Booking) -> StudentTrackOut:
         steps=steps,
         created_at=b.created_at,
         cancel_reason=b.cancel_reason,
-        can_cancel=b.status in svc.OPEN_STATUSES,
+        can_cancel=svc.cancellable(b),
     )
 
 

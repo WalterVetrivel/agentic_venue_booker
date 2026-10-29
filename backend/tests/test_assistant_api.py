@@ -104,6 +104,13 @@ def test_mcp_token_needs_login(client):
 # Chat ------------------------------------------------------------------------------------------
 
 
+def test_details_given_with_a_form_open_go_on_that_form(client, demo):
+    form = {"kind": "student", "fields": {"venue": "CC5", "reason": "Smart parking app"}}
+    got = events(client.post("/api/chat", json={"message": "Add Arun from CSE II-D", "form": form}))
+    (card,) = [e["card"] for e in got if e["type"] == "card"]
+    assert card["href"].startswith("/book/student?")
+
+
 def test_visitors_chat_without_saving(client, demo):
     res = client.post("/api/chat", json={"message": "Is CC5 free on 2027-02-09 10:00 to 11:00?"})
     assert res.headers["content-type"].startswith("text/event-stream")

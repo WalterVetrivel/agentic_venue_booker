@@ -570,3 +570,9 @@ export type MailSettings = {
 	configured: boolean;
 	student_email_domain: string | null;
 };
+
+/** A booking form on screen, sent with chat messages so the assistant can add to it. */
+export type OpenForm = {
+	kind: 'staff' | 'student';
+	fields: Record<string, unknown>;
+};

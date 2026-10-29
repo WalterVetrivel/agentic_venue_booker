@@ -1,5 +1,6 @@
+import json
 from datetime import date, datetime, time
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -636,6 +637,19 @@ class AttachmentOut(BaseModel):
     link: str | None = None
 
 
+class OpenForm(BaseModel):
+    """The booking form the person has open while they chat, as it stands."""
+
+    kind: Literal["staff", "student"]
+    fields: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _small(self):
+        if len(json.dumps(self.fields, default=str)) > 6000:
+            raise ValueError("form too large")
+        return self
+
+
 class ChatIn(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     conversation_id: int | None = None
@@ -645,6 +659,7 @@ class ChatIn(BaseModel):
     attachment: AttachmentOut | None = None
     # Run the last message again: its earlier reply (if any) is replaced, not kept.
     regenerate: bool = False
+    form: OpenForm | None = None
 
 
 class ConversationBrief(BaseModel):

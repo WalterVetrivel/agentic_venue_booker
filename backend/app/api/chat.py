@@ -138,9 +138,12 @@ async def chat(body: ChatIn, request: Request) -> StreamingResponse:
                     {"type": "conversation", "id": conversation.id, "title": conversation.title}
                 )
 
+            if body.form:
+                prompt += runtime.form_note(body.form.kind, body.form.fields)
             messages = runtime.build_messages(db, me, llm, history, prompt)
             outcome = runtime.Outcome()
-            async for event in runtime.run(db, me, llm, messages, outcome):
+            force = runtime.draft_tool(body.message, me, body.form is not None)
+            async for event in runtime.run(db, me, llm, messages, outcome, force):
                 if event["type"] in ("done", "error") and conversation is not None:
                     reply = ChatMessage(
                         conversation=conversation,

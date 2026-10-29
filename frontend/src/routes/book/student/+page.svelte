@@ -122,6 +122,41 @@
 		}
 	}
 
+	const complete = $derived(
+		!!(venue && dateFrom && start && end && reason.trim().length >= 5 && guideId && email.trim()) &&
+			(!multiDay || !!dateTo) &&
+			students.length > 0 &&
+			students.every((s) => s.name.trim().length >= 2 && s.section_id !== '')
+	);
+
+	// Tell the assistant what is on the form, so "add these students" means this form.
+	$effect(() => {
+		if (submitted) return;
+		const sections = new Map(options?.sections.map((c) => [c.id, c.label]));
+		const guide = options?.guides.find((g) => g.id === guideId);
+		chat.form = {
+			kind: 'student',
+			fields: {
+				venue,
+				date: dateFrom,
+				date_to: multiDay ? dateTo : null,
+				start,
+				end,
+				reason,
+				guide: guide?.name ?? null,
+				students: students
+					.filter((s) => s.name.trim())
+					.map((s) => ({
+						name: s.name,
+						class: s.section_id === '' ? null : (sections.get(s.section_id) ?? null),
+						register_no: s.register_no || null
+					})),
+				contact_email: email
+			}
+		};
+		return () => (chat.form = null);
+	});
+
 	function addStudent() {
 		const last = students.at(-1);
 		// Most groups are from one class: start the next row with the same one.
@@ -154,6 +189,7 @@
 					fromCard,
 					`Submitted. Tracking number ${submitted.tracking_code}.`
 				);
+			chat.formSubmitted('/book/student', `Submitted. Tracking number ${submitted.tracking_code}.`);
 			window.scrollTo({ top: 0 });
 		} catch (err) {
 			submitError = err instanceof Error ? err.message : 'Could not submit';
@@ -228,11 +264,16 @@
 		>
 	</aside>
 
-	<form class="mt-6 space-y-6" onsubmit={submit}>
+	<p class="mt-4 text-sm text-muted">
+		Fields marked <span class="text-danger">*</span> are required.
+	</p>
+	<form class="mt-4 space-y-6" onsubmit={submit}>
 		<section class="{card} grid gap-4 sm:grid-cols-2">
 			<h2 class="text-lg font-semibold sm:col-span-2">Lab and time</h2>
 			<div class="sm:col-span-2">
-				<label class={label} for="venue">Lab</label>
+				<label class={label} for="venue"
+					>Lab<span class="text-danger" aria-hidden="true"> *</span></label
+				>
 				<select id="venue" required bind:value={venue} class={field}>
 					<option value="" disabled>Choose a lab…</option>
 					{#each options.venues as v (v.code)}
@@ -241,7 +282,11 @@
 				</select>
 			</div>
 			<div>
-				<label class={label} for="from">{multiDay ? 'First day' : 'Date'}</label>
+				<label class={label} for="from"
+					>{multiDay ? 'First day' : 'Date'}<span class="text-danger" aria-hidden="true">
+						*</span
+					></label
+				>
 				<input id="from" type="date" required bind:value={dateFrom} class={field} />
 			</div>
 			<div>
@@ -254,11 +299,15 @@
 				</label>
 			</div>
 			<div>
-				<label class={label} for="start">Starts</label>
+				<label class={label} for="start"
+					>Starts<span class="text-danger" aria-hidden="true"> *</span></label
+				>
 				<input id="start" type="time" required bind:value={start} class={field} />
 			</div>
 			<div>
-				<label class={label} for="end">Ends</label>
+				<label class={label} for="end"
+					>Ends<span class="text-danger" aria-hidden="true"> *</span></label
+				>
 				<input id="end" type="time" required bind:value={end} class={field} />
 			</div>
 
@@ -308,7 +357,9 @@
 		<section class="{card} grid gap-4 sm:grid-cols-2">
 			<h2 class="text-lg font-semibold sm:col-span-2">Your project</h2>
 			<div class="sm:col-span-2">
-				<label class={label} for="reason">What will the group work on?</label>
+				<label class={label} for="reason"
+					>What will the group work on?<span class="text-danger" aria-hidden="true"> *</span></label
+				>
 				<textarea
 					id="reason"
 					rows="3"
@@ -320,7 +371,9 @@
 					class={field}></textarea>
 			</div>
 			<div class="sm:col-span-2">
-				<label class={label} for="guide">Faculty guide</label>
+				<label class={label} for="guide"
+					>Faculty guide<span class="text-danger" aria-hidden="true"> *</span></label
+				>
 				<select id="guide" required bind:value={guideId} class={field}>
 					<option value="" disabled>Choose your guide…</option>
 					{#each options.guides as g (g.id)}
@@ -344,11 +397,15 @@
 						class="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-[2fr_1.2fr_1.2fr_auto]"
 					>
 						<div>
-							<label class={label} for="sname-{i}">Name</label>
+							<label class={label} for="sname-{i}"
+								>Name<span class="text-danger" aria-hidden="true"> *</span></label
+							>
 							<input id="sname-{i}" required maxlength="120" bind:value={s.name} class={field} />
 						</div>
 						<div>
-							<label class={label} for="sclass-{i}">Class</label>
+							<label class={label} for="sclass-{i}"
+								>Class<span class="text-danger" aria-hidden="true"> *</span></label
+							>
 							<select id="sclass-{i}" required bind:value={s.section_id} class={field}>
 								<option value="" disabled>Choose…</option>
 								{#each options.sections as c (c.id)}
@@ -357,7 +414,7 @@
 							</select>
 						</div>
 						<div>
-							<label class={label} for="sreg-{i}">Register no. (optional)</label>
+							<label class={label} for="sreg-{i}">Register no.</label>
 							<input id="sreg-{i}" maxlength="30" bind:value={s.register_no} class={field} />
 						</div>
 						<div class="flex items-end">
@@ -386,7 +443,9 @@
 
 		<section class={card}>
 			<h2 class="text-lg font-semibold">Contact email</h2>
-			<label class="{label} mt-3" for="email">One email for the group</label>
+			<label class="{label} mt-3" for="email"
+				>One email for the group<span class="text-danger" aria-hidden="true"> *</span></label
+			>
 			<input
 				id="email"
 				type="email"
@@ -404,7 +463,12 @@
 		</section>
 
 		{#if submitError}<p class="text-danger" role="alert">{submitError}</p>{/if}
-		<button type="submit" class={btnPrimary} disabled={submitting || !check?.ok}>
+		<button
+			type="submit"
+			class={btnPrimary}
+			disabled={submitting || !complete || !check?.ok}
+			title={complete ? undefined : 'Fill in the fields marked *'}
+		>
 			Send the request
 		</button>
 	</form>

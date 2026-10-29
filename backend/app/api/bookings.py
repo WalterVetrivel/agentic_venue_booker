@@ -123,7 +123,7 @@ def booking_out(db: Session, b: Booking, user: User | None) -> BookingOut:
         cancel_reason=b.cancel_reason,
         parent_ref=parent.ref if parent else None,
         created_at=b.created_at,
-        can_cancel=b.status in svc.OPEN_STATUSES and (mine or can(user, "approve_all")),
+        can_cancel=svc.cancellable(b) and (mine or can(user, "approve_all")),
         can_reschedule=mine
         and b.status in ("pending_incharge", "pending_hod", "confirmed")
         and b.start_dt > datetime.now(),

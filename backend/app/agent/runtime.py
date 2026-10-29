@@ -46,6 +46,24 @@ def build_messages(
     return messages
 
 
+async def _stream(llm: LLM, messages: list[dict], specs: list[dict], force: str | None):
+    """The model's reply; if it can't be made to use `force`, it answers freely instead."""
+    if not force:
+        async for item in llm.stream(messages, specs):
+            yield item
+        return
+    try:
+        items = [item async for item in llm.stream(messages, specs, force)]
+    except LLMError:
+        items = None
+    if items is None:
+        async for item in llm.stream(messages, specs):
+            yield item
+        return
+    for item in items:
+        yield item
+
+
 def _may_be_json(start: str) -> bool:
     return (
         not start
@@ -55,12 +73,61 @@ def _may_be_json(start: str) -> bool:
     )
 
 
+# Asking to book or reserve something (not "how do I book…?" or "my bookings").
+BOOKING = re.compile(
+    r"\b(book|reserve|draft|request)\b(?!ings)|\b(need|want)\b.{0,40}"
+    r"\b(lab|hall|venue|room|centre|coe\d?|cc\d+)\b",
+    re.I,
+)
+QUESTION = re.compile(r"^\s*(how|what|why|who|where|which|when)\b", re.I)
+CHITCHAT = re.compile(
+    r"^\s*(thanks|thank you|ok|okay|cool|great|nice|bye|no|yes|hi|hello)\b[\s\W]*$", re.I
+)
+# A signed-out member of staff gets a login link instead of a student form.
+STAFF = re.compile(
+    r"\b(faculty|staff|professor|teacher|lecturer|hod|in-?charge|seminar hall|"
+    r"ASH|DSH|ESH|MBASH|CSEPGSH)\b",
+    re.I,
+)
+
+
+def form_note(kind: str, fields: dict) -> str:
+    """Tells the model what is on the open form, so "add these students" means that form."""
+    name = "student request form" if kind == "student" else "booking form"
+    tool = "draft_student_booking" if kind == "student" else "draft_booking"
+    filled = {k: v for k, v in fields.items() if v not in (None, "", [], {})}
+    return (
+        f"\n\n[The {name} is open on screen with: {json.dumps(filled, ensure_ascii=False)}. "
+        f"If the message adds or changes details, call {tool} with everything already on the "
+        "form plus the changes.]"
+    )
+
+
+def draft_tool(message: str, user: User | None, form_open: bool) -> str | None:
+    """The draft tool the reply must start with, if the message asks to book something or adds
+    details while a booking form is open. The model then can't answer with a list instead."""
+    if CHITCHAT.match(message) or QUESTION.match(message):
+        return None
+    if not (form_open or BOOKING.search(message)):
+        return None
+    if user is None:
+        return None if STAFF.search(message) else "draft_student_booking"
+    names = {t.name for t in registry.tools_for(user)}
+    return "draft_booking" if "draft_booking" in names else None
+
+
 async def run(
-    db: Session, user: User | None, llm: LLM, messages: list[dict], outcome: Outcome | None = None
+    db: Session,
+    user: User | None,
+    llm: LLM,
+    messages: list[dict],
+    outcome: Outcome | None = None,
+    force: str | None = None,
 ) -> AsyncIterator[dict]:
     outcome = outcome if outcome is not None else Outcome()
     available = registry.tools_for(user)
     specs = tool_specs(available)
+    offered = {t.name for t in available}
     texts: list[str] = []
     try:
         for step in range(MAX_STEPS + 1):
@@ -69,7 +136,8 @@ async def run(
             # A reply that opens with JSON may be a tool call written out as text: hold it back
             # until the end rather than show it.
             held: list[str] | None = []
-            async for item in llm.stream(messages, [] if last else specs):
+            forced = force if step == 0 and force in offered else None
+            async for item in _stream(llm, messages, [] if last else specs, forced):
                 if isinstance(item, Reply):
                     reply = item
                 elif held is None:

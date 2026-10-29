@@ -906,6 +906,8 @@ def propose_cancel(db: Session, user: User | None, args: CancelArgs) -> ToolResu
         raise ToolError("Only the person who made a booking (or the Director) can cancel it.")
     if b.status not in booking_svc.OPEN_STATUSES:
         raise ToolError(f"{b.ref} is already {b.status.replace('_', ' ')}.")
+    if not booking_svc.cancellable(b):
+        raise ToolError(f"{b.ref} has already started, so it can't be cancelled.")
     brief = _booking_brief(b)
     card = {
         "kind": "confirm",
