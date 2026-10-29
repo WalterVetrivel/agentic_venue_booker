@@ -44,35 +44,20 @@ Re-running the seed never overwrites your edits, but it does refill a venue's eq
 
 To serve everything from the backend alone, run `npm run build` in `frontend`, then open http://127.0.0.1:8000.
 
-### Demo logins
-
-All accounts use the password `password`.
-
-| Email | Role |
-|---|---|
-| `swvcse@kiot.ac.in` | Faculty, CC10 in-charge |
-| `tkcse@kiot.ac.in` | Faculty |
-| `hod.cse@kiot.ac.in` | HOD |
-| `dirim@kiot.ac.in` | Director IM |
-| `cseoa@kiot.ac.in` | OA / DEO |
-| `sh.ablock@kiot.ac.in` and similar | Seminar hall in-charges for A, D, E and MBA halls |
-
-Every faculty member in `data/mock/faculty.xlsx` has a login made from their initials, like `<initials>cse@kiot.ac.in`. Venue in-charges are set in `backend/app/seed/venues.yaml`.
-
 ### Timetables
 
-Log in as the OA (`cseoa@kiot.ac.in`) and open **Timetables**. Upload one or more PDFs from `data/mock/timetables`. Each one is read, its lab sessions are checked against the venues and against classes already committed, and it waits for review. Fix any highlighted slot, then commit it. Committed lab sessions show on the availability grid. Classes are not a hard block: a booking can still ask to move them (Phase 3). Uploading a class again replaces its pending upload, and committing it replaces its earlier timetable.
+Log in as the OA and open **Timetables**. Upload one or more PDFs from `data/mock/timetables`. Each one is read, its lab sessions are checked against the venues and against classes already committed, and it waits for review. Fix any highlighted slot, then commit it. Committed lab sessions show on the availability grid. Classes are not a hard block: a booking can still ask to move them (Phase 3). Uploading a class again replaces its pending upload, and committing it replaces its earlier timetable.
 
 ### Bookings
 
-1. Log in as a faculty member (for example `tkcse@kiot.ac.in`) and open **Book a venue**, or use the **Book** link on the availability grid or a venue page. Availability is checked as you type.
+1. Log in as a faculty member and open **Book a venue**, or use the **Book** link on the availability grid or a venue page. Availability is checked as you type.
 2. If a timetabled class uses the venue then, choose for each class whether it moves to another free lab (best software match first) or runs as BYOD in the classroom. Moving a class needs the HOD's approval.
 3. If another booking holds the slot, you can join the waitlist. When the slot frees up, the first person waiting gets an offer and has 24 hours to confirm it.
 4. Requests go to the venue's in-charge, then to the HOD for CSE venues or when a class moves. Approvers see their queue under **Approvals**, with a short list of things to check. A step is skipped when the requester approves it themselves (an in-charge booking their own lab, the HOD or the Director).
 5. **My bookings** lists your requests. From a booking you can reschedule it (the old slot is kept until the new one is confirmed) or cancel it.
 6. The bell in the top bar shows notifications: approvals needed, decisions, offers, classes moved, and events in a venue you look after.
 
-Try it with `tkcse` booking `CSEPGSH`, then approve as `pvcse@kiot.ac.in` (the hall's in-charge) and `hod.cse@kiot.ac.in`.
+Try it by booking `CSEPGSH` as a faculty member, then approve as the hall's in-charge and the HOD.
 
 ### Student requests
 
@@ -83,9 +68,9 @@ Students still don't log in. Under **Book a lab** a group asks for a lab or cent
 3. **Class advisors** (the advisor named on each class timetable) get a notification once their students' outcome is final.
 4. The group gets an email at each step. Until a mail server is set up, emails are saved to `backend/storage/outbox`; see [docs/EMAIL.md](docs/EMAIL.md) to send them through Gmail.
 
-Students can only ask for free slots: they can't move a class or join the waitlist. The classes to choose from come from the committed timetables, so run `python -m app.seed --timetables` first. The assistant can also draft a student request ("Book CC5 tomorrow 2 to 4 for our mini project, guide Mrs. B. Ashwini") and look one up by its tracking number.
+Students can only ask for free slots: they can't move a class or join the waitlist. The classes to choose from come from the committed timetables, so run `python -m app.seed --timetables` first. The assistant can also draft a student request ("Book CC5 tomorrow 2 to 4 for our mini project, guide <faculty name>") and look one up by its tracking number.
 
-Try it: request CC5 as a visitor with `Mrs. B. Ashwini` as guide, decide as `bacse@kiot.ac.in`, then approve as `mkscse@kiot.ac.in` (CC5's in-charge) and `hod.cse@kiot.ac.in`.
+Try it: request CC5 as a visitor with a faculty member as guide, decide as that guide, then approve as CC5's in-charge and the HOD.
 
 ### Circulars, reports and past events
 
@@ -105,7 +90,7 @@ Open the chat panel (docked on wide screens, **Ask the assistant** on phones). I
 - **Drafts**: "Book COE1 next Tuesday 10 to 12 for a Python workshop, 30 students" gives a card that opens the booking form already filled in. You check it and submit.
 - **Proposals**: cancelling a booking, approving or rejecting a request, and marking equipment faulty come back as a card with a button. Pressing it calls the normal API, and the audit log records it as `via=agent`.
 - **Attachments** (logged in): drop a PDF in the chat. The OA's timetables go to review, circulars and reports from people who upload documents go into **Past events**, and anything else is just read so you can ask about it.
-- **People** can be named the way the department talks: "Walter sir", "EK ma'am", "KS ma'am", "HOD sir". The assistant finds them by name, part of a name (tolerating spellings like Sowndarya/Sowndharya), initials or role, and asks which one when several match ("Sowndarya ma'am" is Mrs. S. Sowndarya or Mrs. T. Sowndharya). This works for a student group's faculty guide, a teacher's timetable ("EK ma'am's labs this week") and plain "who is…" questions.
+- **People** can be named the way the department talks: "<name> sir", "<initials> ma'am", "HOD sir". The assistant finds them by name, part of a name, initials or role, tolerating small spelling differences, and asks which one when several match. This works for a student group's faculty guide, a teacher's timetable ("<initials> ma'am's labs this week") and plain "who is…" questions.
 - Staff chats are saved: the title menu lists them, with search, rename and delete. Students can use the visitor tools without logging in; their chats aren't saved. If a student says they are faculty, or asks for something only staff can do, the assistant links them to the login page and back to the booking form.
 
 **Rate limits.** The app's own limits on visitors (20 chat questions per 10 minutes per IP, 5 student requests an hour per IP, 3 a day per email) are off for the prototype. Set `RATE_LIMITS=true` in `backend/.env` to turn them on before real use. Groq's own limits apply either way.
