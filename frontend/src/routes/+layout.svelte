@@ -1,4 +1,6 @@
 <script lang="ts">
+	// Inter ships with the app (no font CDN), so the UI looks the same offline.
+	import '@fontsource-variable/inter';
 	import './layout.css';
 	import type { LayoutProps } from './$types';
 	import TopBar from '#lib/components/TopBar.svelte';

@@ -50,6 +50,8 @@ class Chat {
 	attachError = $state('');
 	/** The booking form on screen, as it stands, so the assistant can add to it. */
 	form = $state<OpenForm | null>(null);
+	/** Goes up whenever a confirmed card changes data, so open pages can reload. */
+	changes = $state(0);
 	private controller: AbortController | null = null;
 
 	async loadProviders() {
@@ -73,7 +75,13 @@ class Chat {
 	get modelLabel(): string {
 		if (this.providers?.demo) return 'Demo';
 		const p = this.providers?.providers.find((x) => x.key === this.provider);
-		return p ? `${p.key === 'groq' ? 'Groq' : 'Ollama'} · ${this.model || p.model}` : 'Assistant';
+		return p ? (p.key === 'groq' ? 'Groq' : 'Ollama') : 'Assistant';
+	}
+
+	/** The full provider and model, for the model button's tooltip. */
+	get modelDetail(): string {
+		const p = this.providers?.providers.find((x) => x.key === this.provider);
+		return p ? `${this.modelLabel} · ${this.model || p.model}` : this.modelLabel;
 	}
 
 	reset() {
@@ -280,6 +288,7 @@ class Chat {
 			card.note = e instanceof Error ? e.message : 'That did not work';
 			return;
 		}
+		this.changes++;
 		if (card.booking_id && card.outcome) this.decided(card.booking_id, card.outcome);
 		else await this.mark(message, index, 'done', card.done ?? 'Done.');
 	}

@@ -6,7 +6,7 @@
 	import { chat } from '#lib/stores/chat.svelte.ts';
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { ui } from '#lib/stores/ui.svelte.ts';
-	import type { ChatMessage } from '#lib/types.ts';
+	import type { ChatCard, ChatMessage } from '#lib/types.ts';
 
 	let historyOpen = $state(false);
 	let modelOpen = $state(false);
@@ -103,6 +103,14 @@
 		return ok === undefined ? '…' : ok ? '✓' : '✗';
 	}
 
+	/** An icon that says what a card's button does. */
+	function cardIcon(c: ChatCard): string {
+		if (c.kind === 'draft') return c.button === 'Review & submit' ? 'review' : 'edit';
+		if (c.danger) return c.button?.startsWith('Cancel') ? 'ban' : 'close';
+		if (c.button === 'Update') return 'save';
+		return 'check';
+	}
+
 	const isEmpty = $derived(chat.messages.length === 0);
 	const canAttach = $derived(!!session.user);
 
@@ -192,7 +200,10 @@
 													bind:value={newTitle}
 													class="min-w-0 flex-1 rounded border border-border bg-bg px-2 py-1 text-sm"
 												/>
-												<button class="rounded px-2 text-sm text-accent">Save</button>
+												<button
+													class="inline-flex items-center gap-1 rounded px-2 text-sm text-accent"
+													><Icon name="save" size={14} /> Save</button
+												>
 											</form>
 										{:else}
 											<button
@@ -230,12 +241,12 @@
 				{/if}
 			</div>
 
-			<div class="relative ml-auto" bind:this={modelMenu}>
+			<div class="relative ml-auto shrink-0" bind:this={modelMenu}>
 				<button
 					class="rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-muted hover:text-fg"
 					aria-haspopup="menu"
 					aria-expanded={modelOpen}
-					title="Choose the model"
+					title="{chat.modelDetail}. Choose the model"
 					onclick={() => {
 						modelOpen = !modelOpen;
 						historyOpen = false;
@@ -358,8 +369,9 @@
 									{:else}
 										<a
 											href={chat.draftHref(m, ci, c.href)}
-											class="btn-cta mt-3 inline-block rounded-lg px-4 py-2 font-medium"
-											onclick={closeOnSmallScreens}>{c.button ?? 'Open'}</a
+											class="btn-cta mt-3 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 font-medium"
+											onclick={closeOnSmallScreens}
+											><Icon name={cardIcon(c)} size={16} /> {c.button ?? 'Open'}</a
 										>
 									{/if}
 								{:else if c.kind === 'confirm'}
@@ -388,10 +400,11 @@
 									{:else}
 										<div class="mt-3 flex gap-2">
 											<button
-												class="rounded-lg px-4 py-2 font-medium {c.danger
+												class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 font-medium {c.danger
 													? 'bg-danger text-white'
 													: 'btn-cta'}"
-												onclick={() => chat.confirm(m, ci)}>{c.button ?? 'Confirm'}</button
+												onclick={() => chat.confirm(m, ci)}
+												><Icon name={cardIcon(c)} size={16} /> {c.button ?? 'Confirm'}</button
 											>
 											<button
 												class="rounded-lg border border-border px-4 py-2 font-medium hover:bg-surface-2"
