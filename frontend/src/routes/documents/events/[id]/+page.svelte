@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '#lib/components/Icon.svelte';
 	import { page } from '$app/state';
 	import { api } from '#lib/api.ts';
 	import { session } from '#lib/stores/session.svelte.ts';
@@ -238,7 +239,9 @@
 			</div>
 			{#if saveError}<p class="text-danger sm:col-span-2" role="alert">{saveError}</p>{/if}
 			<div class="flex gap-3 sm:col-span-2">
-				<button class={btnPrimary} disabled={saving}>Save</button>
+				<button class="{btnPrimary} inline-flex items-center gap-2" disabled={saving}
+					><Icon name="save" size={18} /> Save</button
+				>
 				<button type="button" class={btnSecondary} onclick={() => (editing = false)}>Cancel</button>
 			</div>
 		</form>

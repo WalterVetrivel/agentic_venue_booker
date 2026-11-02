@@ -5,7 +5,8 @@
 @theme {
 	--default-transition-timing-function: ease-in-out;
 	--font-sans:
-		'Inter', 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+		'Inter Variable', 'Inter', 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue',
+		Arial, sans-serif;
 
 	--color-bg: var(--bg);
 	--color-surface: var(--surface);

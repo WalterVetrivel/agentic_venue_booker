@@ -518,8 +518,12 @@
 						: 'Submit request'}
 			</button>
 			{#if !original}
-				<button type="button" class={btnSecondary} disabled={savingDraft} onclick={saveDraft}
-					>{draftId ? 'Save draft' : 'Save as draft'}</button
+				<button
+					type="button"
+					class="{btnSecondary} inline-flex items-center gap-2"
+					disabled={savingDraft}
+					onclick={saveDraft}
+					><Icon name="save" size={18} /> {draftId ? 'Save draft' : 'Save as draft'}</button
 				>
 			{/if}
 			{#if draftNote}

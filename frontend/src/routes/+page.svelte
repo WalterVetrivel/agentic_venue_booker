@@ -83,7 +83,9 @@
 		}
 	}
 
+	// Runs again when an approval (or other change) is confirmed in the chat.
 	$effect(() => {
+		void chat.changes;
 		if (!session.user) return;
 		if (canBook)
 			api<Booking[]>('/bookings/mine')
@@ -347,7 +349,7 @@
 										class="grid w-12 shrink-0 place-items-center rounded-lg bg-warning/15 py-1 leading-tight text-warning"
 									>
 										<span class="text-lg font-semibold">{tile.day}</span>
-										<span class="text-xs uppercase">{tile.month}</span>
+										<span class="text-xs font-medium text-fg/80 uppercase">{tile.month}</span>
 									</span>
 									<a href="/bookings/{b.id}" class="min-w-0 flex-1 hover:text-accent">
 										<span class="block truncate font-medium">{b.title}</span>

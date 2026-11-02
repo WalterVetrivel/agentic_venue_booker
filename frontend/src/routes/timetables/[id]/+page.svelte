@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '#lib/components/Icon.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api } from '#lib/api.ts';
@@ -246,8 +247,10 @@
 	{#if upload.status !== 'committed'}
 		<div class="mt-6 flex flex-wrap gap-3">
 			<button class={btnSecondary} onclick={addSlot}>Add a slot</button>
-			<button class={btnSecondary} disabled={busy || !dirty} onclick={save}
-				>Save and re-check</button
+			<button
+				class="{btnSecondary} inline-flex items-center gap-2"
+				disabled={busy || !dirty}
+				onclick={save}><Icon name="save" size={18} /> Save and re-check</button
 			>
 			<button class={btnPrimary} disabled={busy || (!dirty && !upload.can_commit)} onclick={commit}
 				>Commit timetable</button

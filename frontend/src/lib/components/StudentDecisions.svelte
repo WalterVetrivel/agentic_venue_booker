@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from './Icon.svelte';
 	import { chat } from '#lib/stores/chat.svelte.ts';
 	import { api } from '#lib/api.ts';
 	import { btnPrimary, btnSecondary, field } from '#lib/ui.ts';
@@ -122,7 +123,13 @@
 		{/each}
 	</ul>
 	{#if error}<p class="mt-2 text-danger" role="alert">{error}</p>{/if}
-	<button type="button" class="{btnPrimary} mt-3" disabled={!ready || busy} onclick={save}>
+	<button
+		type="button"
+		class="{btnPrimary} mt-3 inline-flex items-center gap-2"
+		disabled={!ready || busy}
+		onclick={save}
+	>
+		<Icon name="save" size={18} />
 		{approving === 0 && ready
 			? 'Reject the request'
 			: `Save: approve ${approving} of ${pending.length}`}

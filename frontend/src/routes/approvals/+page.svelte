@@ -29,7 +29,9 @@
 			error = e instanceof Error ? e.message : 'Could not load';
 		}
 	}
+	// Reload when an approval is confirmed in the chat too.
 	$effect(() => {
+		void chat.changes;
 		if (session.user) load();
 	});
 

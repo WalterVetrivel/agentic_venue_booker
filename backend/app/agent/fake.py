@@ -67,6 +67,8 @@ def _plan(text: str, tools: set[str]) -> Reply:
     call = None
     if (ref := BOOKING.search(text)) and "cancel" in lower and "propose_cancel" in tools:
         call = ("propose_cancel", {"booking": ref.group(0).upper()})
+    elif (ref := BOOKING.search(text)) and "approve" in lower and "propose_decision" in tools:
+        call = ("propose_decision", {"booking": ref.group(0).upper(), "decision": "approve"})
     elif (code := TRACKING.search(text)) and "track_student_booking" in tools:
         call = ("track_student_booking", {"tracking_number": code.group(0).upper()})
     elif "draft_booking" not in tools and (

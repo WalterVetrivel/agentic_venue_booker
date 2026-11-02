@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from './Icon.svelte';
 	import { untrack } from 'svelte';
 	import { api } from '#lib/api.ts';
 	import { field, label, btnPrimary, btnSecondary } from '#lib/ui.ts';
@@ -140,8 +141,9 @@
 	</div>
 	{#if error}<p class="text-danger sm:col-span-2" role="alert">{error}</p>{/if}
 	<div class="flex gap-3 sm:col-span-2">
-		<button type="submit" class={btnPrimary} disabled={busy}
-			>{venue ? 'Save changes' : 'Add venue'}</button
+		<button type="submit" class="{btnPrimary} inline-flex items-center gap-2" disabled={busy}
+			><Icon name={venue ? 'save' : 'plus'} size={18} />
+			{venue ? 'Save changes' : 'Add venue'}</button
 		>
 		{#if oncancel}<button type="button" class={btnSecondary} onclick={oncancel}>Cancel</button>{/if}
 	</div>

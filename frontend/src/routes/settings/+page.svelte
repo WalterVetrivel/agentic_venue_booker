@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '#lib/components/Icon.svelte';
 	import { api } from '#lib/api.ts';
 	import { chat } from '#lib/stores/chat.svelte.ts';
 	import { session } from '#lib/stores/session.svelte.ts';
@@ -276,7 +277,9 @@
 		</section>
 
 		<div class="flex items-center gap-3">
-			<button class={btnPrimary} disabled={saving}>Save settings</button>
+			<button class="{btnPrimary} inline-flex items-center gap-2" disabled={saving}
+				><Icon name="save" size={18} /> Save settings</button
+			>
 			{#if saved}<span class="text-success" role="status">{saved}</span>{/if}
 			{#if error}<span class="text-danger" role="alert">{error}</span>{/if}
 		</div>
@@ -347,7 +350,9 @@
 				/>
 			</div>
 			<div class="flex flex-wrap items-center gap-3 sm:col-span-2">
-				<button class={btnPrimary}>Save email settings</button>
+				<button class="{btnPrimary} inline-flex items-center gap-2"
+					><Icon name="save" size={18} /> Save email settings</button
+				>
 				{#if mailSaved}<span class="text-success" role="status">{mailSaved}</span>{/if}
 				{#if mailError}<span class="text-danger" role="alert">{mailError}</span>{/if}
 			</div>
