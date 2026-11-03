@@ -47,6 +47,12 @@
 	--glow-sky: #dbe3f8;
 	--glow-gold: #fde4bd;
 	--shadow-glass: 0 8px 32px rgb(31 50 81 / 0.08);
+	/* The top bar's soft shadow, and the same shadow cast sideways by the menu and the chat. */
+	--shadow-bar: 0 1px 10px rgb(31 50 81 / 0.06);
+	--shadow-bar-right: 1px 0 10px rgb(31 50 81 / 0.06);
+	--shadow-bar-left: -1px 0 10px rgb(31 50 81 / 0.06);
+	/* How opaque the bars' surface stays at the far end of their fade. */
+	--bar-fade: color-mix(in srgb, var(--surface) 55%, transparent);
 	--danger: #b42318;
 	--success: #11734b;
 	--warning: #9a6200;
@@ -74,6 +80,9 @@
 	--glow-sky: #17264a;
 	--glow-gold: #4d3614;
 	--shadow-glass: 0 8px 32px rgb(0 0 0 / 0.35);
+	--shadow-bar: 0 1px 12px rgb(0 0 0 / 0.35);
+	--shadow-bar-right: 1px 0 12px rgb(0 0 0 / 0.35);
+	--shadow-bar-left: -1px 0 12px rgb(0 0 0 / 0.35);
 	--danger: #ff8a80;
 	--success: #5fd3a0;
 	--warning: #f5c26b;
@@ -115,13 +124,30 @@ body {
 	}
 }
 
-/* The top bar: solid, with a barely-there shadow. */
+/* The top bar: solid at the top, fading toward its bottom edge over a blur, with a barely-there
+   shadow. The blur sits on a layer behind, so the bar does not become the containing block for
+   its fixed popups (notifications on phones).
+   The bars below write only the standard backdrop-filter: the build adds the -webkit- copy for
+   Safari itself, and listing both by hand makes it keep only the -webkit- one, which Chrome and
+   Edge ignore. */
 .topbar {
-	background: var(--surface);
-	box-shadow: 0 1px 10px rgb(31 50 81 / 0.06);
+	isolation: isolate;
+	background: transparent;
+	border-color: var(--glass-border);
+	box-shadow: var(--shadow-bar);
 }
-:root[data-theme='dark'] .topbar {
-	box-shadow: 0 1px 12px rgb(0 0 0 / 0.35);
+.topbar::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background: linear-gradient(
+		to bottom,
+		var(--surface) 0,
+		var(--surface) 25%,
+		var(--bar-fade) 100%
+	);
+	backdrop-filter: blur(20px) saturate(160%);
 }
 
 /* Pointer cursor on everything clickable; Tailwind's reset leaves buttons with the arrow. */
@@ -262,12 +288,28 @@ button:disabled {
 	-webkit-backdrop-filter: blur(20px) saturate(160%);
 }
 
-/* The collapsed side nav while it is open over the page: solid, with a shadow. */
-.nav-peek::before {
-	background: var(--surface);
+/* The side menu: solid under the icon rail, fading toward its right edge over the blur, with the
+   top bar's shadow cast to the right. Same look pinned open or opened over the page on hover. */
+.side-nav::before {
+	background: linear-gradient(
+		to right,
+		var(--surface) 0,
+		var(--surface) 4.5rem,
+		var(--bar-fade) 100%
+	);
+	backdrop-filter: blur(20px) saturate(160%);
 }
-.nav-peek {
-	box-shadow: 8px 0 28px rgb(31 50 81 / 0.12);
+.side-nav {
+	box-shadow: var(--shadow-bar-right);
+}
+
+/* The assistant chat: the menu's look mirrored, solid along the screen edge and fading toward the
+   page. */
+.chat-panel {
+	background: linear-gradient(to left, var(--surface) 0, var(--surface) 30%, var(--bar-fade) 100%);
+	border-color: var(--glass-border);
+	box-shadow: var(--shadow-bar-left);
+	backdrop-filter: blur(20px) saturate(160%);
 }
 
 /* Cards and list rows that lift a little on hover. */

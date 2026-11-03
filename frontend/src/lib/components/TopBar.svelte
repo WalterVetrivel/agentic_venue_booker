@@ -6,9 +6,7 @@
 	import UserMenu from './UserMenu.svelte';
 </script>
 
-<header
-	class="topbar sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border px-4 md:px-6"
->
+<header class="topbar sticky top-0 z-50 flex h-16 items-center gap-3 border-b px-4 md:px-6">
 	<button
 		class="press rounded-lg p-2 hover:bg-surface-2 lg:hidden"
 		aria-label="Open menu"
