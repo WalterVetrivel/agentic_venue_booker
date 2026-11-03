@@ -83,6 +83,32 @@ test('the dashboard shows current bookings and pending approvals', async ({ page
 	await expect(page.getByRole('img', { name: 'KIOT logo' })).toBeVisible();
 });
 
+test('the dashboard panels stack approvals first when the chat squeezes them, side by side at full width', async ({
+	page
+}, info) => {
+	test.skip(info.project.name !== 'desktop', 'two columns only on wide screens');
+	const heading = (name: RegExp) => page.getByRole('heading', { name });
+	const tops = async () =>
+		Promise.all(
+			[/Your current bookings/, /Pending approvals/].map(
+				async (n) => (await heading(n).boundingBox())!.y
+			)
+		);
+	// 1536px wide is a 1920px screen at 125% zoom: the old breakpoint kept two narrow columns here.
+	await page.setViewportSize({ width: 1536, height: 900 });
+	await login(page, 'hod.cse@kiot.ac.in');
+	await expect(heading(/Pending approvals/)).toBeVisible();
+	let [bookingsTop, approvalsTop] = await tops();
+	// Side by side: same row (a few pixels apart while the panels animate in).
+	expect(Math.abs(approvalsTop - bookingsTop)).toBeLessThan(20);
+	await openChat(page);
+	await expect(async () => {
+		[bookingsTop, approvalsTop] = await tops();
+		// Stacked, pending approvals come first.
+		expect(bookingsTop).toBeGreaterThan(approvalsTop + 100);
+	}).toPass();
+});
+
 test('plain faculty see their bookings but no approvals panel', async ({ page }) => {
 	await login(page, 'tkcse@kiot.ac.in');
 	await expect(page.getByRole('heading', { name: /Your current bookings/ })).toBeVisible();

@@ -97,3 +97,39 @@ test('a visitor asks the assistant to draft a student request', async ({ page })
 	await expect(page.getByLabel('What will the group work on?')).toHaveValue('Mini project work');
 	await expect(page.getByLabel('Lab')).toHaveValue('CC6');
 });
+
+test('the guide approves every student from the dashboard in one click', async ({ page }, info) => {
+	const day = info.project.name === 'desktop' ? '2027-03-23' : '2027-03-24';
+	const reason = `Robotics club ${info.project.name}`;
+	await page.goto(`/book/student?venue=CC5&date=${day}&start=10:00&end=12:00`);
+	await page.getByLabel('What will the group work on?').fill(reason);
+	await page.getByLabel('Faculty guide').selectOption({ label: 'Mrs. B. Ashwini · Asst. Prof.' });
+	await page.locator('#sname-0').fill('Charu M');
+	await page.locator('#sclass-0').selectOption({ label: 'CSE III-B' });
+	await page.getByRole('button', { name: 'Add a student' }).click();
+	await page.locator('#sname-1').fill('Dev R');
+	await page.getByLabel('One email for the group').fill('club@example.com');
+	await expect(page.getByText(/CC5 is free on/)).toBeVisible();
+	await page.getByRole('button', { name: 'Send the request' }).click();
+	await expect(page.getByTestId('tracking-code')).toBeVisible();
+
+	await login(page, 'bacse@kiot.ac.in');
+	const row = page.locator('[data-approval]').filter({ hasText: reason });
+	await expect(row.getByRole('link', { name: 'Decide per student' })).toBeVisible();
+	await row.getByRole('button', { name: /^Approve all students in / }).click();
+	await expect(page.getByRole('status')).toHaveText(
+		/approved for all students, now waiting for in-charge/
+	);
+	await expect(row).toHaveCount(0);
+
+	// Both students went on to the in-charge.
+	await logout(page);
+	await login(page, 'mkscse@kiot.ac.in');
+	await page.goto('/approvals');
+	await expect(
+		page
+			.getByRole('listitem')
+			.filter({ hasText: reason })
+			.getByText('Approved by the guide: Charu M (CSE III-B), Dev R (CSE III-B)')
+	).toBeVisible();
+});
