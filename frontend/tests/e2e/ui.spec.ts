@@ -83,7 +83,7 @@ test('the dashboard shows current bookings and pending approvals', async ({ page
 	await expect(page.getByRole('img', { name: 'KIOT logo' })).toBeVisible();
 });
 
-test('the dashboard panels stack when the chat squeezes them, side by side at full width', async ({
+test('the dashboard panels stack approvals first when the chat squeezes them, side by side at full width', async ({
 	page
 }, info) => {
 	test.skip(info.project.name !== 'desktop', 'two columns only on wide screens');
@@ -99,11 +99,13 @@ test('the dashboard panels stack when the chat squeezes them, side by side at fu
 	await login(page, 'hod.cse@kiot.ac.in');
 	await expect(heading(/Pending approvals/)).toBeVisible();
 	let [bookingsTop, approvalsTop] = await tops();
-	expect(approvalsTop).toBeCloseTo(bookingsTop, 0);
+	// Side by side: same row (a few pixels apart while the panels animate in).
+	expect(Math.abs(approvalsTop - bookingsTop)).toBeLessThan(20);
 	await openChat(page);
 	await expect(async () => {
 		[bookingsTop, approvalsTop] = await tops();
-		expect(approvalsTop).toBeGreaterThan(bookingsTop + 100);
+		// Stacked, pending approvals come first.
+		expect(bookingsTop).toBeGreaterThan(approvalsTop + 100);
 	}).toPass();
 });
 

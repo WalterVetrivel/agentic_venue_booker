@@ -314,7 +314,7 @@
 
 			{#if canApprove}
 				<section
-					class="{panel} rise flex min-w-0 flex-col p-5"
+					class="{panel} rise order-first flex min-w-0 flex-col p-5 @5xl:order-none"
 					style="--i: 2"
 					aria-labelledby="pending-h"
 				>
