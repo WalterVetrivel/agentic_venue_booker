@@ -103,7 +103,7 @@
 	</nav>
 	<!-- Edge chip: collapse to icons, or keep the menu open. -->
 	<button
-		class="fixed top-[5.25rem] z-40 hidden h-7 w-7 -translate-x-1/2 place-items-center rounded-full border border-border bg-surface text-muted shadow-sm transition-[left,color,background-color,box-shadow] duration-200 ease-in-out hover:bg-surface-2 hover:text-accent hover:shadow-md lg:grid"
+		class="fixed top-[5.25rem] z-40 hidden h-7 w-7 -translate-x-1/2 place-items-center rounded-full nav-chip border text-muted transition-[left,color,background-color,box-shadow] duration-200 ease-in-out hover:text-accent lg:grid"
 		style="left: {slim ? '4.5rem' : '16rem'}"
 		aria-label={ui.navCollapsed ? 'Keep the menu open' : 'Collapse the menu'}
 		title={ui.navCollapsed ? 'Keep the menu open' : 'Collapse the menu'}
