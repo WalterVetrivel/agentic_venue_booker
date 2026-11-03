@@ -43,10 +43,10 @@
 	onmouseleave={() => (peek = false)}
 >
 	<nav
-		class="fixed top-16 bottom-0 left-0 z-40 flex w-64 flex-col overflow-x-hidden overflow-y-auto glass-bar border-r p-3 transition-[transform,width,box-shadow] duration-200 ease-in-out lg:sticky lg:h-[calc(100vh-4rem)] lg:translate-x-0 {ui.navOpen
+		class="fixed top-16 bottom-0 left-0 z-40 flex w-64 flex-col overflow-x-hidden overflow-y-auto glass-bar side-nav border-r p-3 transition-[transform,width,box-shadow] duration-200 ease-in-out lg:sticky lg:h-[calc(100vh-4rem)] lg:translate-x-0 {ui.navOpen
 			? 'translate-x-0'
 			: '-translate-x-full'} {slim ? 'lg:w-[4.5rem]' : 'lg:w-64'} {ui.navCollapsed && peek
-			? 'nav-peek lg:z-30'
+			? 'lg:z-30'
 			: 'lg:z-0'}"
 		aria-label="Main"
 		onfocusin={() => (peek = ui.navCollapsed)}
@@ -103,7 +103,7 @@
 	</nav>
 	<!-- Edge chip: collapse to icons, or keep the menu open. -->
 	<button
-		class="fixed top-[5.25rem] z-50 hidden h-7 w-7 -translate-x-1/2 place-items-center rounded-full border border-border bg-surface text-muted shadow-sm transition-[left,color,background-color,box-shadow] duration-200 ease-in-out hover:bg-surface-2 hover:text-accent hover:shadow-md lg:grid"
+		class="fixed top-[5.25rem] z-40 hidden h-7 w-7 -translate-x-1/2 place-items-center rounded-full border border-border bg-surface text-muted shadow-sm transition-[left,color,background-color,box-shadow] duration-200 ease-in-out hover:bg-surface-2 hover:text-accent hover:shadow-md lg:grid"
 		style="left: {slim ? '4.5rem' : '16rem'}"
 		aria-label={ui.navCollapsed ? 'Keep the menu open' : 'Collapse the menu'}
 		title={ui.navCollapsed ? 'Keep the menu open' : 'Collapse the menu'}

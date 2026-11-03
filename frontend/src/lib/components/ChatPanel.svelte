@@ -140,13 +140,13 @@
 {#if ui.chatOpen}
 	<!-- Backdrop only when the chat overlays content (below xl). -->
 	<button
-		class="fixed inset-0 z-40 bg-black/40 xl:hidden"
+		class="fixed inset-0 z-[55] bg-black/40 xl:hidden"
 		aria-label="Close assistant"
 		onclick={() => ui.setChat(false)}
 	></button>
 
 	<aside
-		class="glass-strong fixed inset-0 z-50 flex flex-col border-l md:left-auto md:w-[26rem] xl:top-16 xl:z-20"
+		class="chat-panel fixed inset-0 z-[60] flex flex-col border-l md:left-auto md:w-[26rem] xl:top-16 xl:z-20"
 		aria-label="AI assistant"
 	>
 		<div class="flex h-16 shrink-0 items-center gap-1 border-b border-border px-3">
