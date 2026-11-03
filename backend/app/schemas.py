@@ -442,6 +442,8 @@ class BookingOut(BaseModel):
     requirements: str | None
     expected_count: int
     venue: VenueBrief
+    # Name of the venue's in-charge, who approves the in-charge step.
+    venue_in_charge: str | None = None
     requester: str
     requester_email: str
     status: str

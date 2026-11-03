@@ -266,6 +266,8 @@ export type Booking = {
 	requirements: string | null;
 	expected_count: number;
 	venue: VenueBrief;
+	/** Name of the venue's in-charge, who approves the in-charge step. */
+	venue_in_charge: string | null;
 	requester: string;
 	requester_email: string;
 	status: string;

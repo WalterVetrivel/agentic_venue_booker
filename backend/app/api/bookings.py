@@ -89,6 +89,7 @@ def booking_out(db: Session, b: Booking, user: User | None) -> BookingOut:
         requirements=b.requirements,
         expected_count=b.expected_count,
         venue=venue_brief(b.venue),
+        venue_in_charge=b.venue.in_charge.name if b.venue.in_charge else None,
         requester=b.requester_name,
         requester_email=b.requester.email if b.requester else (b.contact_email or ""),
         status=b.status,

@@ -30,6 +30,7 @@ def test_book_approve_and_see_it_on_the_grid(client, login):
     assert res.status_code == 201, res.text
     b = res.json()
     assert b["status"] == "pending_incharge" and b["steps"] == ["incharge"]
+    assert b["venue_in_charge"] == "D Block Seminar Hall In-charge"
     assert b["can_cancel"] and b["can_reschedule"] and not b["can_approve"]
     assert [m["ref"] for m in client.get("/api/bookings/mine").json()] == [b["ref"]]
 
