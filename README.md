@@ -44,6 +44,8 @@ Re-running the seed never overwrites your edits, but it does refill a venue's eq
 
 To serve everything from the backend alone, run `npm run build` in `frontend`, then open http://127.0.0.1:8000.
 
+To host a demo online (Google Cloud Run or Render, from the included `Dockerfile`), see [docs/DEPLOY.md](docs/DEPLOY.md).
+
 ### Timetables
 
 Log in as the OA and open **Timetables**. Upload one or more PDFs from `data/mock/timetables`. Each one is read, its lab sessions are checked against the venues and against classes already committed, and it waits for review. Fix any highlighted slot, then commit it. Committed lab sessions show on the availability grid. Classes are not a hard block: a booking can still ask to move them (Phase 3). Uploading a class again replaces its pending upload, and committing it replaces its earlier timetable.
