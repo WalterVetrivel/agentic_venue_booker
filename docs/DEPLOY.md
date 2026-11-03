@@ -138,6 +138,18 @@ tomorrow from 10 to 12?". The app's logs (Cloud Run → venue-booker-gpu → Log
 image, and deploy again with the same `CHAT_MODEL`. `qwen3.5:4b` is faster; `qwen3.5:27b` (17 GB) is smarter but leaves
 little GPU memory to spare.
 
+**Update after merging a PR:** rebuild only the app image and point the `app` container at it.
+The Ollama image, the env vars (Groq key, `APP_SECRET`) and the URL stay the same. The new
+revision starts with fresh demo data, and the models take a few minutes to warm up again.
+
+```bash
+cd ~/agentic_venue_booker && git pull
+REGION=asia-southeast1
+REPO=$REGION-docker.pkg.dev/$(gcloud config get-value project)/venue-booker
+gcloud builds submit --tag $REPO/app .
+gcloud run services update venue-booker-gpu --region $REGION --container app --image $REPO/app:latest
+```
+
 **After the demo, delete it:**
 
 ```bash
