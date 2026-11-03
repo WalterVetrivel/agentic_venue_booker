@@ -1,0 +1,67 @@
+# Cloud Run service: the app plus an Ollama sidecar on one NVIDIA L4 GPU.
+# Fill in the ${...} values with envsubst; see docs/DEPLOY.md ("Option 1b").
+# The app reaches Ollama on localhost:11434; Ollama has no public address.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: venue-booker-gpu
+  labels:
+    cloud.googleapis.com/location: ${REGION}
+spec:
+  template:
+    metadata:
+      annotations:
+        # Exactly one instance: the SQLite database lives inside it.
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "1"
+        # GPUs need instance-based billing (CPU always allocated).
+        run.googleapis.com/cpu-throttling: "false"
+        # Cheaper, and needs no extra quota.
+        run.googleapis.com/gpu-zonal-redundancy-disabled: "true"
+        run.googleapis.com/startup-cpu-boost: "true"
+        # Start Ollama first, then the app.
+        run.googleapis.com/container-dependencies: '{"app":["ollama"]}'
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 900
+      nodeSelector:
+        run.googleapis.com/accelerator: nvidia-l4
+      containers:
+        - name: app
+          image: ${APP_IMAGE}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: GROQ_API_KEY
+              value: "${GROQ_KEY}"
+            - name: APP_SECRET
+              value: "${APP_SECRET}"
+            - name: DEFAULT_LLM_PROVIDER
+              value: "${DEFAULT_PROVIDER}"
+            - name: OLLAMA_BASE_URL
+              value: http://localhost:11434
+            - name: OLLAMA_MODEL
+              value: "${CHAT_MODEL}"
+            - name: EMBEDDINGS
+              value: ollama
+          resources:
+            limits:
+              cpu: "2"
+              memory: 8Gi
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 48
+        - name: ollama
+          image: ${OLLAMA_IMAGE}
+          resources:
+            limits:
+              cpu: "6"
+              memory: 24Gi
+              nvidia.com/gpu: "1"
+          startupProbe:
+            tcpSocket:
+              port: 11434
+            periodSeconds: 2
+            failureThreshold: 120
