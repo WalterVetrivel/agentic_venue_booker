@@ -351,12 +351,34 @@
 				<label class={label} for="venue"
 					>Venue<span class="text-danger" aria-hidden="true"> *</span></label
 				>
-				<select id="venue" required bind:value={venue} class={field}>
+				<select
+					id="venue"
+					required
+					bind:value={venue}
+					class={field}
+					aria-describedby={selected ? 'venue-incharge' : undefined}
+				>
 					<option value="" disabled>Choose a venue…</option>
 					{#each venues as v (v.code)}
 						<option value={v.code}>{v.code} · {v.name} ({v.capacity} seats)</option>
 					{/each}
 				</select>
+				{#if selected}
+					<p
+						id="venue-incharge"
+						class="mt-2 flex items-center gap-1.5 text-sm text-muted"
+						data-testid="venue-incharge"
+					>
+						<Icon name="user" size={16} class="shrink-0" />
+						{#if selected.in_charge}
+							<span
+								>In-charge: <span class="font-medium text-fg">{selected.in_charge.name}</span></span
+							>
+						{:else}
+							<span>No in-charge assigned yet</span>
+						{/if}
+					</p>
+				{/if}
 			</div>
 			<div>
 				<label class={label} for="from"

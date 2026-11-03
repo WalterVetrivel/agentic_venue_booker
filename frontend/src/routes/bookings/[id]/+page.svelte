@@ -184,7 +184,14 @@
 									: 'bg-surface-2'}">{a?.decision === 'rejected' ? '✕' : a ? '✓' : ''}</span
 						>
 						<div>
-							<p class="font-medium">{STEP_NAMES[step] ?? step}</p>
+							<p class="font-medium">
+								{STEP_NAMES[step] ?? step}{#if step === 'incharge' && b.venue_in_charge}<span
+										class="font-normal text-muted"
+										data-testid="step-incharge-name"
+									>
+										· {b.venue_in_charge}</span
+									>{/if}
+							</p>
 							{#if a}
 								<p class="text-sm text-muted">
 									{a.decision === 'approved' ? 'Approved' : 'Rejected'} by {a.approver} · {dateTimeText(

@@ -20,9 +20,12 @@ test('book, approve twice, cancel, and the waitlisted request gets the offer', a
 	await page.getByLabel('Event type').selectOption('Seminar');
 	await page.getByLabel('Expected attendance').fill('70');
 	await expect(page.getByText(/CSEPGSH is free on/)).toBeVisible();
+	// The venue's in-charge shows under the venue select, and next to their approval step.
+	await expect(page.getByTestId('venue-incharge')).toHaveText('In-charge: Dr. P. Vijayalakshmi');
 	await page.getByRole('button', { name: 'Submit request' }).click();
 	await expect(page.getByRole('heading', { name: title })).toBeVisible();
 	await expect(page.getByText('Waiting for in-charge').first()).toBeVisible();
+	await expect(page.getByTestId('step-incharge-name')).toHaveText('· Dr. P. Vijayalakshmi');
 	const firstUrl = page.url();
 
 	// Someone else wants the same slot and joins the waitlist.
