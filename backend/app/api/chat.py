@@ -1,10 +1,12 @@
 """The assistant's chat: streamed replies (Server-Sent Events), saved conversations, attachments."""
 
+import asyncio
 import json
 import shutil
 import time
 import uuid
 from collections import defaultdict, deque
+from collections.abc import AsyncIterator
 from datetime import datetime
 from pathlib import Path
 
@@ -59,6 +61,36 @@ def _visitor_allowed(ip: str) -> bool:
 
 def _sse(event: dict) -> str:
     return f"data: {json.dumps(event, default=str, ensure_ascii=False)}\n\n"
+
+
+KEEPALIVE_SECONDS = 10.0
+
+
+async def _with_keepalive(
+    events: AsyncIterator[str], every: float = KEEPALIVE_SECONDS
+) -> AsyncIterator[str]:
+    """Pass the events through, plus an SSE comment at the start and whenever nothing was sent
+    for `every` seconds. A slow model (Ollama's first answer can take a minute) would otherwise
+    leave the connection silent, and proxies and browsers drop silent connections. The chat
+    panel only reads `data:` lines, so the comments are ignored."""
+    yield ": open\n\n"
+    it = aiter(events)
+    pending = asyncio.ensure_future(anext(it))
+    try:
+        while True:
+            done, _ = await asyncio.wait({pending}, timeout=every)
+            if not done:
+                yield ": keepalive\n\n"
+                continue
+            try:
+                item = pending.result()
+            except StopAsyncIteration:
+                return
+            yield item
+            pending = asyncio.ensure_future(anext(it))
+    finally:
+        if not pending.done():
+            pending.cancel()
 
 
 def _title(message: str) -> str:
@@ -160,7 +192,7 @@ async def chat(body: ChatIn, request: Request) -> StreamingResponse:
                 yield _sse(event)
 
     return StreamingResponse(
-        events(),
+        _with_keepalive(events()),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

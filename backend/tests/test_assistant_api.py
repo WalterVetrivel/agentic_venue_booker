@@ -427,3 +427,22 @@ def test_decision_cards_show_how_the_request_ended(client, login, session_factor
     # Approved on the approvals page, not from the chat: both cards now say so.
     assert client.post(f"/api/bookings/{b['id']}/approve", json={}).status_code == 200
     assert [(c["state"], c["outcome"]) for c in saved()] == [("done", "Approved")] * 2
+
+
+def test_chat_stream_sends_keepalives_while_the_model_is_slow():
+    import asyncio
+
+    from app.api.chat import _with_keepalive
+
+    async def slow():
+        yield "data: 1\n\n"
+        await asyncio.sleep(0.25)
+        yield "data: 2\n\n"
+
+    async def collect():
+        return [chunk async for chunk in _with_keepalive(slow(), every=0.1)]
+
+    out = asyncio.run(collect())
+    assert out[0] == ": open\n\n"
+    assert [c for c in out if c.startswith("data: ")] == ["data: 1\n\n", "data: 2\n\n"]
+    assert out.count(": keepalive\n\n") >= 1
