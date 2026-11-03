@@ -303,6 +303,25 @@ button:disabled {
 	box-shadow: var(--shadow-bar-right);
 }
 
+/* The menu's collapse / keep-open chip on its edge: frosted glass like the bars, lifting a little
+   on hover. */
+.nav-chip {
+	background: var(--glass-strong);
+	border-color: var(--glass-border);
+	box-shadow: 0 2px 8px rgb(31 50 81 / 0.12);
+	backdrop-filter: blur(12px) saturate(160%);
+}
+.nav-chip:hover {
+	background: var(--surface);
+	box-shadow: 0 4px 14px rgb(31 50 81 / 0.18);
+}
+:root[data-theme='dark'] .nav-chip {
+	box-shadow: 0 2px 10px rgb(0 0 0 / 0.45);
+}
+:root[data-theme='dark'] .nav-chip:hover {
+	box-shadow: 0 4px 16px rgb(0 0 0 / 0.55);
+}
+
 /* The assistant chat: the menu's look mirrored, solid along the screen edge and fading toward the
    page. */
 .chat-panel {
