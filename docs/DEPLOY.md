@@ -11,6 +11,9 @@ there is no Ollama in the cloud, so document search is keyword-only (`EMBEDDINGS
 | `GROQ_API_KEY` | Your key from console.groq.com/keys |
 | `APP_SECRET` | Any long random string; it signs the login cookies |
 
+**Two ways on GCP.** Option 1 is the app alone with Groq: cheap and simplest. Option 1b adds
+Ollama on a GPU next to it. They are separate services, so you can run either or both.
+
 **Data.** The database is SQLite inside the container. The image already holds the venues,
 users, committed timetables, circulars and reports; each start adds the demo bookings (dated
 relative to today). Anything you change during the demo is kept while the container runs, and
@@ -80,6 +83,67 @@ gcloud artifacts repositories delete cloud-run-source-deploy --location asia-sou
 
 The env var is visible to people with access to your GCP project, which is fine for a demo.
 For longer use, put the key in Secret Manager and use `--set-secrets GROQ_API_KEY=groq-key:latest`.
+
+## Option 1b: Cloud Run with a GPU and Ollama (optional)
+
+Same app, plus Ollama on an NVIDIA L4 GPU in the same Cloud Run instance, so the assistant can
+run a local model (`qwen3.5:9b` by default, much faster than on a laptop) and document search
+matches by meaning again. Groq stays available: people switch in the chat panel's model menu.
+
+- **Region:** the L4 is generally available in Singapore (`asia-southeast1`); Mumbai is
+  invitation-only.
+- **Cost:** a GPU instance is at least 8 CPUs and 32 GB with the GPU, roughly **$1.50–2 an hour**
+  while it runs (it's billed even when idle). Deploy it on the day and delete it afterwards.
+- **Billing:** the project needs billing enabled; free-trial credits may not allow GPUs. If the
+  deploy fails with a GPU quota or billing error, use Option 1 (Groq only).
+- **Data:** like Option 1, one instance with its own SQLite database, reset on restart.
+
+The app talks to Ollama on `localhost:11434` inside the instance. Only the app's port is public,
+so nobody else can use the GPU. The models are baked into the Ollama image (about 8 GB), so the
+first deploy takes 15–25 minutes; do it at least an hour before the demo.
+
+In Cloud Shell, after `cd agentic_venue_booker` (see Option 1):
+
+```bash
+REGION=asia-southeast1
+REPO=$REGION-docker.pkg.dev/$(gcloud config get-value project)/venue-booker
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+gcloud artifacts repositories create venue-booker --repository-format docker --location $REGION
+
+# Build both images (the Ollama one downloads the models; allow ~15 minutes).
+gcloud builds submit --tag $REPO/app .
+gcloud builds submit deploy/ollama --tag $REPO/ollama --machine-type e2-highcpu-8 --timeout 45m
+```
+
+```bash
+# Fill in the service file and deploy. DEFAULT_PROVIDER=ollama makes the local model the
+# default instead of Groq.
+export REGION APP_IMAGE=$REPO/app OLLAMA_IMAGE=$REPO/ollama CHAT_MODEL=qwen3.5:9b DEFAULT_PROVIDER=groq
+read -s -p "Groq API key: " GROQ_KEY; echo; export GROQ_KEY
+export APP_SECRET=$(openssl rand -hex 32)
+envsubst < deploy/cloudrun-gpu.yaml > /tmp/service.yaml
+gcloud run services replace /tmp/service.yaml --region $REGION; rm /tmp/service.yaml
+
+# Let anyone with the link open it.
+gcloud run services add-iam-policy-binding venue-booker-gpu --region $REGION \
+  --member allUsers --role roles/run.invoker
+gcloud run services describe venue-booker-gpu --region $REGION --format 'value(status.url)'
+```
+
+**Check before the demo:** in the chat panel's model menu, pick Ollama and ask "Is CC5 free
+tomorrow from 10 to 12?". The app's logs (Cloud Run → venue-booker-gpu → Logs) should show
+`276 of 276 documents are indexed by meaning` and `Loaded qwen3.5:9b in Ollama`.
+
+**A different model:** change `CHAT_MODEL` in `deploy/ollama/Dockerfile`, rebuild the Ollama
+image, and deploy again with the same `CHAT_MODEL`. `qwen3.5:4b` is faster; `qwen3.5:27b` (17 GB) is smarter but leaves
+little GPU memory to spare.
+
+**After the demo, delete it:**
+
+```bash
+gcloud run services delete venue-booker-gpu --region asia-southeast1
+gcloud artifacts repositories delete venue-booker --location asia-southeast1
+```
 
 ## Option 2: Render (free, no card; backup)
 
