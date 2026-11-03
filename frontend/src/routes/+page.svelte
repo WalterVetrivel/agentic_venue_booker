@@ -4,7 +4,6 @@
 	import Icon from '#lib/components/Icon.svelte';
 	import StatusBadge from '#lib/components/StatusBadge.svelte';
 	import { api } from '#lib/api.ts';
-	import { ui } from '#lib/stores/ui.svelte.ts';
 	import { session } from '#lib/stores/session.svelte.ts';
 	import { APPROVER_CAPABILITIES, visibleNav } from '#lib/nav.ts';
 	import { nowLocal, whenText } from '#lib/time.ts';
@@ -42,14 +41,15 @@
 
 	let bookings = $state<Booking[] | null>(null);
 	let approvals = $state<ApprovalItem[] | null>(null);
-	// Other faculty get the panel only while a student group's request waits for them as guide.
-	const canApprove = $derived(isApprover || (canBook && !!approvals?.length));
 	let bookingsError = $state('');
 	let approvalsError = $state('');
 	let deciding = $state<number | null>(null);
 	let rejecting = $state<number | null>(null);
 	let reason = $state('');
 	let decided = $state('');
+	// Other faculty get the panel only while a student group's request waits for them as guide
+	// (and keep it after deciding, so they see the result).
+	const canApprove = $derived(isApprover || (canBook && (!!approvals?.length || !!decided)));
 
 	async function loadApprovals() {
 		try {
@@ -75,6 +75,29 @@
 						? `${res.ref} approved and confirmed.`
 						: `${res.ref} approved, now ${(STATUS_LABELS[res.status] ?? res.status).toLowerCase()}.`;
 			rejecting = null;
+			await loadApprovals();
+		} catch (e) {
+			approvalsError = e instanceof Error ? e.message : 'Could not save';
+		} finally {
+			deciding = null;
+		}
+	}
+
+	// Shortcut for a student request: approve every student still waiting on the guide.
+	async function approveAllStudents(b: Booking) {
+		deciding = b.id;
+		approvalsError = '';
+		try {
+			const res = await api<Booking>(`/bookings/${b.id}/students`, {
+				method: 'POST',
+				body: JSON.stringify({
+					decisions: b.students
+						.filter((s) => s.decision === 'pending')
+						.map((s) => ({ student_id: s.id, decision: 'approved', comment: null }))
+				})
+			});
+			chat.decided(b.id, 'Approved');
+			decided = `${res.ref} approved for all students, now ${(STATUS_LABELS[res.status] ?? res.status).toLowerCase()}.`;
 			await loadApprovals();
 		} catch (e) {
 			approvalsError = e instanceof Error ? e.message : 'Could not save';
@@ -199,228 +222,244 @@
 {/if}
 
 {#if session.user && (canBook || canApprove)}
-	<div
-		class="mt-6 grid gap-6 {canBook && canApprove
-			? ui.chatOpen
-				? '2xl:grid-cols-2'
-				: 'lg:grid-cols-2'
-			: ''}"
-	>
-		{#if canBook}
-			<section
-				class="{panel} rise flex min-w-0 flex-col p-5"
-				style="--i: 1"
-				aria-labelledby="current-h"
-			>
-				<div class="flex items-center justify-between gap-3">
-					<h2 id="current-h" class="flex items-center gap-2 text-lg font-semibold">
-						<span class="rounded-lg bg-accent-soft p-1.5 text-accent"
-							><Icon name="clock" size={18} /></span
-						>
-						Your current bookings
-						{#if bookings}<span class="rounded-full bg-surface-2 px-2 text-sm text-muted"
-								>{current.length}</span
-							>{/if}
-					</h2>
-					<a href="/bookings" class="group flex items-center gap-1 text-sm font-medium text-accent"
-						>All bookings <Icon
-							name="arrow"
-							size={16}
-							class="transition-transform group-hover:translate-x-0.5"
-						/></a
-					>
-				</div>
-				{#if bookingsError}
-					<p class="mt-4 text-danger">{bookingsError}</p>
-				{:else if !bookings}
-					<ul class="mt-4 space-y-2" aria-hidden="true">
-						{#each [0, 1, 2] as i (i)}<li
-								class="h-16 animate-pulse rounded-xl bg-surface-2"
-							></li>{/each}
-					</ul>
-				{:else if current.length === 0}
-					<div
-						class="mt-4 flex flex-1 flex-col items-center justify-center rounded-xl bg-surface-2 p-6 text-center"
-					>
-						<p class="text-muted">No current or upcoming bookings.</p>
+	<!-- Two columns only when the panels themselves have room (64rem, the full content width), so they
+	     stack whenever the chat or side nav squeezes the page, whatever the window size or browser. -->
+	<div class="@container mt-6">
+		<div class="grid gap-6 {canBook && canApprove ? '@5xl:grid-cols-2' : ''}">
+			{#if canBook}
+				<section
+					class="{panel} rise flex min-w-0 flex-col p-5"
+					style="--i: 1"
+					aria-labelledby="current-h"
+				>
+					<div class="flex items-center justify-between gap-3">
+						<h2 id="current-h" class="flex items-center gap-2 text-lg font-semibold">
+							<span class="rounded-lg bg-accent-soft p-1.5 text-accent"
+								><Icon name="clock" size={18} /></span
+							>
+							Your current bookings
+							{#if bookings}<span class="rounded-full bg-surface-2 px-2 text-sm text-muted"
+									>{current.length}</span
+								>{/if}
+						</h2>
 						<a
-							href="/book"
-							class="mt-2 inline-flex items-center gap-1 font-medium text-accent hover:underline"
-							><Icon name="plus" size={16} /> Book a venue</a
+							href="/bookings"
+							class="group flex items-center gap-1 text-sm font-medium text-accent"
+							>All bookings <Icon
+								name="arrow"
+								size={16}
+								class="transition-transform group-hover:translate-x-0.5"
+							/></a
 						>
 					</div>
-				{:else}
-					<ul class="mt-4 space-y-2">
-						{#each current.slice(0, SHOWN) as b, i (b.id)}
-							{@const o = nextOccurrence(b)}
-							{@const tile = dayTile(o.start)}
-							<li class="rise" style="--i: {i + 2}">
-								<a
-									href="/bookings/{b.id}"
-									class="lift flex items-center gap-3 rounded-xl border border-transparent p-2.5 hover:border-glass-border hover:bg-glass-strong {b.status ===
-									'offered'
-										? 'ring-2 ring-accent/40'
-										: ''}"
-								>
-									<span
-										class="grid w-12 shrink-0 place-items-center rounded-lg bg-accent-soft py-1 leading-tight text-accent"
-									>
-										<span class="text-lg font-semibold">{tile.day}</span>
-										<span class="text-xs uppercase">{tile.month}</span>
-									</span>
-									<span class="min-w-0 flex-1">
-										<span class="block truncate font-medium">{b.title}</span>
-										<span class="block text-sm text-muted">
-											{b.venue.code} · {whenText(o.start, o.end)}{o.start <= now
-												? ' · happening now'
-												: ''}
-										</span>
-									</span>
-									<StatusBadge status={b.status} />
-								</a>
-							</li>
-						{/each}
-					</ul>
-					{#if current.length > SHOWN}
-						<a href="/bookings" class="mt-3 text-sm text-muted hover:text-accent"
-							>+{current.length - SHOWN} more upcoming</a
+					{#if bookingsError}
+						<p class="mt-4 text-danger">{bookingsError}</p>
+					{:else if !bookings}
+						<ul class="mt-4 space-y-2" aria-hidden="true">
+							{#each [0, 1, 2] as i (i)}<li
+									class="h-16 animate-pulse rounded-xl bg-surface-2"
+								></li>{/each}
+						</ul>
+					{:else if current.length === 0}
+						<div
+							class="mt-4 flex flex-1 flex-col items-center justify-center rounded-xl bg-surface-2 p-6 text-center"
 						>
-					{/if}
-				{/if}
-			</section>
-		{/if}
-
-		{#if canApprove}
-			<section
-				class="{panel} rise flex min-w-0 flex-col p-5"
-				style="--i: 2"
-				aria-labelledby="pending-h"
-			>
-				<div class="flex items-center justify-between gap-3">
-					<h2 id="pending-h" class="flex items-center gap-2 text-lg font-semibold">
-						<span class="rounded-lg bg-warning/15 p-1.5 text-warning"
-							><Icon name="check" size={18} /></span
-						>
-						Pending approvals
-						{#if approvals}<span
-								class="rounded-full px-2 text-sm {approvals.length
-									? 'bg-warning/20 font-semibold text-warning'
-									: 'bg-surface-2 text-muted'}">{approvals.length}</span
-							>{/if}
-					</h2>
-					<a href="/approvals" class="group flex items-center gap-1 text-sm font-medium text-accent"
-						>All approvals <Icon
-							name="arrow"
-							size={16}
-							class="transition-transform group-hover:translate-x-0.5"
-						/></a
-					>
-				</div>
-				{#if decided}
-					<p class="pop mt-3 rounded-lg bg-success/10 px-3 py-2 text-sm text-success" role="status">
-						{decided}
-					</p>
-				{/if}
-				{#if approvalsError}
-					<p class="mt-3 text-sm text-danger" role="alert">{approvalsError}</p>
-				{/if}
-				{#if !approvals}
-					<ul class="mt-4 space-y-2" aria-hidden="true">
-						{#each [0, 1, 2] as i (i)}<li
-								class="h-16 animate-pulse rounded-xl bg-surface-2"
-							></li>{/each}
-					</ul>
-				{:else if approvals.length === 0}
-					<div
-						class="mt-4 flex flex-1 items-center justify-center rounded-xl bg-surface-2 p-6 text-center"
-					>
-						<p class="text-muted">You're all caught up. Nothing is waiting for you.</p>
-					</div>
-				{:else}
-					<ul class="mt-4 space-y-2">
-						{#each approvals.slice(0, SHOWN) as item, i (item.booking.id)}
-							{@const b = item.booking}
-							{@const tile = dayTile(b.start)}
-							<li class="rise" style="--i: {i + 3}" data-approval={b.ref}>
-								<div
-									class="lift flex flex-wrap items-center gap-3 rounded-xl border border-transparent p-2.5 hover:border-glass-border hover:bg-glass-strong"
-								>
-									<span
-										class="grid w-12 shrink-0 place-items-center rounded-lg bg-warning/15 py-1 leading-tight text-warning"
+							<p class="text-muted">No current or upcoming bookings.</p>
+							<a
+								href="/book"
+								class="mt-2 inline-flex items-center gap-1 font-medium text-accent hover:underline"
+								><Icon name="plus" size={16} /> Book a venue</a
+							>
+						</div>
+					{:else}
+						<ul class="mt-4 space-y-2">
+							{#each current.slice(0, SHOWN) as b, i (b.id)}
+								{@const o = nextOccurrence(b)}
+								{@const tile = dayTile(o.start)}
+								<li class="rise" style="--i: {i + 2}">
+									<a
+										href="/bookings/{b.id}"
+										class="lift flex items-center gap-3 rounded-xl border border-transparent p-2.5 hover:border-glass-border hover:bg-glass-strong {b.status ===
+										'offered'
+											? 'ring-2 ring-accent/40'
+											: ''}"
 									>
-										<span class="text-lg font-semibold">{tile.day}</span>
-										<span class="text-xs font-medium text-fg/80 uppercase">{tile.month}</span>
-									</span>
-									<a href="/bookings/{b.id}" class="min-w-0 flex-1 hover:text-accent">
-										<span class="block truncate font-medium">{b.title}</span>
-										<span class="block text-sm text-muted">
-											{b.requester} · {b.venue.code} · {whenText(b.start, b.end)} · you approve
-											{STEP[item.step] ?? ''}
+										<span
+											class="grid w-12 shrink-0 place-items-center rounded-lg bg-accent-soft py-1 leading-tight text-accent"
+										>
+											<span class="text-lg font-semibold">{tile.day}</span>
+											<span class="text-xs uppercase">{tile.month}</span>
 										</span>
+										<span class="min-w-0 flex-1">
+											<span class="block truncate font-medium">{b.title}</span>
+											<span class="block text-sm text-muted">
+												{b.venue.code} · {whenText(o.start, o.end)}{o.start <= now
+													? ' · happening now'
+													: ''}
+											</span>
+										</span>
+										<StatusBadge status={b.status} />
 									</a>
-									{#if item.step === 'guide'}
-										<a
-											href="/bookings/{b.id}"
-											class="press shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-surface-2"
-											>Decide per student</a
-										>
-									{:else if rejecting !== b.id}
-										<div class="flex shrink-0 gap-2">
-											<button
-												class="btn-cta inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium"
-												disabled={deciding === b.id}
-												onclick={() => decide(b, 'approve')}
-												aria-label="Approve {b.ref}"><Icon name="check" size={16} /> Approve</button
-											>
-											<button
-												class="press rounded-lg border border-danger/40 px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger/10"
-												disabled={deciding === b.id}
-												onclick={() => {
-													rejecting = b.id;
-													reason = '';
-												}}
-												aria-label="Reject {b.ref}">Reject</button
-											>
-										</div>
-									{/if}
-								</div>
-								{#if rejecting === b.id}
-									<form
-										class="pop mt-2 flex flex-wrap items-center gap-2 pl-[3.75rem]"
-										onsubmit={(e) => {
-											e.preventDefault();
-											decide(b, 'reject');
-										}}
-									>
-										<label class="sr-only" for="reason-{b.id}">Reason for rejecting {b.ref}</label>
-										<input
-											id="reason-{b.id}"
-											bind:value={reason}
-											placeholder="Reason (the requester sees this)"
-											class="min-w-0 flex-1 rounded-lg border border-border bg-glass-strong px-3 py-1.5 text-sm focus:border-accent focus:outline-none"
-										/>
-										<button
-											class="press rounded-lg bg-danger px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60"
-											disabled={!reason.trim() || deciding === b.id}>Reject {b.ref}</button
-										>
-										<button
-											type="button"
-											class="press rounded-lg px-2 py-1.5 text-sm text-muted hover:text-fg"
-											onclick={() => (rejecting = null)}>Cancel</button
-										>
-									</form>
-								{/if}
-							</li>
-						{/each}
-					</ul>
-					{#if approvals.length > SHOWN}
-						<a href="/approvals" class="mt-3 text-sm text-muted hover:text-accent"
-							>+{approvals.length - SHOWN} more waiting</a
-						>
+								</li>
+							{/each}
+						</ul>
+						{#if current.length > SHOWN}
+							<a href="/bookings" class="mt-3 text-sm text-muted hover:text-accent"
+								>+{current.length - SHOWN} more upcoming</a
+							>
+						{/if}
 					{/if}
-				{/if}
-			</section>
-		{/if}
+				</section>
+			{/if}
+
+			{#if canApprove}
+				<section
+					class="{panel} rise flex min-w-0 flex-col p-5"
+					style="--i: 2"
+					aria-labelledby="pending-h"
+				>
+					<div class="flex items-center justify-between gap-3">
+						<h2 id="pending-h" class="flex items-center gap-2 text-lg font-semibold">
+							<span class="rounded-lg bg-warning/15 p-1.5 text-warning"
+								><Icon name="check" size={18} /></span
+							>
+							Pending approvals
+							{#if approvals}<span
+									class="rounded-full px-2 text-sm {approvals.length
+										? 'bg-warning/20 font-semibold text-warning'
+										: 'bg-surface-2 text-muted'}">{approvals.length}</span
+								>{/if}
+						</h2>
+						<a
+							href="/approvals"
+							class="group flex items-center gap-1 text-sm font-medium text-accent"
+							>All approvals <Icon
+								name="arrow"
+								size={16}
+								class="transition-transform group-hover:translate-x-0.5"
+							/></a
+						>
+					</div>
+					{#if decided}
+						<p
+							class="pop mt-3 rounded-lg bg-success/10 px-3 py-2 text-sm text-success"
+							role="status"
+						>
+							{decided}
+						</p>
+					{/if}
+					{#if approvalsError}
+						<p class="mt-3 text-sm text-danger" role="alert">{approvalsError}</p>
+					{/if}
+					{#if !approvals}
+						<ul class="mt-4 space-y-2" aria-hidden="true">
+							{#each [0, 1, 2] as i (i)}<li
+									class="h-16 animate-pulse rounded-xl bg-surface-2"
+								></li>{/each}
+						</ul>
+					{:else if approvals.length === 0}
+						<div
+							class="mt-4 flex flex-1 items-center justify-center rounded-xl bg-surface-2 p-6 text-center"
+						>
+							<p class="text-muted">You're all caught up. Nothing is waiting for you.</p>
+						</div>
+					{:else}
+						<ul class="mt-4 space-y-2">
+							{#each approvals.slice(0, SHOWN) as item, i (item.booking.id)}
+								{@const b = item.booking}
+								{@const tile = dayTile(b.start)}
+								<li class="rise" style="--i: {i + 3}" data-approval={b.ref}>
+									<div
+										class="lift flex flex-wrap items-center gap-3 rounded-xl border border-transparent p-2.5 hover:border-glass-border hover:bg-glass-strong"
+									>
+										<span
+											class="grid w-12 shrink-0 place-items-center rounded-lg bg-warning/15 py-1 leading-tight text-warning"
+										>
+											<span class="text-lg font-semibold">{tile.day}</span>
+											<span class="text-xs font-medium text-fg/80 uppercase">{tile.month}</span>
+										</span>
+										<a href="/bookings/{b.id}" class="min-w-0 flex-1 hover:text-accent">
+											<span class="block truncate font-medium">{b.title}</span>
+											<span class="block text-sm text-muted">
+												{b.requester} · {b.venue.code} · {whenText(b.start, b.end)} · you approve
+												{STEP[item.step] ?? ''}
+											</span>
+										</a>
+										{#if item.step === 'guide'}
+											<div class="flex shrink-0 flex-col items-stretch gap-2">
+												<a
+													href="/bookings/{b.id}"
+													class="press rounded-lg border border-border px-3 py-1.5 text-center text-sm font-medium hover:bg-surface-2"
+													>Decide per student</a
+												>
+												<button
+													class="btn-cta inline-flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium"
+													disabled={deciding === b.id}
+													onclick={() => approveAllStudents(b)}
+													aria-label="Approve all students in {b.ref}"
+													><Icon name="check" size={16} /> Approve all</button
+												>
+											</div>
+										{:else if rejecting !== b.id}
+											<div class="flex shrink-0 gap-2">
+												<button
+													class="btn-cta inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium"
+													disabled={deciding === b.id}
+													onclick={() => decide(b, 'approve')}
+													aria-label="Approve {b.ref}"
+													><Icon name="check" size={16} /> Approve</button
+												>
+												<button
+													class="press rounded-lg border border-danger/40 px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger/10"
+													disabled={deciding === b.id}
+													onclick={() => {
+														rejecting = b.id;
+														reason = '';
+													}}
+													aria-label="Reject {b.ref}">Reject</button
+												>
+											</div>
+										{/if}
+									</div>
+									{#if rejecting === b.id}
+										<form
+											class="pop mt-2 flex flex-wrap items-center gap-2 pl-[3.75rem]"
+											onsubmit={(e) => {
+												e.preventDefault();
+												decide(b, 'reject');
+											}}
+										>
+											<label class="sr-only" for="reason-{b.id}">Reason for rejecting {b.ref}</label
+											>
+											<input
+												id="reason-{b.id}"
+												bind:value={reason}
+												placeholder="Reason (the requester sees this)"
+												class="min-w-0 flex-1 rounded-lg border border-border bg-glass-strong px-3 py-1.5 text-sm focus:border-accent focus:outline-none"
+											/>
+											<button
+												class="press rounded-lg bg-danger px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60"
+												disabled={!reason.trim() || deciding === b.id}>Reject {b.ref}</button
+											>
+											<button
+												type="button"
+												class="press rounded-lg px-2 py-1.5 text-sm text-muted hover:text-fg"
+												onclick={() => (rejecting = null)}>Cancel</button
+											>
+										</form>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+						{#if approvals.length > SHOWN}
+							<a href="/approvals" class="mt-3 text-sm text-muted hover:text-accent"
+								>+{approvals.length - SHOWN} more waiting</a
+							>
+						{/if}
+					{/if}
+				</section>
+			{/if}
+		</div>
 	</div>
 {/if}
 
