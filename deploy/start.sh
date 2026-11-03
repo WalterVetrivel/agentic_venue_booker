@@ -9,21 +9,37 @@ alembic upgrade head
 python -m app.seed --bookings
 
 # With an Ollama sidecar (deploy/cloudrun-gpu.yaml): index the documents for meaning-based
-# search, and load the chat model into the GPU so the first question doesn't wait for it.
+# search, then run one real prompt through the chat model. The GPU's first prompt is slow (about
+# 40 s while it sets up), so it happens here instead of on the first question. The prompt is
+# about as long as the assistant's and uses the same context size, so the model isn't reloaded.
 # Neither stops the app from starting if Ollama isn't there.
 if [ "$EMBEDDINGS" = "ollama" ]; then
   python -m app.seed --embed || echo "Couldn't index documents; search uses keywords only."
   python - <<'PY' &
+import time
+
 import httpx
 from app.config import get_settings
 
 s = get_settings()
+started = time.monotonic()
 try:
-    httpx.post(f"{s.ollama_base_url}/api/generate",
-               json={"model": s.ollama_model, "keep_alive": -1}, timeout=300)
-    print(f"Loaded {s.ollama_model} in Ollama", flush=True)
+    res = httpx.post(
+        f"{s.ollama_base_url}/api/generate",
+        json={
+            "model": s.ollama_model,
+            "prompt": "Venue booking warm-up. " * 400 + "Reply with OK.",
+            "think": False,
+            "stream": False,
+            "keep_alive": -1,
+            "options": {"num_ctx": 8192, "num_predict": 8},
+        },
+        timeout=600,
+    )
+    res.raise_for_status()
+    print(f"Warmed up {s.ollama_model} in {time.monotonic() - started:.0f} s", flush=True)
 except Exception as e:
-    print(f"Couldn't load {s.ollama_model} in Ollama: {e}", flush=True)
+    print(f"Couldn't warm up {s.ollama_model} in Ollama: {e}", flush=True)
 PY
 fi
 
